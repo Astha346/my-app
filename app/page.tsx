@@ -1,65 +1,134 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import Navbar from "@/components/ui/Navbar";
+import AuthForm from "@/components/ui/AuthForm";
+import UsersTable from "@/components/ui/UserTable";
+import ProductsTable from "@/components/ProductsTable";
+import { User, Product } from "@/types/types";
+
+const sampleProducts: Product[] = [
+  { id: 1, name: "Apple Watch", category: "Watches", price: "$299", image: "/images/apple-watch.jpg", description: "A premium smartwatch." },
+  { id: 2, name: "Shoes", category: "Footwear", price: "$79", image: "/images/shoes.jpg", description: "Comfortable shoes." },
+  { id: 3, name: "Shirt", category: "Clothing", price: "$49", image: "/images/shirt.jpg", description: "Soft cotton shirt." },
+  { id: 4, name: "Handbag", category: "Accessories", price: "$120", image: "/images/handbag.jpg", description: "Elegant handbag." },
+  { id: 5, name: "Perfume", category: "Fragrances", price: "$59", image: "/images/perfume.jpg", description: "Long-lasting fragrance." },
+  { id: 6, name: "Sunglasses", category: "Accessories", price: "$89", image: "/images/sunglassess.jpg", description: "UV-protective sunglasses." },
+  { id: 7, name: "Laptop", category: "Electronics", price: "$899", image: "/images/laptop.jpg", description: "High-performance laptop." },
+  { id: 8, name: "Headphones", category: "Electronics", price: "$199", image: "/images/headphone.jpg", description: "Noise-cancelling headphones." },
+  { id: 9, name: "Smartphone", category: "Electronics", price: "$699", image: "/images/smartphone.jpg", description: "Latest smartphone." },
+];
+
+const sampleUsers: User[] = [
+  { id: 1, username: "Aastha", email: "a@example.com" },
+  { id: 2, username: "Ram", email: "ram@example.com" },
+  { id: 3, username: "Gita", email: "gita@example.com" },
+];
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+  const [user, setUser] = useState<User | null>(null);
+  const [page, setPage] = useState<"dashboard" | "products" | "users">("dashboard");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const categories = ["All", "Watches", "Footwear", "Clothing", "Accessories", "Fragrances", "Electronics"];
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) setUser(JSON.parse(storedUser));
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    setUser(null);
+  };
+
+  const handleAddToCart = (product: Product, totalPrice: number) => {
+    alert(`${product.name} added to cart! Total: $${totalPrice}`);
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-zinc-900">
+        <AuthForm
+          onLogin={(data) =>
+            setUser({ id: 1, username: data.email.split("@")[0], email: data.email })
+          }
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+      </div>
+    );
+  }
+
+  const filteredProducts = sampleProducts.filter((product) => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-zinc-900">
+      {/* Navbar with search & category filter */}
+      <Navbar
+        email={user.email}
+        onLogout={handleLogout}
+        onNavigate={setPage}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+      />
+
+      {/* Dashboard page */}
+      {page === "dashboard" && (
+        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          {filteredProducts.map((product) => (
+            <div
+              key={product.id}
+              className="border rounded-lg shadow p-4 bg-white dark:bg-zinc-800 flex flex-col items-center gap-4 cursor-pointer"
+              onClick={() => {
+                setSelectedProduct(product);
+                setPage("products");
+              }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              <img
+                src={product.image}
+                alt={product.name}
+                className="w-32 h-32 object-cover rounded"
+              />
+              <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
+                {product.name}
+              </h3>
+              <p className="text-zinc-700 dark:text-zinc-300">{product.price}</p>
+              <button
+                className="bg-black text-white py-2 px-4 rounded hover:bg-zinc-800 shadow"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddToCart(product, Number(product.price.replace("$", "")));
+                }}
+              >
+                Add to Cart
+              </button>
+            </div>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
+
+      {/* Product detail page */}
+      {page === "products" && selectedProduct && (
+        <ProductsTable
+          product={selectedProduct}
+          onBack={() => {
+            setSelectedProduct(null);
+            setPage("dashboard");
+          }}
+          onAddToCart={handleAddToCart}
+        />
+      )}
+
+      {/* Users page */}
+      {page === "users" && <UsersTable initialUsers={sampleUsers} />}
     </div>
   );
 }
