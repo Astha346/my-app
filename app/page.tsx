@@ -29,18 +29,34 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [page, setPage] = useState<"dashboard" | "products" | "users">("dashboard");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  // ✅ NEW STATES (for Navbar)
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  const categories = ["All", "Watches", "Footwear", "Clothing", "Accessories", "Fragrances", "Electronics"];
+  const categories = [
+    "All",
+    "Watches",
+    "Footwear",
+    "Clothing",
+    "Accessories",
+    "Fragrances",
+    "Electronics",
+  ];
 
+  // ✅ Auto login after refresh
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) setUser(JSON.parse(storedUser));
+    const token = localStorage.getItem("token");
+
+    if (storedUser && token) {
+      setUser(JSON.parse(storedUser));
+    }
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
     setUser(null);
   };
 
@@ -48,27 +64,31 @@ export default function Home() {
     alert(`${product.name} added to cart! Total: $${totalPrice}`);
   };
 
+  // ✅ LOGIN SCREEN
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-zinc-900">
-        <AuthForm
-          onLogin={(data) =>
-            setUser({ id: 1, username: data.email.split("@")[0], email: data.email })
-          }
-        />
+      <div className="flex items-center justify-center min-h-screen">
+        <AuthForm onLogin={(user) => setUser(user)} />
       </div>
     );
   }
 
+  // ✅ FILTER PRODUCTS
   const filteredProducts = sampleProducts.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
+    const matchesSearch = product.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
+    const matchesCategory =
+      selectedCategory === "All" || product.category === selectedCategory;
+
     return matchesSearch && matchesCategory;
   });
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-zinc-900">
-      {/* Navbar with search & category filter */}
+      
+      {/* ✅ FIXED NAVBAR */}
       <Navbar
         email={user.email}
         onLogout={handleLogout}
@@ -80,9 +100,9 @@ export default function Home() {
         setSelectedCategory={setSelectedCategory}
       />
 
-      {/* Dashboard page */}
+      {/* DASHBOARD */}
       {page === "dashboard" && (
-        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {filteredProducts.map((product) => (
             <div
               key={product.id}
@@ -101,11 +121,15 @@ export default function Home() {
                 {product.name}
               </h3>
               <p className="text-zinc-700 dark:text-zinc-300">{product.price}</p>
+
               <button
-                className="bg-black text-white py-2 px-4 rounded hover:bg-zinc-800 shadow"
+                className="bg-black text-white py-2 px-4 rounded hover:bg-zinc-800"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleAddToCart(product, Number(product.price.replace("$", "")));
+                  handleAddToCart(
+                    product,
+                    Number(product.price.replace("$", ""))
+                  );
                 }}
               >
                 Add to Cart
@@ -115,7 +139,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Product detail page */}
+      {/* PRODUCT DETAIL */}
       {page === "products" && selectedProduct && (
         <ProductsTable
           product={selectedProduct}
@@ -127,7 +151,7 @@ export default function Home() {
         />
       )}
 
-      {/* Users page */}
+      {/* USERS */}
       {page === "users" && <UsersTable initialUsers={sampleUsers} />}
     </div>
   );
