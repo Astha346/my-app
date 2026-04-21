@@ -12,7 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 
 type User = {
-  id: number;
+  id?: string;
+  _id?: string;
   username: string;
   email: string;
 };
