@@ -1,15 +1,17 @@
 export type User = {
-    id: number;
-    username: string;
-    email: string;
-    role?: "admin" | "user";
+  id?: number;
+  _id?: string;
+  username: string;
+  email: string;
+  role?: "admin" | "user";
 };
 
 export type Product = {
-    id: number;
-    name: string;
-    price: string;
-    image: string;
-    description: string;
-    category: string;
+  id?: number;
+  _id?: string;
+  name: string;
+  price: string;
+  image: string;
+  description: string;
+  category: string;
 };

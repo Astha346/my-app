@@ -4,21 +4,92 @@ import { useState, useEffect } from "react";
 import Navbar from "@/components/ui/Navbar";
 import AuthForm from "@/components/ui/AuthForm";
 import UsersTable from "@/components/ui/UserTable";
-import ProductsTable from "@/components/ProductsTable";
 import { User, Product } from "@/types/types";
+import { useRouter } from "next/navigation";
 
+type Page = "dashboard" | "users";
+
+/* =======================
+   SAMPLE PRODUCTS (9)
+======================= */
 const sampleProducts: Product[] = [
-  { id: 1, name: "Apple Watch", category: "Watches", price: "$299", image: "/images/apple-watch.jpg", description: "A premium smartwatch." },
-  { id: 2, name: "Shoes", category: "Footwear", price: "$79", image: "/images/shoes.jpg", description: "Comfortable shoes." },
-  { id: 3, name: "Shirt", category: "Clothing", price: "$49", image: "/images/shirt.jpg", description: "Soft cotton shirt." },
-  { id: 4, name: "Handbag", category: "Accessories", price: "$120", image: "/images/handbag.jpg", description: "Elegant handbag." },
-  { id: 5, name: "Perfume", category: "Fragrances", price: "$59", image: "/images/perfume.jpg", description: "Long-lasting fragrance." },
-  { id: 6, name: "Sunglasses", category: "Accessories", price: "$89", image: "/images/sunglassess.jpg", description: "UV-protective sunglasses." },
-  { id: 7, name: "Laptop", category: "Electronics", price: "$899", image: "/images/laptop.jpg", description: "High-performance laptop." },
-  { id: 8, name: "Headphones", category: "Electronics", price: "$199", image: "/images/headphone.jpg", description: "Noise-cancelling headphones." },
-  { id: 9, name: "Smartphone", category: "Electronics", price: "$699", image: "/images/smartphone.jpg", description: "Latest smartphone." },
+  {
+  id: 1,
+  name: "Apple Watch",
+  category: "Watches",
+  price: "$299",
+  image: "/images/apple-watch.jpg",
+  description: "A premium smartwatch designed to track your health, fitness, and daily activity with precision and style."
+},
+{
+  id: 2,
+  name: "Shoes",
+  category: "Footwear",
+  price: "$79",
+  image: "/images/shoes.jpg",
+  description: "Comfort-focused footwear engineered for all-day support, durability, and modern casual style."
+},
+{
+  id: 3,
+  name: "Shirt",
+  category: "Clothing",
+  price: "$49",
+  image: "/images/shirt.jpg",
+  description: "A soft-touch cotton shirt crafted for everyday comfort with a clean and minimal design."
+},
+{
+  id: 4,
+  name: "Handbag",
+  category: "Accessories",
+  price: "$120",
+  image: "/images/handbag.jpg",
+  description: "An elegant handbag designed with premium materials, offering both style and practical storage."
+},
+{
+  id: 5,
+  name: "Perfume",
+  category: "Fragrances",
+  price: "$59",
+  image: "/images/perfume.jpg",
+  description: "A long-lasting fragrance crafted with refined notes to deliver a confident and lasting impression."
+},
+{
+  id: 6,
+  name: "Sunglasses",
+  category: "Accessories",
+  price: "$89",
+  image: "/images/sunglassess.jpg",
+  description: "Stylish UV-protected eyewear designed to reduce glare while enhancing everyday fashion."
+},
+{
+  id: 7,
+  name: "Laptop",
+  category: "Electronics",
+  price: "$899",
+  image: "/images/laptop.jpg",
+  description: "A high-performance laptop built for productivity, multitasking, and seamless computing experience."
+},
+{
+  id: 8,
+  name: "Headphones",
+  category: "Electronics",
+  price: "$199",
+  image: "/images/headphone.jpg",
+  description: "Noise-cancelling headphones delivering deep bass, clear sound, and immersive audio quality."
+},
+{
+  id: 9,
+  name: "Smartphone",
+  category: "Electronics",
+  price: "$699",
+  image: "/images/smartphone.jpg",
+  description: "A next-generation smartphone offering powerful performance, advanced camera, and smooth user experience."
+},
 ];
 
+/* =======================
+   SAMPLE USERS
+======================= */
 const sampleUsers: User[] = [
   { id: 1, username: "Aastha", email: "a@example.com" },
   { id: 2, username: "Ram", email: "ram@example.com" },
@@ -26,11 +97,11 @@ const sampleUsers: User[] = [
 ];
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
-  const [page, setPage] = useState<"dashboard" | "products" | "users">("dashboard");
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const router = useRouter();
 
-  // ✅ NEW STATES (for Navbar)
+  const [user, setUser] = useState<User | null>(null);
+  const [page, setPage] = useState<Page>("dashboard");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
@@ -44,27 +115,31 @@ export default function Home() {
     "Electronics",
   ];
 
-  // ✅ Auto login after refresh
+  /* =======================
+     LOGIN CHECK
+  ======================= */
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    const token = localStorage.getItem("token");
-
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-    }
+    if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    setUser(null);
-  };
+  /* =======================
+     FILTER PRODUCTS
+  ======================= */
+  const filteredProducts = sampleProducts.filter((p) => {
+    const matchSearch = p.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
 
-  const handleAddToCart = (product: Product, totalPrice: number) => {
-    alert(`${product.name} added to cart! Total: $${totalPrice}`);
-  };
+    const matchCategory =
+      selectedCategory === "All" || p.category === selectedCategory;
 
-  // ✅ LOGIN SCREEN
+    return matchSearch && matchCategory;
+  });
+
+  /* =======================
+     LOGIN SCREEN
+  ======================= */
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -73,25 +148,12 @@ export default function Home() {
     );
   }
 
-  // ✅ FILTER PRODUCTS
-  const filteredProducts = sampleProducts.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
-
-    const matchesCategory =
-      selectedCategory === "All" || product.category === selectedCategory;
-
-    return matchesSearch && matchesCategory;
-  });
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-zinc-900">
-      
-      {/* ✅ FIXED NAVBAR */}
+    <div className="min-h-screen bg-gray-50">
+
       <Navbar
         email={user.email}
-        onLogout={handleLogout}
+        onLogout={() => setUser(null)}
         onNavigate={setPage}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -100,59 +162,53 @@ export default function Home() {
         setSelectedCategory={setSelectedCategory}
       />
 
-      {/* DASHBOARD */}
+      {/* =======================
+          PRODUCTS
+      ======================= */}
       {page === "dashboard" && (
-        <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="p-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
+
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              className="border rounded-lg shadow p-4 bg-white dark:bg-zinc-800 flex flex-col items-center gap-4 cursor-pointer"
-              onClick={() => {
-                setSelectedProduct(product);
-                setPage("products");
-              }}
+              className="bg-white shadow-md rounded-xl p-4 flex flex-col gap-3"
             >
               <img
                 src={product.image}
-                alt={product.name}
-                className="w-32 h-32 object-cover rounded"
+                className="h-40 w-full object-cover rounded-lg"
               />
-              <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-100">
-                {product.name}
-              </h3>
-              <p className="text-zinc-700 dark:text-zinc-300">{product.price}</p>
 
+              <h3 className="font-bold">{product.name}</h3>
+              <p className="text-gray-600">{product.price}</p>
+
+              {/* PRODUCT PAGE */}
               <button
-                className="bg-black text-white py-2 px-4 rounded hover:bg-zinc-800"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAddToCart(
-                    product,
-                    Number(product.price.replace("$", ""))
-                  );
-                }}
+                className="bg-black text-white px-3 py-2 rounded-lg"
+                onClick={() => router.push(`/product/${product.id}`)}
               >
-                Add to Cart
+                View Product
+              </button>
+
+              {/* CHECKOUT PAGE */}
+              <button
+                className="bg-green-600 text-white px-3 py-2 rounded-lg"
+                onClick={() => router.push(`/checkout/${product.id}`)}
+              >
+                Buy Now
               </button>
             </div>
           ))}
+
         </div>
       )}
 
-      {/* PRODUCT DETAIL */}
-      {page === "products" && selectedProduct && (
-        <ProductsTable
-          product={selectedProduct}
-          onBack={() => {
-            setSelectedProduct(null);
-            setPage("dashboard");
-          }}
-          onAddToCart={handleAddToCart}
-        />
+      {/* =======================
+          USERS
+      ======================= */}
+      {page === "users" && (
+        <UsersTable initialUsers={sampleUsers} />
       )}
 
-      {/* USERS */}
-      {page === "users" && <UsersTable initialUsers={sampleUsers} />}
     </div>
   );
 }

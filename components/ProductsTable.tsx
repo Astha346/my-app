@@ -2,7 +2,19 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Product } from "@/types/types";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
+
+type Product = {
+  _id?: string;
+  id?: string | number;
+  name: string;
+  price: string;
+  image: string;
+  description: string;
+  category: string;
+};
 
 export default function ProductsTable({
   product,
@@ -14,46 +26,63 @@ export default function ProductsTable({
   onAddToCart: (product: Product, totalPrice: number) => void;
 }) {
   const [quantity, setQuantity] = useState(1);
+  const router = useRouter();
 
-  const priceNumber = parseFloat(product.price.replace("$", ""));
+  // safe price conversion
+  const price = Number(String(product.price).replace(/[^0-9.]/g, ""));
+  const total = price * quantity;
+
+  const productId = product._id ?? product.id;
 
   return (
     <div className="p-6">
-      <Button onClick={onBack} className="mb-4">
-        Back
-      </Button>
 
-      <div className="flex gap-6 bg-white dark:bg-zinc-800 p-6 rounded shadow">
+      <Button onClick={onBack}>Back</Button>
+
+      <Card className="p-6 grid md:grid-cols-2 gap-8">
+
         <img
           src={product.image}
+          className="h-[400px] object-cover"
           alt={product.name}
-          className="w-64 h-64 object-cover rounded"
         />
 
         <div className="flex flex-col gap-4">
-          <h1 className="text-2xl font-bold">{product.name}</h1>
-          <p className="text-lg">{product.price}</p>
-          <p>{product.description}</p>
 
-          <div className="flex items-center gap-2">
-            <label>Quantity:</label>
-            <input
-              type="number"
-              min={1}
-              value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
-              className="w-16 px-2 py-1 border rounded"
-            />
-          </div>
+          <h1 className="text-2xl font-bold">
+            {product.name}
+          </h1>
 
-          <Button
-            className="bg-black text-white"
-            onClick={() => onAddToCart(product, priceNumber * quantity)}
-          >
+          <p className="text-lg text-green-600">
+            ${price}
+          </p>
+
+          <Input
+            type="number"
+            min={1}
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+          />
+
+          <p className="font-semibold">
+            Total: ${total}
+          </p>
+
+          <Button onClick={() => onAddToCart(product, total)}>
             Add to Cart
           </Button>
+
+          <Button
+            onClick={() => {
+              router.push(`/checkout/${productId}`);
+            }}
+          >
+            Buy Now
+          </Button>
+
         </div>
-      </div>
+
+      </Card>
     </div>
   );
 }
