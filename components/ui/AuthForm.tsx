@@ -9,18 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
+import { User } from "@/types/types";
+
+/* VALIDATION */
 const authSchema = z.object({
   email: z.string().email("Invalid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 type AuthFormData = z.infer<typeof authSchema>;
-
-type User = {
-  id: number;
-  username: string;
-  email: string;
-};
 
 export default function AuthForm({
   onLogin,
@@ -30,7 +27,7 @@ export default function AuthForm({
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
   });
@@ -42,48 +39,85 @@ export default function AuthForm({
       // store token
       localStorage.setItem("token", res.data.token);
 
-      // simple frontend user (for UI only)
+      // ✅ FIXED USER STRUCTURE (matches global User type)
       const user: User = {
-        id: 1,
-        username: data.email.split("@")[0],
-        email: data.email,
+        _id: res.data.user?._id || "1",
+        username: res.data.user?.username || data.email.split("@")[0],
+        email: res.data.user?.email || data.email,
       };
 
       localStorage.setItem("user", JSON.stringify(user));
 
       onLogin(user);
-    } catch (error) {
-      console.log("Login error:", error);
+    } catch (err) {
+      console.log(err);
       alert("Invalid email or password");
     }
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(handleLogin)}
-      className="bg-white dark:bg-zinc-900 shadow-xl rounded-2xl p-10 w-full max-w-md border"
-    >
-      <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
 
-      <div className="flex flex-col gap-4">
-        <div>
-          <Label>Email</Label>
-          <Input type="email" {...register("email")} />
-          {errors.email && (
-            <p className="text-red-500 text-sm">{errors.email.message}</p>
-          )}
+      <div className="w-full max-w-md">
+
+        <div className="bg-white border border-slate-200 shadow-xl rounded-2xl p-8">
+
+          {/* HEADER */}
+          <div className="text-center mb-7">
+            <h1 className="text-2xl font-semibold text-slate-900">
+              Welcome back
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Sign in to continue
+            </p>
+          </div>
+
+          {/* FORM */}
+          <form onSubmit={handleSubmit(handleLogin)} className="space-y-5">
+
+            {/* EMAIL */}
+            <div>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                placeholder="you@example.com"
+                {...register("email")}
+              />
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+
+            {/* PASSWORD */}
+            <div>
+              <Label>Password</Label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                {...register("password")}
+              />
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+
+            {/* BUTTON */}
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5"
+            >
+              {isSubmitting ? "Signing in..." : "Sign in"}
+            </Button>
+
+          </form>
+
         </div>
-
-        <div>
-          <Label>Password</Label>
-          <Input type="password" {...register("password")} />
-          {errors.password && (
-            <p className="text-red-500 text-sm">{errors.password.message}</p>
-          )}
-        </div>
-
-        <Button type="submit">Login</Button>
       </div>
-    </form>
+    </div>
   );
 }
