@@ -9,23 +9,22 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  login(email: string, password: string) {
-    const user = this.usersService.findByEmail(email);
+  async login(email: string, password: string) {
+    const user = await this.usersService.findByEmail(email);
 
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
     if (user.password !== password) {
-      throw new UnauthorizedException('Invalid password');
+      throw new UnauthorizedException('Wrong password');
     }
 
-    const token = this.jwtService.sign({
-      id: user.id,
-      email: user.email,
-      username: user.username,
-    });
+    const payload = { sub: user.id, email: user.email };
 
-    return { token };
+    return {
+      token: this.jwtService.sign(payload),
+      user,
+    };
   }
 }
