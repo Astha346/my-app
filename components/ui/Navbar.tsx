@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type NavbarProps = {
   email: string;
@@ -67,20 +68,18 @@ export default function Navbar({
         </button>
 
         {/* Orders */}
-        <button
-          onClick={() => router.push("/orders")}
-          className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800"
-        >
-          <Package size={20} />
-        </button>
+        <Link href="/orders">
+          <button className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800">
+            <Package size={20} />
+          </button>
+        </Link>
 
         {/* Cart */}
-        <button
-          onClick={() => router.push("/cart")}
-          className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800"
-        >
-          <ShoppingCart size={20} />
-        </button>
+        <Link href="/cart">
+          <button className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800">
+            <ShoppingCart size={20} />
+          </button>
+        </Link>
 
         {/* Profile */}
         <div className="relative" ref={profileRef}>
@@ -118,28 +117,25 @@ export default function Navbar({
 
         </div>
 
-        {/* NAV BUTTONS */}
+        {/* NAV BUTTONS (FIXED) */}
 
-        <Button
-          onClick={() => router.push("/about")}
-          className="bg-black text-white"
-        >
-          About
-        </Button>
+        <Link href="/about">
+          <Button className="bg-black text-white">
+            About
+          </Button>
+        </Link>
 
-        <Button
-          onClick={() => router.push("/users")}
-          className="bg-black text-white"
-        >
-          Users
-        </Button>
+        <Link href="/users">
+          <Button className="bg-black text-white">
+            Users
+          </Button>
+        </Link>
 
-        <Button
-          onClick={() => router.push("/analytics")}
-          className="bg-black text-white"
-        >
-          Analytics
-        </Button>
+        <Link href="/analytics">
+          <Button className="bg-black text-white">
+            Analytics
+          </Button>
+        </Link>
 
         <Button
           onClick={onLogout}
