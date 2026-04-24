@@ -13,6 +13,17 @@ export default function ProductSection({
 }) {
   const router = useRouter();
 
+  // 📊 ANALYTICS TRACKING (NEW)
+  const trackClick = async (id: number) => {
+    try {
+      await api.post("/analytics/click", {
+        productId: id,
+      });
+    } catch (err) {
+      console.log("Analytics error:", err);
+    }
+  };
+
   // 🛒 BUY NOW (add to cart + go cart page)
   const handleBuyNow = async (p: ProductCard) => {
     try {
@@ -20,12 +31,16 @@ export default function ProductSection({
         userId: "demo-user",
         productId: p.id,
         name: p.name,
-        price: typeof p.price === "string"
-          ? Number(p.price.replace(/[^0-9.]/g, ""))
-          : p.price,
+        price:
+          typeof p.price === "string"
+            ? Number(p.price.replace(/[^0-9.]/g, ""))
+            : p.price,
         image: p.image,
         quantity: 1,
       });
+
+      // 📊 track buy click too (optional but good)
+      await trackClick(p.id);
 
       router.push("/cart");
     } catch (err) {
@@ -72,9 +87,12 @@ export default function ProductSection({
               {/* ACTIONS */}
               <div className="flex gap-2 mt-3">
 
-                {/* 👁 VIEW */}
+                {/* 👁 VIEW (WITH ANALYTICS) */}
                 <button
-                  onClick={() => router.push(`/product/${p.id}`)}
+                  onClick={async () => {
+                    await trackClick(p.id);
+                    router.push(`/product/${p.id}`);
+                  }}
                   className="flex-1 bg-gray-200 hover:bg-gray-300 py-2 rounded text-sm"
                 >
                   View
