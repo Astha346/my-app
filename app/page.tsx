@@ -27,7 +27,7 @@ const sampleUsers: User[] = [
   { _id: "3", username: "Gita", email: "gita@example.com" },
 ];
 
-/* CATEGORIES (SAFE STRUCTURE) */
+/* CATEGORIES */
 const categories: Category[] = [
   { label: "All", value: "all" },
   { label: "Beauty", value: "beauty" },
@@ -36,7 +36,6 @@ const categories: Category[] = [
   { label: "Groceries", value: "groceries" },
   { label: "Laptops", value: "laptops" },
   { label: "Mens Shirts", value: "mens-shirts" },
-  { label: "Womens Dresses", value: "womens-dresses" },
 ];
 
 export default function Home() {
@@ -44,6 +43,8 @@ export default function Home() {
   const [page, setPage] = useState<Page>("dashboard");
 
   const [search, setSearch] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
   const [selectedCategory, setSelectedCategory] = useState("all");
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -55,7 +56,7 @@ export default function Home() {
     if (stored) setUser(JSON.parse(stored));
   }, []);
 
-  /* FETCH API */
+  /* FETCH PRODUCTS */
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -70,7 +71,49 @@ export default function Home() {
     fetchData();
   }, []);
 
-  /* FILTER */
+  /* LOCAL SUGGESTIONS */
+  const getLocalSuggestions = (value: string) => {
+    if (!value) return [];
+
+    return products
+      .filter((p) =>
+        p.title.toLowerCase().includes(value.toLowerCase())
+      )
+      .slice(0, 6)
+      .map((p) => p.title);
+  };
+
+  /* SEARCH + AUTOCOMPLETE */
+  useEffect(() => {
+    if (!search) {
+      setSuggestions([]);
+      return;
+    }
+
+    // instant local suggestions
+    const local = getLocalSuggestions(search);
+    setSuggestions(local);
+
+    // API suggestions (optional)
+    const delay = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/suggestions?q=${search}`);
+        const data = await res.json();
+
+        if (Array.isArray(data) && data.length > 0) {
+          setSuggestions(data);
+        } else {
+          setSuggestions(local);
+        }
+      } catch {
+        setSuggestions(local);
+      }
+    }, 300);
+
+    return () => clearTimeout(delay);
+  }, [search, products]);
+
+  /* FILTER PRODUCTS */
   const filtered = products.filter((p) => {
     const matchSearch = p.title
       .toLowerCase()
@@ -99,7 +142,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
 
       <Navbar
         email={user.email}
@@ -112,15 +155,34 @@ export default function Home() {
         setSelectedCategory={setSelectedCategory}
       />
 
+      {/* 🔍 SEARCH DROPDOWN SUGGESTIONS */}
+      {search && suggestions.length > 0 && (
+        <ul className="absolute top-20 left-6 w-64 bg-white border rounded shadow z-50">
+          {suggestions.map((item, i) => (
+            <li
+              key={i}
+              className="p-2 hover:bg-gray-100 cursor-pointer"
+              onClick={() => {
+                setSearch(item);
+                setSuggestions([]);
+              }}
+            >
+              {item}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* DASHBOARD */}
       {page === "dashboard" && (
         <>
           <Hero />
 
           <CategoryBar
-         categories={categories}
-        selectedCategory={selectedCategory}
-       setSelectedCategory={setSelectedCategory}
-       />
+            categories={categories}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+          />
 
           <ProductSection
             title="Deals"
@@ -136,6 +198,7 @@ export default function Home() {
         </>
       )}
 
+      {/* USERS */}
       {page === "users" && (
         <div className="p-6">
           <UsersTable initialUsers={sampleUsers} />
