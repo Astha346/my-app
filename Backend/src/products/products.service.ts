@@ -34,4 +34,15 @@ export class ProductsService {
   update(id: string, data: any) {
     return this.productModel.findByIdAndUpdate(id, data, { new: true });
   }
+
+  // Search / Suggestions (Autocomplete)
+  getSuggestions(q: string) {
+    if (!q) {
+      return [];
+    }
+
+    return this.productModel.find({
+      name: { $regex: q, $options: "i" }
+    }).limit(5);
+  }
 }
