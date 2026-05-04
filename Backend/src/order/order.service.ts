@@ -5,10 +5,19 @@ import { Order } from "./order.schema";
 
 @Injectable()
 export class OrderService {
-  constructor(@InjectModel(Order.name) private orderModel: Model<Order>) {}
+  constructor(
+    @InjectModel(Order.name) private orderModel: Model<Order>
+  ) {}
 
-  create(data: any) {
-    return this.orderModel.create(data);
+  async create(data: any) {
+    console.log("SERVICE HIT");
+    console.log("DATA:", data);
+
+    const result = await this.orderModel.create(data);
+
+    console.log("SAVED ORDER:", result);
+
+    return result;
   }
 
   findAll(userId: string) {

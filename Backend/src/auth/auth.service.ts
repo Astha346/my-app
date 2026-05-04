@@ -20,7 +20,7 @@ export class AuthService {
       throw new UnauthorizedException('Wrong password');
     }
 
-    const payload = { sub: user.id, email: user.email };
+   const payload = { sub: user.id, email: user.email };
 
     return {
       token: this.jwtService.sign(payload),

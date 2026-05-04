@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param } from "@nestjs/common";
+import { Controller, Get, Post, Body } from "@nestjs/common";
 import { OrderService } from "./order.service";
 
 @Controller("order")
@@ -7,11 +7,16 @@ export class OrderController {
 
   @Post("create")
   create(@Body() body: any) {
-    return this.orderService.create(body);
+    console.log("CONTROLLER HIT");
+
+    return this.orderService.create({
+      ...body,
+      userId: "test-user",
+    });
   }
 
-  @Get(":userId")
-  findAll(@Param("userId") userId: string) {
-    return this.orderService.findAll(userId);
+  @Get()
+  findAll() {
+    return this.orderService.findAll("test-user");
   }
 }
