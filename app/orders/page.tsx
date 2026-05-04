@@ -8,17 +8,17 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const res = await api.get(`/order/${userId}`);
-        setOrders(res.data);
-      } catch (err) {
-        console.log(err);
-      }
-    };
+  const fetchOrders = async () => {
+    try {
+      const res = await api.get("/order");
+      setOrders(res.data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
-    fetchOrders();
-  }, []);
+  fetchOrders();
+}, []);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
