@@ -1,22 +1,25 @@
-import { Controller, Get, Post, Body } from "@nestjs/common";
+import { Controller, Post, Body, Get, Param } from "@nestjs/common";
 import { OrderService } from "./order.service";
 
 @Controller("order")
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
+  // create order directly (optional use)
   @Post("create")
   create(@Body() body: any) {
-    console.log("CONTROLLER HIT");
-
-    return this.orderService.create({
-      ...body,
-      userId: "test-user",
-    });
+    return this.orderService.create(body);
   }
 
-  @Get()
-  findAll() {
-    return this.orderService.findAll("test-user");
+  // ✅ MAIN FIX: create order from cart
+  @Post("create-from-cart")
+  createFromCart(@Body() body: { userId: string }) {
+    return this.orderService.createFromCart(body.userId);
+  }
+
+  // get orders by user
+  @Get(":userId")
+  findAll(@Param("userId") userId: string) {
+    return this.orderService.findAll(userId);
   }
 }

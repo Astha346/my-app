@@ -9,9 +9,21 @@ export default function CartPage() {
   const userId = "demo-user";
 
   const [cart, setCart] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get(`/cart/${userId}`).then(res => setCart(res.data));
+    const fetchCart = async () => {
+      try {
+        const res = await api.get(`/cart/${userId}`);
+        setCart(res.data);
+      } catch (err) {
+        console.log(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCart();
   }, []);
 
   const total = cart.reduce(
@@ -19,10 +31,24 @@ export default function CartPage() {
     0
   );
 
-  const clearCart = async () => {
-    await api.delete(`/cart/clear/${userId}`);
-    router.push("/order-success");
+  const checkout = async () => {
+    try {
+      // ✅ CREATE ORDER FROM CART
+      await api.post("/order/create-from-cart", {
+        userId,
+      });
+
+      // ✅ CLEAR CART
+      await api.delete(`/cart/clear/${userId}`);
+
+      // go to orders page
+      router.push("/orders");
+    } catch (err) {
+      console.log("Checkout error:", err);
+    }
   };
+
+  if (loading) return <p className="p-6">Loading cart...</p>;
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -32,9 +58,11 @@ export default function CartPage() {
         <p>Cart is empty</p>
       ) : (
         <>
-          {cart.map(item => (
+          {cart.map((item) => (
             <div key={item._id} className="flex justify-between mb-2">
-              <span>{item.name} × {item.quantity}</span>
+              <span>
+                {item.name} × {item.quantity}
+              </span>
               <span>${item.price}</span>
             </div>
           ))}
@@ -50,7 +78,7 @@ export default function CartPage() {
             </button>
 
             <button
-              onClick={clearCart}
+              onClick={checkout}
               className="bg-black text-white px-4 py-2 rounded"
             >
               Checkout
