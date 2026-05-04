@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { HydratedDocument } from "mongoose";
 
-export type CartDocument = Cart & Document;
+export type CartDocument = HydratedDocument<Cart>;
 
 @Schema({ timestamps: true })
 export class Cart {
