@@ -14,7 +14,7 @@ const promoData: PromoItem[] = [
   },
   {
     title: "Stay Connected",
-    desc: "Compact and stylish earphones for every occasion.",
+    desc: "Compact and stylish  for every occasion.",
     img: "/images/person2.jpg",
     
   },
