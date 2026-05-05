@@ -16,7 +16,7 @@ export default function CartPage() {
       try {
         const res = await api.get(`/cart/${userId}`);
 
-        // 👇 important fix
+        
         setCart(res.data || []);
       } catch (err) {
         console.log(err);
