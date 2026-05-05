@@ -15,7 +15,9 @@ export default function CartPage() {
     const fetchCart = async () => {
       try {
         const res = await api.get(`/cart/${userId}`);
-        setCart(res.data);
+
+        // 👇 important fix
+        setCart(res.data || []);
       } catch (err) {
         console.log(err);
       } finally {
@@ -24,7 +26,7 @@ export default function CartPage() {
     };
 
     fetchCart();
-  }, []);
+  }, [userId]);
 
   const total = cart.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -33,15 +35,10 @@ export default function CartPage() {
 
   const checkout = async () => {
     try {
-      // ✅ CREATE ORDER FROM CART
-      await api.post("/order/create-from-cart", {
-        userId,
-      });
+      await api.post("/order/create-from-cart", { userId });
 
-      // ✅ CLEAR CART
       await api.delete(`/cart/clear/${userId}`);
 
-      // go to orders page
       router.push("/orders");
     } catch (err) {
       console.log("Checkout error:", err);
@@ -61,7 +58,7 @@ export default function CartPage() {
           {cart.map((item) => (
             <div key={item._id} className="flex justify-between mb-2">
               <span>
-                {item.name} × {item.quantity}
+                {item.title} × {item.quantity}
               </span>
               <span>${item.price}</span>
             </div>
