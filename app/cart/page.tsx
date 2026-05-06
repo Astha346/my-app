@@ -100,13 +100,12 @@ export default function CartPage() {
 
           {/* ✅ Payment options */}
           
-              {/* ✅ Payment options */}
-<div className="mt-5 space-y-3">
+     <div className="mt-5 space-y-3">
 
-  {/* eSewa */}
-  <label className="flex items-center justify-between border p-3 rounded cursor-pointer">
-    <div className="flex items-center gap-3">
-      <input
+               {/* eSewa */}
+        <label className="flex items-center justify-between border p-3 rounded cursor-pointer">
+         <div className="flex items-center gap-3">
+          <input
         type="radio"
         value="esewa"
         checked={method === "esewa"}
@@ -149,10 +148,9 @@ export default function CartPage() {
         onChange={(e) => setMethod(e.target.value)}
       />
       <span>Cash on Delivery</span>
-    </div>
-  </label>
-
-</div>
+          </div>
+            </label>
+              </div>
 
           {/* ✅ Buttons */}
           <div className="flex gap-3 mt-6">
