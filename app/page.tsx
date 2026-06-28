@@ -147,12 +147,10 @@ export default function Home() {
       <Navbar
         email={user.email}
         onLogout={() => setUser(null)}
-        onNavigate={setPage}
+        
         searchTerm={search}
         setSearchTerm={setSearch}
-        categories={categories}
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
+        
       />
 
       {/* 🔍 SEARCH DROPDOWN SUGGESTIONS */}
