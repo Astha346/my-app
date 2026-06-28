@@ -57,7 +57,7 @@ export default function CartPage() {
 
       const order = res.data;
 
-      // ✅ COD (instant success)
+      // ✅ COD 
       if (method === "cod") {
         await api.delete(`/cart/clear/${userId}`);
         router.push("/orders");
