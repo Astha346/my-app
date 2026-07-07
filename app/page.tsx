@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import axios from "axios";
+import { jwtDecode } from "jwt-decode";
 
 import Navbar from "@/components/ui/Navbar";
 import AuthForm from "@/components/ui/AuthForm";
-import UsersTable from "@/components/ui/UserTable";
-
 import Hero from "@/components/home/Hero";
 import PromoBanner from "@/components/home/PromoBanner";
 import ProductSection from "@/components/home/ProductSection";
 import CategoryBar from "@/components/ui/CategoryBar";
 import MiddleBanner from "@/components/MiddleBanner";
+
 import {
   User,
   Product,
@@ -20,14 +21,6 @@ import {
 
 type Page = "dashboard" | "users";
 
-/* USERS */
-const sampleUsers: User[] = [
-  { _id: "1", username: "Aastha", email: "a@example.com" },
-  { _id: "2", username: "Ram", email: "ram@example.com" },
-  { _id: "3", username: "Gita", email: "gita@example.com" },
-];
-
-/* CATEGORIES */
 const categories: Category[] = [
   { label: "All", value: "all" },
   { label: "Beauty", value: "beauty" },
@@ -40,126 +33,124 @@ const categories: Category[] = [
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-  const [page, setPage] = useState<Page>("dashboard");
-
-  const [search, setSearch] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [page] = useState<Page>("dashboard");
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  /* LOGIN */
+  const [search, setSearch] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+
+  // Restore Login
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-    if (stored) setUser(JSON.parse(stored));
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setUser(null);
+      return;
+    }
+
+    try {
+      const decoded: any = jwtDecode(token);
+
+      setUser({
+        _id: decoded._id,
+        username: decoded.username,
+        email: decoded.email,
+        role: decoded.role,
+      });
+    } catch (error) {
+      console.error("Invalid token:", error);
+      localStorage.removeItem("token");
+      setUser(null);
+    }
   }, []);
 
-  /* FETCH PRODUCTS */
+  // Fetch Products
   useEffect(() => {
-    const fetchData = async () => {
+    async function fetchProducts() {
       try {
-        const res = await fetch("https://dummyjson.com/products?limit=100");
-        const data = await res.json();
-        setProducts(data.products);
+        const res = await axios.get("https://dummyjson.com/products");
+         setProducts(res.data.products);
+        
+      } catch (error) {
+        console.error("Failed to fetch products:", error);
       } finally {
         setLoading(false);
       }
-    };
+    }
 
-    fetchData();
+    fetchProducts();
   }, []);
 
-  /* LOCAL SUGGESTIONS */
-  const getLocalSuggestions = (value: string) => {
-    if (!value) return [];
-
-    return products
-      .filter((p) =>
-        p.title.toLowerCase().includes(value.toLowerCase())
-      )
-      .slice(0, 6)
-      .map((p) => p.title);
-  };
-
-  /* SEARCH + AUTOCOMPLETE */
+  // Search Suggestions
   useEffect(() => {
-    if (!search) {
+    if (!search.trim()) {
       setSuggestions([]);
       return;
     }
 
-    // instant local suggestions
-    const local = getLocalSuggestions(search);
-    setSuggestions(local);
+    const result = products
+      .filter((product) =>
+        product.title.toLowerCase().includes(search.toLowerCase())
+      )
+      .slice(0, 6)
+      .map((product) => product.title);
 
-    // API suggestions (optional)
-    const delay = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/suggestions?q=${search}`);
-        const data = await res.json();
-
-        if (Array.isArray(data) && data.length > 0) {
-          setSuggestions(data);
-        } else {
-          setSuggestions(local);
-        }
-      } catch {
-        setSuggestions(local);
-      }
-    }, 300);
-
-    return () => clearTimeout(delay);
+    setSuggestions(result);
   }, [search, products]);
 
-  /* FILTER PRODUCTS */
-  const filtered = products.filter((p) => {
-    const matchSearch = p.title
+  // Filter Products
+  const filteredProducts = products.filter((product) => {
+    const searchMatch = product.title
       .toLowerCase()
       .includes(search.toLowerCase());
 
-    const matchCategory =
-      selectedCategory === "all" || p.category === selectedCategory;
+    const categoryMatch =
+      selectedCategory === "all" ||
+      product.category === selectedCategory;
 
-    return matchSearch && matchCategory;
+    return searchMatch && categoryMatch;
   });
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <AuthForm onLogin={(u) => setUser(u)} />
-      </div>
+      <AuthForm
+        onLogin={(loggedUser) => {
+          setUser(loggedUser);
+        }}
+      />
     );
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center text-lg font-semibold">
         Loading...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 relative">
-
+    <div className="relative min-h-screen bg-gray-50">
       <Navbar
         email={user.email}
-        onLogout={() => setUser(null)}
-        
         searchTerm={search}
         setSearchTerm={setSearch}
-        
+        onLogout={() => {
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          setUser(null);
+        }}
       />
 
-      {/* 🔍 SEARCH DROPDOWN SUGGESTIONS */}
       {search && suggestions.length > 0 && (
-        <ul className="absolute top-20 left-6 w-64 bg-white border rounded shadow z-50">
-          {suggestions.map((item, i) => (
+        <ul className="absolute left-6 top-20 z-50 w-64 rounded-md border bg-white shadow-lg">
+          {suggestions.map((item, index) => (
             <li
-              key={i}
-              className="p-2 hover:bg-gray-100 cursor-pointer"
+              key={index}
+              className="cursor-pointer p-2 hover:bg-gray-100"
               onClick={() => {
                 setSearch(item);
                 setSuggestions([]);
@@ -171,7 +162,6 @@ export default function Home() {
         </ul>
       )}
 
-      {/* DASHBOARD */}
       {page === "dashboard" && (
         <>
           <Hero />
@@ -184,27 +174,19 @@ export default function Home() {
 
           <ProductSection
             title="Deals"
-            products={filtered.slice(0, 8).map(toProductCard)}
+            products={filteredProducts.slice(0, 8).map(toProductCard)}
           />
 
           <PromoBanner />
-          
+
           <MiddleBanner />
 
           <ProductSection
             title="More Products"
-            products={filtered.slice(8, 16).map(toProductCard)}
+            products={filteredProducts.slice(8, 16).map(toProductCard)}
           />
         </>
       )}
-
-      {/* USERS */}
-      {page === "users" && (
-        <div className="p-6">
-          <UsersTable initialUsers={sampleUsers} />
-        </div>
-      )}
-
     </div>
   );
 }

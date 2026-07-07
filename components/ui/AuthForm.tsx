@@ -33,27 +33,24 @@ export default function AuthForm({
   });
 
   const handleLogin = async (data: AuthFormData) => {
-    try {
-      const res = await api.post("/auth/login", data);
+  try {
+    const res = await api.post("/auth/login", data);
 
-      // store token
-      localStorage.setItem("token", res.data.token);
+    // Save JWT token
+    localStorage.setItem("token", res.data.token);
 
-      // ✅ FIXED USER STRUCTURE (matches global User type)
-      const user: User = {
-        _id: res.data.user?._id || "1",
-        username: res.data.user?.username || data.email.split("@")[0],
-        email: res.data.user?.email || data.email,
-      };
-
-      localStorage.setItem("user", JSON.stringify(user));
+    // Create user object from backend response
+    const user = res.data.user;
 
       onLogin(user);
-    } catch (err) {
-      console.log(err);
-      alert("Invalid email or password");
-    }
-  };
+      } catch (error: any) {
+        console.error(error);
+
+    alert(
+      error.response?.data?.message || "Invalid email or password"
+    );
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
