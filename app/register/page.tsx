@@ -48,6 +48,7 @@ export default function RegisterPage() {
         username: data.username,
         email: data.email,
         password: data.password,
+        role: "customer",
       });
 
       alert("Registration successful!");

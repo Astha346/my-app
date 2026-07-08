@@ -39,19 +39,17 @@ export default function AuthForm({
     try {
       const res = await api.post("/auth/login", data);
 
-      localStorage.setItem("token", res.data.token);
-
       const user = res.data.user;
+      
+      localStorage.setItem("user", JSON.stringify(user));
 
       onLogin(user);
 
-      // We will add role-based redirect later
-      // if (user.role === "admin") {
-      //   router.push("/admin");
-      // } else {
-      //   router.push("/");
-      // }
-
+      if (user.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/")
+      }
     } catch (error: any) {
       console.error(error);
 
