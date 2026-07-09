@@ -49,7 +49,7 @@ const menuItems = [
 
 export default function Sidebar() {
   return (
-    <aside className="w-64 min-h-screen bg-slate-900 text-white flex flex-col">
+    <aside className="w-64 min-h-screen bg-blue-900 text-white flex flex-col">
 
       <div className="border-b border-slate-700 p-6">
         <h1 className="text-2xl font-bold">
