@@ -45,11 +45,19 @@ export default function AuthForm({
 
       onLogin(user);
 
-      if (user.role === "admin") {
-        router.push("/admin");
-      } else {
-        router.push("/")
-      }
+     console.log("Role:", user.role);
+
+  if (
+  ["admin", "manager", "staff"].includes(
+    user.role
+  )
+) {
+  console.log("Going to admin");
+  router.push("/admin");
+} else {
+  console.log("Going to website");
+  router.push("/");
+}
     } catch (error: any) {
       console.error(error);
 
