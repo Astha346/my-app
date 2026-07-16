@@ -18,7 +18,6 @@ export default function CategoryRow({
         
         {categories.map((cat) => {
           const isActive = selected === cat.value;
-
           return (
             <button
               key={cat.value}
