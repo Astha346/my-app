@@ -11,21 +11,20 @@ import {
   Users,
   Package,
   DollarSign,
-  Clock,
-  AlertTriangle,
 } from "lucide-react";
 
 import {
-  BarChart,
-  Bar,
+  ResponsiveContainer,
+  CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
-  CartesianGrid,
-  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
+  LineChart,
+  Line,
+  Area,
 } from "recharts";
 
 export default function AdminPage() {
@@ -33,29 +32,30 @@ export default function AdminPage() {
     useState("Dashboard");
 
   const [stats, setStats] = useState({
-    totalSales: 0,
     revenue: 0,
     totalOrders: 0,
     totalCustomers: 0,
     totalProducts: 0,
-    pendingOrders: 0,
-    lowStockProducts: 0,
   });
 
   const [salesData, setSalesData] =
     useState<any[]>([]);
 
-  const [revenueData, setRevenueData] =
-    useState<any[]>([]);
-
   const [statusData, setStatusData] =
     useState<any[]>([]);
 
-  const [customerData, setCustomerData] =
+  const [topProducts, setTopProducts] =
     useState<any[]>([]);
 
-  const [categoryData, setCategoryData] =
+  const [recentOrders, setRecentOrders] =
     useState<any[]>([]);
+
+  const COLORS = [
+    "#22C55E",
+    "#3B82F6",
+    "#A855F7",
+    "#F59E0B",
+  ];
 
   const months = [
     "",
@@ -73,100 +73,57 @@ export default function AdminPage() {
     "Dec",
   ];
 
-  const COLORS = [
-    "#3B82F6",
-    "#22C55E",
-    "#F97316",
-    "#A855F7",
-    "#EF4444",
-  ];
+   useEffect(() => {
+  axios
+    .get("http://localhost:3001/dashboard/stats")
+    .then((res) => {
+      console.log("stats", res.data);
+      setStats(res.data);
+    });
 
-  useEffect(() => {
-    axios
-      .get(
-        "http://localhost:3001/dashboard/stats"
-      )
-      .then((res) =>
-        setStats(res.data)
-      );
 
-    axios
-      .get(
-        "http://localhost:3001/dashboard/sales-by-month"
-      )
-      .then((res) =>
-        setSalesData(res.data)
-      );
+  axios
+    .get("http://localhost:3001/dashboard/sales-by-month")
+    .then((res) => {
+      console.log("sales", res.data);
+      setSalesData(res.data);
+    });
 
-    axios
-      .get(
-        "http://localhost:3001/dashboard/revenue-by-month"
-      )
-      .then((res) =>
-        setRevenueData(res.data)
-      );
 
-    axios
-      .get(
-        "http://localhost:3001/dashboard/orders-by-status"
-      )
-      .then((res) =>
-        setStatusData(res.data)
-      );
+  axios
+    .get("http://localhost:3001/dashboard/orders-by-status")
+    .then((res) => {
+      console.log("status", res.data);
+      setStatusData(res.data);
+    });
 
-    axios
-      .get(
-        "http://localhost:3001/dashboard/customer-growth"
-      )
-      .then((res) =>
-        setCustomerData(res.data)
-      );
 
-    axios
-      .get(
-        "http://localhost:3001/dashboard/category-sales"
-      )
-      .then((res) =>
-        setCategoryData(
-          res.data.filter(
-            (item: any) =>
-              item._id
-          )
-        )
-      );
-  }, []);
+  axios
+    .get("http://localhost:3001/dashboard/top-products")
+    .then((res) => {
+      console.log("products", res.data);
+      setTopProducts(res.data);
+    });
 
-  const salesChartData =
-    salesData.map((item) => ({
-      month:
-        months[
-          item?._id?.month
-        ],
-      sales: item.sales,
-    }));
 
-  const revenueChartData =
-    revenueData.map((item) => ({
-      month:
-        months[
-          item?._id?.month
-        ],
-      revenue:
-        item.revenue,
-    }));
+  axios
+    .get("http://localhost:3001/dashboard/recent-orders")
+    .then((res) => {
+      console.log("orders", res.data);
+      setRecentOrders(res.data);
+    });
 
-  const customerChartData =
-    customerData.map((item) => ({
-      month:
-        months[
-          item?._id?.month
-        ],
-      customers:
-        item.customers,
-    }));
+}, []);
+      
 
-  return (
-    <div className="flex bg-slate-100 min-h-screen">
+    const salesChartData = salesData.map((item) => ({
+  month: months[item._id.month],
+  sales: item.sales,
+}));
+
+console.log(salesChartData);
+      return (
+    <div className="flex min-h-screen bg-slate-100">
       <Sidebar
         activePage={activePage}
         setActivePage={
@@ -179,314 +136,351 @@ export default function AdminPage() {
 
         <main className="p-8">
 
-          {activePage ===
-            "Dashboard" && (
-            <>
-              <div className="mb-8">
-                <h1 className="text-4xl font-bold">
-                  Dashboard
-                </h1>
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold">
+              Dashboard
+            </h1>
 
-                <p className="text-gray-500 mt-2">
-                  Welcome back,
-                  Admin 👋
-                </p>
+            <p className="text-gray-500 mt-2">
+              Welcome back Admin 👋
+            </p>
+          </div>
+
+          {/* Cards */}
+
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
+
+            <Card
+              title="Revenue"
+              value={`Rs ${stats.revenue}`}
+              icon={
+                <DollarSign
+                  size={40}
+                  className="text-purple-500"
+                />
+              }
+            />
+
+            <Card
+              title="Orders"
+              value={
+                stats.totalOrders
+              }
+              icon={
+                <ShoppingCart
+                  size={40}
+                  className="text-green-500"
+                />
+              }
+            />
+
+            <Card
+              title="Customers"
+              value={
+                stats.totalCustomers
+              }
+              icon={
+                <Users
+                  size={40}
+                  className="text-blue-500"
+                />
+              }
+            />
+
+            <Card
+              title="Products"
+              value={
+                stats.totalProducts
+              }
+              icon={
+                <Package
+                  size={40}
+                  className="text-orange-500"
+                />
+              }
+            />
+          </div>
+
+          {/* Sales + Products */}
+
+          <div className="grid lg:grid-cols-3 gap-6 mt-8">
+
+            <div className="lg:col-span-2 bg-white rounded-3xl p-6 shadow">
+
+              <h2 className="font-bold text-xl mb-5">
+                Sales Overview
+              </h2>
+
+              <div className="h-80">
+
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+                  <LineChart
+                    data={
+                      salesChartData
+                    }
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                    />
+
+                    <XAxis dataKey="month" />
+
+                    <YAxis />
+
+                    <Tooltip />
+
+                    <Area
+                      dataKey="sales"
+                      fill="#6366f1"
+                      fillOpacity={
+                        0.1
+                      }
+                    />
+
+                    <Line
+                      type="monotone"
+                      dataKey="sales"
+                      stroke="#4f46e5"
+                      strokeWidth={3}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+
               </div>
+            </div>
 
-              {/* STATS */}
+            {/* Top Products */}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div className="bg-white rounded-3xl p-6 shadow">
 
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-3xl p-6 shadow-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p>
-                        Orders
-                      </p>
-
-                      <h1 className="text-4xl font-bold mt-3">
-                        {
-                          stats.totalOrders
-                        }
-                      </h1>
-                    </div>
-
-                    <ShoppingCart size={40} />
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-3xl p-6 shadow-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p>
-                        Revenue
-                      </p>
-
-                      <h1 className="text-4xl font-bold mt-3">
-                        Rs{" "}
-                        {
-                          stats.revenue
-                        }
-                      </h1>
-                    </div>
-
-                    <DollarSign size={40} />
-                  </div>
-                </div>
-
-                <div className="bg-linear-to-r from-purple-500 to-fuchsia-600 text-white rounded-3xl p-6 shadow-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p>
-                        Customers
-                      </p>
-
-                      <h1 className="text-4xl font-bold mt-3">
-                        {
-                          stats.totalCustomers
-                        }
-                      </h1>
-                    </div>
-
-                    <Users size={40} />
-                  </div>
-                </div>
-
-                <div className="bg-linear-to-r from-orange-500 to-red-500 text-white rounded-3xl p-6 shadow-lg">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p>
-                        Products
-                      </p>
-
-                      <h1 className="text-4xl font-bold mt-3">
-                        {
-                          stats.totalProducts
-                        }
-                      </h1>
-                    </div>
-
-                    <Package size={40} />
-                  </div>
-                </div>
-              </div>
-
-              {/* CHARTS */}
-
-              <div className="grid lg:grid-cols-2 gap-6 mt-8">
-
-                <div className="bg-white rounded-3xl p-6 shadow">
-                  <h2 className="text-xl font-bold mb-5">
-                    Sales By Month
-                  </h2>
-
-                  <div className="h-75">
-                    <ResponsiveContainer
-                      width="100%"
-                      height="100%"
-                    >
-                      <BarChart
-                        data={
-                          salesChartData
-                        }
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-
-                        <XAxis dataKey="month" />
-
-                        <YAxis />
-
-                        <Tooltip />
-
-                        <Bar
-                          dataKey="sales"
-                          fill="#3B82F6"
-                          radius={[
-                            10,
-                            10,
-                            0,
-                            0,
-                          ]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-3xl p-6 shadow">
-                  <h2 className="text-xl font-bold mb-5">
-                    Revenue
-                  </h2>
-
-                  <div className="h-75">
-                    <ResponsiveContainer
-                      width="100%"
-                      height="100%"
-                    >
-                      <BarChart
-                        data={
-                          revenueChartData
-                        }
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-
-                        <XAxis dataKey="month" />
-
-                        <YAxis />
-
-                        <Tooltip />
-
-                        <Bar
-                          dataKey="revenue"
-                          fill="#22C55E"
-                          radius={[
-                            10,
-                            10,
-                            0,
-                            0,
-                          ]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-3xl p-6 shadow">
-                  <h2 className="text-xl font-bold mb-5">
-                    Customer Growth
-                  </h2>
-
-                  <div className="h-75">
-                    <ResponsiveContainer
-                      width="100%"
-                      height="100%"
-                    >
-                      <BarChart
-                        data={
-                          customerChartData
-                        }
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-
-                        <XAxis dataKey="month" />
-
-                        <YAxis />
-
-                        <Tooltip />
-
-                        <Bar
-                          dataKey="customers"
-                          fill="#A855F7"
-                          radius={[
-                            10,
-                            10,
-                            0,
-                            0,
-                          ]}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-3xl p-6 shadow">
-                  <h2 className="text-xl font-bold mb-5">
-                    Order Status
-                  </h2>
-
-                  <div className="h-75">
-                    <ResponsiveContainer
-                      width="100%"
-                      height="100%"
-                    >
-                      <PieChart>
-                        <Pie
-                          data={
-                            statusData
-                          }
-                          dataKey="count"
-                          nameKey="_id"
-                          outerRadius={
-                            110
-                          }
-                          label
-                        >
-                          {statusData.map(
-                            (
-                              _,
-                              index
-                            ) => (
-                              <Cell
-                                key={
-                                  index
-                                }
-                                fill={
-                                  COLORS[
-                                    index %
-                                      COLORS.length
-                                  ]
-                                }
-                              />
-                            )
-                          )}
-                        </Pie>
-
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-
-              {/* TOP PRODUCTS */}
-
-              <div className="bg-white rounded-3xl p-6 shadow mt-8">
-                <h2 className="text-xl font-bold mb-5">
+              <div className="flex justify-between mb-5">
+                <h2 className="font-bold text-xl">
                   Top Selling Products
                 </h2>
 
-                <div className="h-75">
-                  <ResponsiveContainer
-                    width="100%"
-                    height="100%"
-                  >
-                    <BarChart
-                      layout="vertical"
-                      data={
-                        categoryData
-                      }
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-
-                      <XAxis type="number" />
-
-                      <YAxis
-                        type="category"
-                        dataKey="_id"
-                        width={
-                          180
-                        }
-                      />
-
-                      <Tooltip />
-
-                      <Bar
-                        dataKey="sales"
-                        fill="#F97316"
-                        radius={[
-                          0,
-                          10,
-                          10,
-                          0,
-                        ]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <button className="text-indigo-600">
+                  View All
+                </button>
               </div>
-            </>
-          )}
+
+              <div className="space-y-5">
+
+                {topProducts.map(
+                  (
+                    product: any
+                  ) => (
+                    <div
+                      key={
+                        product._id
+                      }
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-4">
+
+                        <img
+                          src={
+                            product.image ||
+                            "/placeholder.png"
+                          }
+                          className="w-14 h-14 rounded-xl object-cover"
+                        />
+
+                        <div>
+                          <p className="font-medium">
+                            {
+                              product.name
+                            }
+                          </p>
+
+                          <p className="text-sm text-gray-500">
+                            {
+                              product.sold
+                            }{" "}
+                            sold
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
+
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Orders */}
+
+          <div className="grid lg:grid-cols-3 gap-6 mt-8">
+
+            <div className="lg:col-span-2 bg-white rounded-3xl p-6 shadow">
+
+              <div className="flex justify-between mb-6">
+                <h2 className="font-bold text-xl">
+                  Recent Orders
+                </h2>
+
+                <button className="text-indigo-600">
+                  View All
+                </button>
+              </div>
+
+              <table className="w-full">
+
+                <thead>
+                  <tr className="text-gray-500 border-b">
+
+                    <th className="pb-4 text-left">
+                      Order
+                    </th>
+
+                    <th className="pb-4 text-left">
+                      Customer
+                    </th>
+
+                    <th className="pb-4 text-left">
+                      Amount
+                    </th>
+
+                    <th className="pb-4 text-left">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  {recentOrders.map(
+                    (
+                      order: any
+                    ) => (
+                      <tr
+                        key={
+                          order._id
+                        }
+                        className="border-b"
+                      >
+                        <td className="py-5">
+                          {
+                            order.orderId
+                          }
+                        </td>
+
+                        <td>
+                          {
+                            order.customer
+                          }
+                        </td>
+
+                        <td>
+                          Rs{" "}
+                          {
+                            order.total
+                          }
+                        </td>
+
+                        <td>
+
+                          <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">
+                            {
+                              order.status
+                            }
+                          </span>
+
+                        </td>
+                      </tr>
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
+            </div>
+
+            {/* Order Status */}
+
+            <div className="bg-white rounded-3xl p-6 shadow">
+
+              <h2 className="font-bold text-xl mb-5">
+                Order Status
+              </h2>
+
+              <div className="h-80">
+
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                >
+                  <PieChart>
+
+                    <Pie
+                      data={
+                        statusData
+                      }
+                      dataKey="count"
+                      nameKey="_id"
+                      outerRadius={
+                        110
+                      }
+                      label
+                    >
+                      {statusData.map(
+                        (
+                          _: any,
+                          index
+                        ) => (
+                          <Cell
+                            key={
+                              index
+                            }
+                            fill={
+                              COLORS[
+                                index %
+                                  COLORS.length
+                              ]
+                            }
+                          />
+                        )
+                      )}
+                    </Pie>
+
+                    <Tooltip />
+
+                  </PieChart>
+                </ResponsiveContainer>
+
+              </div>
+            </div>
+          </div>
+
         </main>
+      </div>
+    </div>
+  );
+}
+
+function Card({
+  title,
+  value,
+  icon,
+}: any) {
+  return (
+    <div className="bg-white rounded-3xl p-6 shadow">
+      <div className="flex justify-between items-center">
+
+        <div>
+          <p className="text-gray-500">
+            {title}
+          </p>
+
+          <h1 className="text-4xl font-bold mt-3">
+            {value}
+          </h1>
+        </div>
+
+        {icon}
       </div>
     </div>
   );

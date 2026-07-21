@@ -71,7 +71,7 @@ export default function Sidebar({
   }, []);
 
   return (
-    <aside className="w-64 min-h-screen bg-blue-900 text-white flex flex-col">
+    <aside className="w-64 min-h-screen bg-gray-800 text-white flex flex-col">
       <div className="border-b border-blue-800 p-6">
         <h1 className="text-2xl font-bold">
           ShopAdmin
