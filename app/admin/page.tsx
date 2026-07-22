@@ -38,6 +38,8 @@ export default function AdminPage() {
     totalProducts: 0,
   });
 
+  const [orders, setOrders] = useState([]);
+
   const [salesData, setSalesData] =
     useState<any[]>([]);
 
@@ -347,54 +349,53 @@ console.log(salesChartData);
                     <th className="pb-4 text-left">
                       Status
                     </th>
+
+                    <th className="pb-4 text-left">
+                   Actions
+                  </th>
+
                   </tr>
                 </thead>
+                          <tbody>
+        {recentOrders.map((order: any) => (
+        <tr
+      key={order._id}
+      className="border-b"
+    >
+      <td className="py-5">
+        #{order._id.slice(-6)}
+      </td>
 
-                <tbody>
+      <td>
+        {order.customerName}
+      </td>
 
-                  {recentOrders.map(
-                    (
-                      order: any
-                    ) => (
-                      <tr
-                        key={
-                          order._id
-                        }
-                        className="border-b"
-                      >
-                        <td className="py-5">
-                          {
-                            order.orderId
-                          }
-                        </td>
+      <td>
+        Rs {order.total.toFixed(2)}
+      </td>
 
-                        <td>
-                          {
-                            order.customer
-                          }
-                        </td>
+      <td>
+        <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm">
+          {order.status}
+        </span>
+      </td>
 
-                        <td>
-                          Rs{" "}
-                          {
-                            order.total
-                          }
-                        </td>
+      <td className="space-x-3">
+        <button className="text-blue-600">
+          View
+        </button>
 
-                        <td>
+        <button className="text-green-600">
+          Edit
+        </button>
 
-                          <span className="bg-green-100 text-green-600 px-3 py-1 rounded-full text-sm">
-                            {
-                              order.status
-                            }
-                          </span>
-
-                        </td>
-                      </tr>
-                    )
-                  )}
-
-                </tbody>
+        <button className="text-red-600">
+          Delete
+        </button>
+         </td>
+        </tr>
+        ))}
+        </tbody>
 
               </table>
             </div>
@@ -420,7 +421,7 @@ console.log(salesChartData);
                         statusData
                       }
                       dataKey="count"
-                      nameKey="_id"
+                      nameKey="id"
                       outerRadius={
                         110
                       }

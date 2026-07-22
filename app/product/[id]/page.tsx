@@ -35,22 +35,32 @@ export default function ProductDetail() {
   }, [id]);
 
   const handleBuyNow = async () => {
-    if (!product) return;
+  if (!product) return;
 
-    await api.post("/cart/add", {
-      userId: "demo-user",
-      productId: product.id,
-      name: product.title,
-      price: product.price,
-      image: product.thumbnail,
-      quantity: 1,
-    });
+  const user = JSON.parse(
+    localStorage.getItem("user") || "{}"
+  );
+ console.log("USER =", user);
 
-    // 📊 optional analytics for buy
-    trackView(product.id);
+  if (!user?.id) {
+    alert("Please login first");
+    router.push("/login");
+    return;
+  }
 
-    router.push("/cart");
-  };
+  await api.post("/cart/add", {
+    userId: user.id,
+    productId: product._id,
+    name: product.title,
+    price: product.price,
+    image: product.thumbnail,
+    quantity: 1,
+  });
+
+  trackView(product._id);
+
+  router.push("/cart");
+};
 
   if (!product) return <p>Loading...</p>;
 

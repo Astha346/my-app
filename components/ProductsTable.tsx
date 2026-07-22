@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 
 type Product = {
-  _id?: string;
   id?: string | number;
   name: string;
   price: string;
@@ -29,24 +28,34 @@ export default function ProductsTable({
   const [quantity, setQuantity] = useState(1);
   const router = useRouter();
 
-  const productId = product._id ?? product.id;
+  const productId = product.id ?? product.id;
 
   const price = Number(String(product.price).replace(/[^0-9.]/g, ""));
   const total = price * quantity;
 
-  // 🛒 BUY NOW (FIXED)
+  
   const handleBuyNow = async () => {
-    await api.post("/cart/add", {
-      userId: "demo-user",
-      productId,
-      name: product.name,
-      price,
-      image: product.image,
-      quantity,
-    });
+  const user = JSON.parse(
+    localStorage.getItem("user") || "{}"
+  );
 
-    router.push("/cart");
-  };
+  if (!user?.id) {
+    alert("Please login first");
+    router.push("/login");
+    return;
+  }
+
+  await api.post("/cart/add", {
+    userId: user.id,
+    productId,
+    name: product.name,
+    price,
+    image: product.image,
+    quantity,
+  });
+
+  router.push("/cart");
+};
 
   return (
     <div className="p-6">
@@ -57,7 +66,7 @@ export default function ProductsTable({
 
         <img
           src={product.image}
-          className="h-[400px] object-cover w-full rounded"
+          className="h-100 object-cover w-full rounded"
           alt={product.name}
         />
 

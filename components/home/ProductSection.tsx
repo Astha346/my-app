@@ -24,32 +24,41 @@ export default function ProductSection({
   };
 
   const handleBuyNow = async (p: ProductCard) => {
-    try {
-      const price =
-        typeof p.price === "string"
-          ? Number(p.price.replace(/[^0-9.]/g, ""))
-          : p.price;
+  try {
+    const user = JSON.parse(
+      localStorage.getItem("user") || "{}"
+    );
 
-      // ✅ ONLY ADD TO CART
-      await api.post("/cart/add", {
-        userId: "demo-user",
-        productId: p.id,
-        name: p.name,
-        price,
-        image: p.image,
-        quantity: 1,
-      });
-
-      await trackClick(p.id);
-
-      // go to cart (NOT order)
-      router.push("/cart");
-    } catch (err) {
-      console.log("Buy error:", err);
-      alert("Failed to add to cart");
+    if (!user?.id) {
+      alert("Please login first");
+      router.push("/login");
+      return;
     }
-  };
 
+    const price =
+      typeof p.price === "string"
+        ? Number(
+            p.price.replace(/[^0-9.]/g, "")
+          )
+        : p.price;
+
+    await api.post("/cart/add", {
+      userId: user.id,
+      productId: p.id,
+      name: p.name,
+      price,
+      image: p.image,
+      quantity: 1,
+    });
+
+    await trackClick(p.id);
+
+    router.push("/cart");
+  } catch (err) {
+    console.log("Buy error:", err);
+    alert("Failed to add to cart");
+  }
+};
   return (
     <div className="p-6">
       <h2 className="text-xl font-bold mb-4">{title}</h2>

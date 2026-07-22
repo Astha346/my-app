@@ -36,36 +36,68 @@ export default function AuthForm({
   });
 
   const handleLogin = async (data: AuthFormData) => {
-    try {
-      const res = await api.post("/auth/login", data);
+  try {
+    const res = await api.post("/auth/login", data);
 
-      const user = res.data.user;
-      
-      localStorage.setItem("user", JSON.stringify(user));
+    console.log("LOGIN RESPONSE =", res.data);
 
-      onLogin(user);
+    const user = res.data.user;
 
-     console.log("Role:", user.role);
+console.log("FULL RESPONSE =", res.data);
+console.log("USER =", user);
 
-  if (
-  ["admin", "manager", "staff"].includes(
-    user.role
-  )
-) {
-  console.log("Going to admin");
-  router.push("/admin");
-} else {
-  console.log("Going to website");
-  router.push("/");
-}
-    } catch (error: any) {
-      console.error(error);
+localStorage.setItem(
+  "user",
+  JSON.stringify(user)
+);
 
-      alert(
-        error.response?.data?.message || "Invalid email or password"
+console.log(
+  "LOCAL STORAGE =",
+  localStorage.getItem("user")
+   );
+    if (!user) {
+      throw new Error("User data not found");
+    }
+
+    console.log("LOGIN USER =", user);
+
+    localStorage.setItem(
+      "user",
+      JSON.stringify(user)
+    );
+
+    if (res.data.access_token) {
+      localStorage.setItem(
+        "token",
+        res.data.access_token
       );
     }
-  };
+
+    onLogin(user);
+
+    console.log("Role:", user.role);
+
+    if (
+      ["admin", "manager", "staff"].includes(
+        user.role
+      )
+    ) {
+      console.log("Going to admin");
+      router.push("/admin");
+    } else {
+      console.log("Going to website");
+      router.push("/");
+    }
+
+  } catch (error: any) {
+    console.error("LOGIN ERROR =", error);
+
+    alert(
+      error.response?.data?.message ||
+      "Invalid email or password"
+    );
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center from-slate-50 via-white to-slate-100 px-4">

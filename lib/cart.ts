@@ -18,7 +18,7 @@ export const getCart = (): CartItem[] => {
 export const addToCart = (product: any) => {
   const cart = getCart();
 
-  const existing = cart.find((item) => item.id === product.id);
+  const existing = cart.find((item) => item.id === product._id);
 
   if (existing) {
     existing.quantity += 1;
