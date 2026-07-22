@@ -14,7 +14,7 @@ export type ProductCard = {
 };
 
 export type User = {
-  _id: string;
+  id: string;
   username: string;
   email: string;
   role:  "admin" | "customer";

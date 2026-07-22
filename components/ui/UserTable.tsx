@@ -7,8 +7,8 @@ import EditDialog from "./EditDialog";
 import { toast } from "sonner";
 
 type User = {
+  
   id?: string;
-  _id?: string;
   username: string;
   email: string;
 };
@@ -29,7 +29,7 @@ export default function UsersTable({
 
   // ✅ SAFE ID (IMPORTANT FIX)
   const getId = (user: User) =>
-    String(user.id ?? user._id ?? "");
+    String(user.id ?? user.id ?? "");
 
   // ================= INIT FROM PROPS =================
   useEffect(() => {
@@ -37,7 +37,7 @@ export default function UsersTable({
       setUsers(
         initialUsers.map((u) => ({
           ...u,
-          id: String(u.id ?? u._id),
+          id: String(u.id ?? u.id),
         }))
       );
       setLoading(false);
@@ -59,7 +59,7 @@ export default function UsersTable({
 
         setUsers(
           list.map((u: any) => ({
-            id: String(u._id ?? u.id),
+            id: String(u.id ?? u.id),
             username: u.username,
             email: u.email,
           }))

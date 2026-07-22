@@ -55,7 +55,7 @@ export default function Home() {
       const decoded: any = jwtDecode(token);
 
       setUser({
-        _id: decoded._id,
+        id: decoded.id,
         username: decoded.username,
         email: decoded.email,
         role: decoded.role,
