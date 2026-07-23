@@ -15,17 +15,17 @@ import DeleteOrderModal from "@/components/admin/Dashboard/DeleteOrderModal";
 import ViewOrderModal from "@/components/admin/Dashboard/ViewOrderModal"
 
 
-export default function AdminPage() {
-  const [activePage, setActivePage] =
+   export default function AdminPage() {
+   const [activePage, setActivePage] =
     useState("Dashboard");
-   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-   const [editingOrder, setEditingOrder] = useState<any>(null);
-   const [deleteOrder, setDeleteOrder] = useState<any>(null);
-  const [stats, setStats] = useState({
-    revenue: 0,
-    totalOrders: 0,
-    totalCustomers: 0,
-    totalProducts: 0,
+    const [selectedOrder, setSelectedOrder] = useState<any>(null);
+    const [editingOrder, setEditingOrder] = useState<any>(null);
+    const [deleteOrder, setDeleteOrder] = useState<any>(null);
+    const [stats, setStats] = useState({
+      revenue: 0,
+      totalOrders: 0,
+      totalCustomers: 0,
+      totalProducts: 0,
   });
 
   const [orders, setOrders] = useState([]);
