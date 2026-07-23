@@ -14,7 +14,7 @@ export default function ViewOrderModal({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
 
-      <div className="bg-white rounded-2xl p-6 w-[500px] shadow-lg">
+      <div className="bg-white rounded-2xl p-6 w-125 shadow-lg">
 
         <div className="flex justify-between items-center mb-5">
 
