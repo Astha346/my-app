@@ -66,47 +66,28 @@ import ViewOrderModal from "@/components/admin/Dashboard/ViewOrderModal"
   ];
 
    useEffect(() => {
-  axios
-    .get("http://localhost:3001/dashboard/stats")
-    .then((res) => {
-      console.log("stats", res.data);
-      setStats(res.data);
-    });
+  const loadDashboard = async () => {
+    try {
+      const [stats, sales, status, products, orders] = await Promise.all([
+        axios.get("http://localhost:3001/dashboard/stats"),
+        axios.get("http://localhost:3001/dashboard/sales-by-month"),
+        axios.get("http://localhost:3001/dashboard/orders-by-status"),
+        axios.get("http://localhost:3001/dashboard/top-products"),
+        axios.get("http://localhost:3001/dashboard/recent-orders"),
+      ]);
 
+      setStats(stats.data);
+      setSalesData(sales.data);
+      setStatusData(status.data);
+      setTopProducts(products.data);
+      setRecentOrders(orders.data);
+    } catch (error) {
+      console.error("Failed to load dashboard:", error);
+    }
+  };
 
-  axios
-    .get("http://localhost:3001/dashboard/sales-by-month")
-    .then((res) => {
-      console.log("sales", res.data);
-      setSalesData(res.data);
-    });
-
-
-  axios
-    .get("http://localhost:3001/dashboard/orders-by-status")
-    .then((res) => {
-      console.log("status", res.data);
-      console.log("API Sales:", res.data);
-      setStatusData(res.data);
-    });
-
-
-  axios
-    .get("http://localhost:3001/dashboard/top-products")
-    .then((res) => {
-      console.log("products", res.data);
-      setTopProducts(res.data);
-    });
-
-
-  axios
-    .get("http://localhost:3001/dashboard/recent-orders")
-    .then((res) => {
-      console.log("orders", res.data);
-      setRecentOrders(res.data);
-    });
-
-}, []);
+  loadDashboard();
+   }, []);
 
 const handleDelete = async () => {
 
