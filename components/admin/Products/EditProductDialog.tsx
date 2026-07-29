@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import api from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,14 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  product: any;
 }
 
-export default function AddProductDialog({
+export default function EditProductDialog({
   open,
   onClose,
   onSuccess,
+  product,
 }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -24,13 +26,23 @@ export default function AddProductDialog({
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (product) {
+      setName(product.name || "");
+      setCategory(product.category || "");
+      setPrice(product.price || "");
+      setImage(product.image || "");
+      setDescription(product.description || "");
+    }
+  }, [product]);
 
-  async function handleSubmit() {
+  if (!open || !product) return null;
+
+  async function handleUpdate() {
     try {
       setLoading(true);
 
-      await api.post("/products", {
+      await api.patch(`/products/${product._id}`, {
         name,
         category,
         price,
@@ -38,19 +50,13 @@ export default function AddProductDialog({
         description,
       });
 
-      alert("Product added successfully!");
+      alert("Product updated successfully!");
 
-      setName("");
-      setCategory("");
-      setPrice("");
-      setImage("");
-      setDescription("");
-
-      onClose();
       onSuccess();
+      onClose();
     } catch (error) {
       console.error(error);
-      alert("Failed to add product");
+      alert("Failed to update product");
     } finally {
       setLoading(false);
     }
@@ -63,9 +69,9 @@ export default function AddProductDialog({
         {/* Header */}
         <div className="flex items-center justify-between border-b p-6">
           <div>
-            <h2 className="text-2xl font-bold">Add Product</h2>
+            <h2 className="text-2xl font-bold">Edit Product</h2>
             <p className="text-sm text-gray-500">
-              Create a new product
+              Update product information
             </p>
           </div>
 
@@ -86,7 +92,6 @@ export default function AddProductDialog({
             </label>
 
             <Input
-              placeholder="iPhone 16"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -98,7 +103,6 @@ export default function AddProductDialog({
             </label>
 
             <Input
-              placeholder="Mobile"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             />
@@ -111,7 +115,6 @@ export default function AddProductDialog({
 
             <Input
               type="number"
-              placeholder="120000"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
             />
@@ -123,7 +126,6 @@ export default function AddProductDialog({
             </label>
 
             <Input
-              placeholder="https://..."
               value={image}
               onChange={(e) => setImage(e.target.value)}
             />
@@ -135,7 +137,7 @@ export default function AddProductDialog({
             </label>
 
             <textarea
-              className="min-h-30 w-full rounded-md border p-3"
+              className="min-h-32 w-full rounded-md border p-3"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -153,10 +155,10 @@ export default function AddProductDialog({
           </Button>
 
           <Button
-            onClick={handleSubmit}
+            onClick={handleUpdate}
             disabled={loading}
           >
-            {loading ? "Saving..." : "Save Product"}
+            {loading ? "Updating..." : "Update Product"}
           </Button>
         </div>
 

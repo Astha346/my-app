@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 
 import api from "@/lib/api";
-
 import { Button } from "@/components/ui/button";
 
 interface Product {
@@ -16,39 +15,37 @@ interface Product {
   description?: string;
 }
 
-export default function ProductTable() {
+interface Props {
+  refresh: boolean;
+  onEdit: (product: Product) => void;
+  onView: (product: Product) => void;
+  onDelete: (product: Product) => void;
+}
+
+export default function ProductTable({
+  refresh,
+  onEdit,
+  onView,
+  onDelete,
+}: Props) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [refresh]);
 
   async function fetchProducts() {
     try {
+      setLoading(true);
+
       const res = await api.get("/products");
+
       setProducts(res.data);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function deleteProduct(id: string) {
-    const ok = confirm("Delete this product?");
-
-    if (!ok) return;
-
-    try {
-      await api.delete(`/products/${id}`);
-
-      setProducts((prev) =>
-        prev.filter((item) => item._id !== id)
-      );
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete product.");
     }
   }
 
@@ -115,9 +112,11 @@ export default function ProductTable() {
 
               <td className="px-5 py-4">
                 <div className="flex justify-center gap-2">
+
                   <Button
                     size="icon"
                     variant="outline"
+                    onClick={() => onView(product)}
                   >
                     <Eye size={16} />
                   </Button>
@@ -125,6 +124,7 @@ export default function ProductTable() {
                   <Button
                     size="icon"
                     variant="outline"
+                    onClick={() => onEdit(product)}
                   >
                     <Pencil size={16} />
                   </Button>
@@ -132,12 +132,11 @@ export default function ProductTable() {
                   <Button
                     size="icon"
                     variant="destructive"
-                    onClick={() =>
-                      deleteProduct(product._id)
-                    }
+                    onClick={() => onDelete(product)}
                   >
                     <Trash2 size={16} />
                   </Button>
+
                 </div>
               </td>
             </tr>
