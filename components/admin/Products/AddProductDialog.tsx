@@ -132,7 +132,7 @@ export default function AddProductDialog({
             </label>
 
             <textarea
-              className="min-h-[120px] w-full rounded-md border p-3"
+              className="min-h-30 w-full rounded-md border p-3"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
