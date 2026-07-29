@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input";
 interface Props {
   open: boolean;
   onClose: () => void;
+  onSuccess: () => void;
 }
 
 export default function AddProductDialog({
   open,
   onClose,
+  onSuccess,
 }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -45,6 +47,7 @@ export default function AddProductDialog({
       setDescription("");
 
       onClose();
+      onSuccess();
     } catch (error) {
       console.error(error);
       alert("Failed to add product");
