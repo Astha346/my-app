@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
+import Link from "next/link";
 import {
   LayoutDashboard,
   Package,
@@ -16,36 +16,43 @@ import {
 const menuItems = [
   {
     title: "Dashboard",
+    href: "/admin",
     icon: LayoutDashboard,
     roles: ["admin", "manager", "staff"],
   },
   {
     title: "Products",
+    href: "/admin/products",
     icon: Package,
     roles: ["admin", "manager"],
   },
   {
     title: "Categories",
+    href: "/admin/categories",
     icon: FolderTree,
     roles: ["admin", "manager"],
   },
   {
     title: "Orders",
+    href: "/admin/orders",
     icon: ShoppingCart,
     roles: ["admin", "manager", "staff"],
   },
   {
     title: "Customers",
+    href: "/admin/customers",
     icon: Users,
     roles: ["admin", "manager", "staff"],
   },
   {
     title: "Analytics",
+    href: "/admin/analytics",
     icon: BarChart3,
     roles: ["admin", "manager"],
   },
   {
     title: "Settings",
+    href: "/admin/settings",
     icon: Settings,
     roles: ["admin"],
   },
@@ -87,22 +94,19 @@ export default function Sidebar({
             const Icon = item.icon;
 
             return (
-              <button
-                key={item.title}
-                onClick={() =>
-                  setActivePage(item.title)
-                }
-                className={`flex items-center gap-3 w-full rounded-lg px-4 py-3 mb-2 transition
-                  ${
-                    activePage === item.title
-                      ? "bg-blue-800"
-                      : "hover:bg-blue-800"
-                  }`}
-              >
-                <Icon size={20} />
-
-                <span>{item.title}</span>
-              </button>
+              <Link
+             key={item.title}
+             href={item.href}
+            className={`flex items-center gap-3 w-full rounded-lg px-4 py-3 mb-2 transition
+             ${
+           activePage === item.title
+           ? "bg-blue-800"
+           : "hover:bg-blue-800"
+         }`}
+        >
+       <Icon size={20} />
+        <span>{item.title}</span>
+       </Link>
             );
           })}
       </div>
