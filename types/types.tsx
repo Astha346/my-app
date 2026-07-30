@@ -1,13 +1,15 @@
 export type Product = {
-  id: number;
-  title: string;
-  price: number;
+  _id: string;
+  name: string;
   category: string;
-  thumbnail: string;
+  price: string;
+  image: string;
+  description: string;
+  stock: number;
 };
 
 export type ProductCard = {
-  id: number;
+  id: string;
   name: string;
   price: string;
   image: string;
@@ -17,7 +19,7 @@ export type User = {
   id: string;
   username: string;
   email: string;
-  role:  "admin" | "customer";
+  role: "admin" | "customer";
 };
 
 export type Category = {
@@ -27,8 +29,8 @@ export type Category = {
 
 /* mapper */
 export const toProductCard = (p: Product): ProductCard => ({
-  id: p.id,
-  name: p.title,
-  price: `$${p.price}`,
-  image: p.thumbnail,
+  id: p._id,
+  name: p.name,
+  price: p.price,
+  image: p.image,
 });

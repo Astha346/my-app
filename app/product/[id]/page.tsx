@@ -12,7 +12,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<any>(null);
 
   // 📊 ANALYTICS FUNCTION (NEW)
-  const trackView = async (id: number) => {
+  const trackView = async (id: string) => {
     try {
       await api.post("/analytics/click", {
         productId: id,
@@ -26,12 +26,12 @@ export default function ProductDetail() {
     if (!id) return;
 
     // fetch product (your existing logic)
-    fetch(`https://dummyjson.com/products/${id}`)
-      .then(res => res.json())
-      .then(data => setProduct(data));
+    api.get(`/products/${id}`)
+  .then((res) => setProduct(res.data))
+  .catch((err) => console.log(err));
 
     // 📊 track product view (safe, non-blocking)
-    trackView(Number(id));
+    trackView((id));
   }, [id]);
 
   const handleBuyNow = async () => {
@@ -48,14 +48,16 @@ export default function ProductDetail() {
     return;
   }
 
+  const userId = user._id || user.id;
+
   await api.post("/cart/add", {
-    userId: user.id,
-    productId: product._id,
-    name: product.title,
-    price: product.price,
-    image: product.thumbnail,
-    quantity: 1,
-  });
+  userId,
+  productId: product._id,
+  name: product.name,
+  price: Number(product.price),
+  image: product.image,
+  quantity: 1,
+});
 
   trackView(product._id);
 
@@ -74,13 +76,13 @@ export default function ProductDetail() {
 
       {/* IMAGE */}
       <img
-        src={product.thumbnail}
+        src={product.image}
         className="w-full h-80 object-cover rounded"
       />
 
       {/* TITLE */}
       <h1 className="text-2xl font-bold mt-4">
-        {product.title}
+        {product.name}
       </h1>
 
       {/* DESCRIPTION */}
@@ -90,7 +92,7 @@ export default function ProductDetail() {
 
       {/* PRICE */}
       <p className="mt-3 text-xl font-bold">
-        ${product.price}
+        Rs. {product.price}
       </p>
 
       {/* BUY BUTTON */}

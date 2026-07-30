@@ -23,12 +23,12 @@ type Page = "dashboard" | "users";
 
 const categories: Category[] = [
   { label: "All", value: "all" },
-  { label: "Beauty", value: "beauty" },
-  { label: "Fragrances", value: "fragrances" },
-  { label: "Furniture", value: "furniture" },
-  { label: "Groceries", value: "groceries" },
-  { label: "Laptops", value: "laptops" },
-  { label: "Mens Shirts", value: "mens-shirts" },
+  { label: "Beauty", value: "Beauty" },
+  { label: "Fragrances", value: "Fragrances" },
+  { label: "Furniture", value: "Furniture" },
+  { label: "Groceries", value: "Groceries" },
+  { label: "Laptops", value: "Laptops" },
+  { label: "Mens Shirts", value: "Mens Shirts" },
 ];
 
 export default function Home() {
@@ -71,8 +71,8 @@ export default function Home() {
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const res = await axios.get("https://dummyjson.com/products");
-         setProducts(res.data.products);
+        const res = await axios.get("http://localhost:3001/products");
+         setProducts(res.data);
         
       } catch (error) {
         console.error("Failed to fetch products:", error);
@@ -93,17 +93,17 @@ export default function Home() {
 
     const result = products
       .filter((product) =>
-        product.title.toLowerCase().includes(search.toLowerCase())
+        product.name.toLowerCase().includes(search.toLowerCase())
       )
       .slice(0, 6)
-      .map((product) => product.title);
+      .map((product) => product.name);
 
     setSuggestions(result);
   }, [search, products]);
 
   // Filter Products
   const filteredProducts = products.filter((product) => {
-    const searchMatch = product.title
+    const searchMatch = product.name
       .toLowerCase()
       .includes(search.toLowerCase());
 
