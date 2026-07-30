@@ -13,7 +13,7 @@ export default function ProductSection({
 }) {
   const router = useRouter();
 
-  const trackClick = async (id: number) => {
+  const trackClick = async (id: string) => {
     try {
       await api.post("/analytics/click", {
         productId: id,
@@ -26,24 +26,21 @@ export default function ProductSection({
   const handleBuyNow = async (p: ProductCard) => {
   try {
     const user = JSON.parse(
-      localStorage.getItem("user") || "{}"
+  localStorage.getItem("user") || "{}"
     );
 
-    if (!user?.id) {
-      alert("Please login first");
-      router.push("/login");
-      return;
-    }
+const userId = user._id || user.id;
 
-    const price =
-      typeof p.price === "string"
-        ? Number(
-            p.price.replace(/[^0-9.]/g, "")
-          )
-        : p.price;
+if (!userId) {
+  alert("Please login first");
+  router.push("/login");
+  return;
+   }
+
+    const price = Number(p.price.replace(/[^0-9.]/g, ""));
 
     await api.post("/cart/add", {
-      userId: user.id,
+      userId: userId,
       productId: p.id,
       name: p.name,
       price,
