@@ -142,8 +142,6 @@ const handleDelete = async () => {
       <div className="flex-1">
         <Navbar />
 
-   
-
       <main className="p-8">
 
   {/* DASHBOARD */}
