@@ -5,7 +5,7 @@ import axios from "axios";
 
 import Sidebar from "@/components/admin/Sidebar";
 import Navbar from "@/components/admin/Navbar";
-
+import ProductsContent from "@/components/admin/Products/ProductsContent";
 import StatsCards from "@/components/admin/Dashboard/StatsCard";
 import SalesOverview from "@/components/admin/Dashboard/SalesOverview"; 
 import TopProducts from "@/components/admin/Dashboard/TopProducts";
@@ -13,7 +13,7 @@ import RecentOrders from "@/components/admin/Dashboard/RecentOrders";
 import OrderStatus from "@/components/admin/Dashboard/OrderStatus";
 import DeleteOrderModal from "@/components/admin/Dashboard/DeleteOrderModal";
 import ViewOrderModal from "@/components/admin/Dashboard/ViewOrderModal"
-
+import PermissionMatrix from "@/components/admin/Permissions/PermissionMatrix";
 
    export default function AdminPage() {
    const [activePage, setActivePage] =
@@ -142,57 +142,72 @@ const handleDelete = async () => {
       <div className="flex-1">
         <Navbar />
 
-        <main className="p-8">
+   
 
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold">
-              Dashboard
-            </h1>
+      <main className="p-8">
 
-            <p className="text-gray-500 mt-2">
-              Welcome back Admin 👋
-            </p>
-          </div>
+  {/* DASHBOARD */}
+  {activePage === "Dashboard" && (
+    <>
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold">
+          Dashboard
+        </h1>
 
-          <StatsCards 
-          stats={stats} />
+        <p className="mt-2 text-gray-500">
+          Welcome back Admin 👋
+        </p>
+      </div>
 
-        <SalesOverview
-       salesData={salesChartData}
-       />
+      <StatsCards stats={stats} />
 
-       <TopProducts products={topProducts} />
+      <SalesOverview
+        salesData={salesChartData}
+      />
 
-       <RecentOrders
-  orders={recentOrders}
-  setSelectedOrder={setSelectedOrder}
-  setDeleteOrder={setDeleteOrder}
-  setOrders={setRecentOrders}
-/>
+      <TopProducts
+        products={topProducts}
+      />
 
-<OrderStatus
-  statusData={statusData}
-/>
+      <RecentOrders
+        orders={recentOrders}
+        setSelectedOrder={setSelectedOrder}
+        setDeleteOrder={setDeleteOrder}
+        setOrders={setRecentOrders}
+      />
 
-{deleteOrder && (
-  <DeleteOrderModal
-    order={deleteOrder}
-    setDeleteOrder={setDeleteOrder}
-    deleteHandler={handleDelete}
-  />
-)}
+      <OrderStatus
+        statusData={statusData}
+      />
 
-{selectedOrder && (
-  <ViewOrderModal
-    order={selectedOrder}
-    setSelectedOrder={setSelectedOrder}
-  />
-)}
-       </main>
+      {deleteOrder && (
+        <DeleteOrderModal
+          order={deleteOrder}
+          setDeleteOrder={setDeleteOrder}
+          deleteHandler={handleDelete}
+        />
+      )}
 
+      {selectedOrder && (
+        <ViewOrderModal
+          order={selectedOrder}
+          setSelectedOrder={setSelectedOrder}
+        />
+      )}
+    </>
+  )}
 
-          
-  
+  {/* PRODUCTS */}
+  {activePage === "Products" && (
+    <ProductsContent />
+  )}
+
+  {/* PERMISSIONS */}
+  {activePage === "Permissions" && (
+    <PermissionMatrix />
+  )}
+
+</main>
               
 </div>
 </div>
