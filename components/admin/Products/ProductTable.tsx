@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,6 +18,8 @@ interface Product {
 
 interface Props {
   refresh: boolean;
+  products: Product[];
+  onProductsLoaded: (products: Product[]) => void;
   onEdit: (product: Product) => void;
   onView: (product: Product) => void;
   onDelete: (product: Product) => void;
@@ -24,11 +27,12 @@ interface Props {
 
 export default function ProductTable({
   refresh,
+  products,
+  onProductsLoaded,
   onEdit,
   onView,
   onDelete,
 }: Props) {
-  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,7 +45,7 @@ export default function ProductTable({
 
       const res = await api.get("/products");
 
-      setProducts(res.data);
+      onProductsLoaded(res.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -68,6 +72,7 @@ export default function ProductTable({
   return (
     <div className="overflow-hidden rounded-xl border bg-white">
       <table className="w-full">
+
         <thead className="bg-gray-100">
           <tr>
             <th className="px-5 py-3 text-left">Image</th>
@@ -142,7 +147,9 @@ export default function ProductTable({
             </tr>
           ))}
         </tbody>
+
       </table>
     </div>
   );
 }
+
