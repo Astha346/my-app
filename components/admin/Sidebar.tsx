@@ -1,13 +1,14 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   LayoutDashboard,
   Package,
   FolderTree,
   ShoppingCart,
   Users,
+  ShieldCheck,
   BarChart3,
   Settings,
   LogOut,
@@ -16,43 +17,44 @@ import {
 const menuItems = [
   {
     title: "Dashboard",
-    href: "/admin",
     icon: LayoutDashboard,
     roles: ["admin", "manager", "staff"],
   },
   {
     title: "Products",
-    href: "/admin/products",
     icon: Package,
     roles: ["admin", "manager"],
   },
   {
     title: "Categories",
-    href: "/admin/categories",
     icon: FolderTree,
     roles: ["admin", "manager"],
   },
   {
     title: "Orders",
-    href: "/admin/orders",
     icon: ShoppingCart,
     roles: ["admin", "manager", "staff"],
   },
   {
     title: "Customers",
-    href: "/admin/customers",
     icon: Users,
     roles: ["admin", "manager", "staff"],
   },
+
+  {
+     title: "Permissions",
+     icon: ShieldCheck,
+     roles: ["admin"],
+},
+  
+
   {
     title: "Analytics",
-    href: "/admin/analytics",
     icon: BarChart3,
     roles: ["admin", "manager"],
   },
   {
     title: "Settings",
-    href: "/admin/settings",
     icon: Settings,
     roles: ["admin"],
   },
@@ -78,7 +80,8 @@ export default function Sidebar({
   }, []);
 
   return (
-    <aside className="w-64 min-h-screen bg-gray-800 text-white flex flex-col">
+    <aside className="flex min-h-screen w-64 flex-col bg-gray-800 text-white">
+
       <div className="border-b border-blue-800 p-6">
         <h1 className="text-2xl font-bold">
           ShopAdmin
@@ -86,6 +89,7 @@ export default function Sidebar({
       </div>
 
       <div className="flex-1 px-3 py-5">
+
         {menuItems
           .filter((item) =>
             item.roles.includes(role)
@@ -94,29 +98,33 @@ export default function Sidebar({
             const Icon = item.icon;
 
             return (
-              <Link
-             key={item.title}
-             href={item.href}
-            className={`flex items-center gap-3 w-full rounded-lg px-4 py-3 mb-2 transition
-             ${
-           activePage === item.title
-           ? "bg-blue-800"
-           : "hover:bg-blue-800"
-         }`}
-        >
-       <Icon size={20} />
-        <span>{item.title}</span>
-       </Link>
+              <button
+                key={item.title}
+                type="button"
+                onClick={() => setActivePage(item.title)}
+                className={`mb-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition
+                  ${
+                    activePage === item.title
+                      ? "bg-blue-800"
+                      : "hover:bg-blue-800"
+                  }`}
+              >
+                <Icon size={20} />
+                <span>{item.title}</span>
+              </button>
             );
           })}
+
       </div>
 
       <div className="border-t border-blue-800 p-4">
-        <button className="flex items-center gap-3 w-full rounded-lg px-4 py-3 hover:bg-blue-800">
+        <button className="flex w-full items-center gap-3 rounded-lg px-4 py-3 hover:bg-blue-800">
           <LogOut size={20} />
           Logout
         </button>
       </div>
+
     </aside>
   );
 }
+
