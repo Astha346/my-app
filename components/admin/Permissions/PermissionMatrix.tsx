@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 type Permission = {
   id: string;
@@ -188,8 +188,10 @@ const permissions: Permission[] = [
 const roles = ["admin", "manager", "staff", "customer"];
 
 const initialPermissions: Record<string, string[]> = {
+  // Admin has everything for now
   admin: permissions.map((permission) => permission.id),
 
+  // Manager permissions
   manager: [
     "dashboard.view",
 
@@ -221,6 +223,7 @@ const initialPermissions: Record<string, string[]> = {
     "roles.view",
   ],
 
+  // Staff permissions
   staff: [
     "dashboard.view",
 
@@ -236,6 +239,7 @@ const initialPermissions: Record<string, string[]> = {
     "analytics.view",
   ],
 
+  // Customer has no admin permissions
   customer: [],
 };
 
@@ -248,32 +252,32 @@ export default function PermissionMatrix() {
     permissionId: string
   ) => {
     setRolePermissions((current) => {
-      const currentPermissions =
-        current[role] || [];
+      const currentPermissions = current[role] || [];
 
       const hasPermission =
         currentPermissions.includes(permissionId);
 
+      if (hasPermission) {
+        return {
+          ...current,
+          [role]: currentPermissions.filter(
+            (id) => id !== permissionId
+          ),
+        };
+      }
+
       return {
         ...current,
-
-        [role]: hasPermission
-          ? currentPermissions.filter(
-              (id) => id !== permissionId
-            )
-          : [
-              ...currentPermissions,
-              permissionId,
-            ],
+        [role]: [
+          ...currentPermissions,
+          permissionId,
+        ],
       };
     });
   };
 
   const handleSave = () => {
-    console.log(
-      "Role Permissions:",
-      rolePermissions
-    );
+    console.log("Role Permissions:", rolePermissions);
   };
 
   return (
@@ -297,6 +301,7 @@ export default function PermissionMatrix() {
 
           <table className="w-full min-w-225 border-collapse">
 
+            {/* Table Header */}
             <thead>
               <tr className="border-b bg-gray-50">
 
@@ -316,6 +321,7 @@ export default function PermissionMatrix() {
               </tr>
             </thead>
 
+            {/* Table Body */}
             <tbody>
 
               {permissions.map(
@@ -330,58 +336,55 @@ export default function PermissionMatrix() {
                       permission.category;
 
                   return (
-                    <>
+                    <Fragment key={permission.id}>
 
-                      {/* Category Row */}
+                      {/* Category Header */}
                       {showCategory && (
-                        <tr
-                          key={`${permission.category}-header`}
-                          className="bg-gray-100"
-                        >
+                        <tr className="bg-gray-100">
+
                           <td
-                            colSpan={
-                              roles.length + 1
-                            }
+                            colSpan={roles.length + 1}
                             className="px-6 py-3 text-sm font-semibold text-gray-700"
                           >
                             {permission.category}
                           </td>
+
                         </tr>
                       )}
 
                       {/* Permission Row */}
-                      <tr
-                        key={permission.id}
-                        className="border-b hover:bg-gray-50"
-                      >
+                      <tr className="border-b hover:bg-gray-50">
 
+                        {/* Permission Name */}
                         <td className="px-6 py-4">
 
                           <p className="text-sm font-medium text-gray-900">
                             {permission.name}
                           </p>
 
+                          <p className="mt-1 text-xs text-gray-500">
+                            {permission.id}
+                          </p>
+
                         </td>
 
+                        {/* Role Checkboxes */}
                         {roles.map((role) => {
 
                           const checked =
-                            rolePermissions[
-                              role
-                            ]?.includes(
+                            rolePermissions[role]?.includes(
                               permission.id
-                            );
+                            ) ?? false;
 
                           return (
                             <td
-                              key={role}
+                              key={`${permission.id}-${role}`}
                               className="px-6 py-4 text-center"
                             >
+
                               <input
                                 type="checkbox"
-                                checked={
-                                  checked
-                                }
+                                checked={checked}
                                 onChange={() =>
                                   handlePermissionChange(
                                     role,
@@ -390,13 +393,15 @@ export default function PermissionMatrix() {
                                 }
                                 className="h-5 w-5 cursor-pointer rounded border-gray-300"
                               />
+
                             </td>
                           );
+
                         })}
 
                       </tr>
 
-                    </>
+                    </Fragment>
                   );
                 }
               )}
