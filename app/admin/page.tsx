@@ -14,6 +14,7 @@ import OrderStatus from "@/components/admin/Dashboard/OrderStatus";
 import DeleteOrderModal from "@/components/admin/Dashboard/DeleteOrderModal";
 import ViewOrderModal from "@/components/admin/Dashboard/ViewOrderModal"
 import PermissionMatrix from "@/components/admin/Permissions/PermissionMatrix";
+import CategoriesContent from "@/components/admin/Categories/CategoriesContent";
 
    export default function AdminPage() {
    const [activePage, setActivePage] =
@@ -204,6 +205,11 @@ const handleDelete = async () => {
   {activePage === "Permissions" && (
     <PermissionMatrix />
   )}
+
+  {/* CATEGORIES */}
+   {activePage === "Categories" && (
+  <CategoriesContent />
+   )}
 
 </main>
               
