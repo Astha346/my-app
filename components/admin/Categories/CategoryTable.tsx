@@ -39,15 +39,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 
-interface Category {
-  _id: string;
-  name: string;
-  description?: string;
-  image?: string;
-  parentId?: string | null;
-  productCount?: number;
-  status?: string;
-}
+import type { Category } from "@/types/category";
 
 interface CategoryTableProps {
   categories?: Category[];
