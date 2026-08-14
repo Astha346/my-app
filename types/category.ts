@@ -1,3 +1,4 @@
+
 export interface Category {
   _id: string;
   name: string;
@@ -6,4 +7,9 @@ export interface Category {
   parentId?: string | null;
   productCount?: number;
   status?: "active" | "inactive";
+  createdAt?: string;
+  updatedAt?: string;
 }
+  
+
+

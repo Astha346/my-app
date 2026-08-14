@@ -1,106 +1,165 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+import type { Category } from "@/types/category";
+
 import CategoryHeader from "./CategoryHeader";
-import CategoryStats from "./CategoryStats";
-import CategoryFilters from "./CategoryFilters";
 import CategoryTable from "./CategoryTable";
 import AddCategoryDialog from "./AddCategoryDialog";
 import EditCategoryDialog from "./EditCategoryDialog";
+import DeleteCategoryDialog from "./DeleteCategoryDialog";
 
-import type { Category } from "@/types/category";
+interface Product {
+  _id: string;
+  name: string;
+  category: string;
+  price: string | number;
+  image?: string;
+  description?: string;
+  stock: number;
+}
+
 export default function CategoriesContent() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
 
-  const [search, setSearch] = useState("");
-  const [parent, setParent] = useState("all");
-  const [status, setStatus] = useState("all");
+  const [loading, setLoading] = useState(true);
 
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  
-  const [editingCategory, setEditingCategory] =
-  useState<Category | null>(null);
+  const [editCategory, setEditCategory] =
+    useState<Category | null>(null);
 
-   const [isEditDialogOpen, setIsEditDialogOpen] =
-  useState(false); 
-  const fetchCategories = async () => {
+  const [deleteCategory, setDeleteCategory] =
+    useState<Category | null>(null);
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  const fetchData = async () => {
     try {
       setLoading(true);
 
-      const response = await axios.get(
-  "http://localhost:3001/categories"
-    );
-      setCategories(response.data);
+      const [categoriesResponse, productsResponse] =
+        await Promise.all([
+          axios.get("http://localhost:3001/categories"),
+          axios.get("http://localhost:3001/products"),
+        ]);
+
+      console.log(
+        "CATEGORIES RESPONSE:",
+        categoriesResponse.data
+      );
+
+      console.log(
+        "PRODUCTS RESPONSE:",
+        productsResponse.data
+      );
+
+      const categoryData: Category[] =
+        Array.isArray(categoriesResponse.data)
+          ? categoriesResponse.data
+          : [];
+
+      const productData: Product[] =
+        Array.isArray(productsResponse.data)
+          ? productsResponse.data
+          : [];
+
+      console.log("CATEGORY COUNT:", categoryData.length);
+      console.log("PRODUCT COUNT:", productData.length);
+
+      setCategories(categoryData);
+      setProducts(productData);
     } catch (error) {
-      console.error("Failed to fetch categories:", error);
+      console.error(
+        "Failed to fetch category/product data:",
+        error
+      );
+
+      setCategories([]);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCategories();
+    fetchData();
   }, []);
 
-  const handleCategoryCreated = async () => {
-    setIsAddDialogOpen(false);
-    await fetchCategories();
+  const handleEdit = (category: Category) => {
+    setEditCategory(category);
+    setEditOpen(true);
+  };
+
+  const handleDelete = (category: Category) => {
+    setDeleteCategory(category);
+    setDeleteOpen(true);
+  };
+
+  const handleSuccess = () => {
+    fetchData();
   };
 
   return (
     <div className="space-y-6">
+
+      {/* HEADER */}
       <CategoryHeader
-        onAddCategory={() => setIsAddDialogOpen(true)}
+        onAddCategory={() => setAddOpen(true)}
       />
 
-      <CategoryStats
-        categories={categories}
-      />
-
-      <CategoryFilters
-        search={search}
-        parent={parent}
-        status={status}
-        categories={categories}
-        onSearchChange={setSearch}
-        onParentChange={setParent}
-        onStatusChange={setStatus}
-        onReset={() => {
-          setSearch("");
-          setParent("all");
-          setStatus("all");
-        }}
-      />
-
-     <CategoryTable
-  categories={categories}
-  onEdit={(category: Category) => {
-    setEditingCategory(category);
-    setIsEditDialogOpen(true);
-  }}
-/>
-    
-
+      {/* ADD CATEGORY */}
       <AddCategoryDialog
-  open={isAddDialogOpen}
-  onOpenChange={setIsAddDialogOpen}
-  categories={categories}
-  onSuccess={handleCategoryCreated}
-/>
-  <EditCategoryDialog
-  open={isEditDialogOpen}
-  onOpenChange={setIsEditDialogOpen}
-  category={editingCategory}
-  categories={categories}
-  onSuccess={async () => {
-    setIsEditDialogOpen(false);
-    setEditingCategory(null);
-    await fetchCategories();
-  }}
-/>
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {/* DEBUG COUNTS */}
+      <div className="text-sm text-muted-foreground">
+        Categories: {categories.length} | Products:{" "}
+        {products.length}
+      </div>
+
+      {/* TABLE */}
+      {loading ? (
+        <div className="flex min-h-75 items-center justify-center">
+          <p className="text-sm text-muted-foreground">
+            Loading categories...
+          </p>
+        </div>
+      ) : (
+        <CategoryTable
+          categories={categories}
+          products={products}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      )}
+
+      {/* EDIT */}
+      <EditCategoryDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        category={editCategory}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {/* DELETE */}
+      <DeleteCategoryDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        category={deleteCategory}
+        onSuccess={handleSuccess}
+      />
+
     </div>
   );
 }
+
