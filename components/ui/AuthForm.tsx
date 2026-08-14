@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -36,71 +37,56 @@ export default function AuthForm({
   });
 
   const handleLogin = async (data: AuthFormData) => {
-  try {
-    const res = await api.post("/auth/login", data);
+    try {
+      const res = await api.post("/auth/login", data);
 
-    console.log("LOGIN RESPONSE =", res.data);
+      console.log("LOGIN RESPONSE =", res.data);
 
-    const user = res.data.user;
+      const user = res.data.user;
 
-console.log("FULL RESPONSE =", res.data);
-console.log("USER =", user);
+      if (!user) {
+        throw new Error("User data not found");
+      }
 
-localStorage.setItem(
-  "user",
-  JSON.stringify(user)
-);
+      console.log("LOGIN USER =", user);
+      console.log("Role:", user.role);
 
-console.log(
-  "LOCAL STORAGE =",
-  localStorage.getItem("user")
-   );
-    if (!user) {
-      throw new Error("User data not found");
-    }
+      // Save logged-in user
+      localStorage.setItem("user", JSON.stringify(user));
 
-    console.log("LOGIN USER =", user);
+      // Save JWT token
+      if (res.data.access_token) {
+        localStorage.setItem("token", res.data.access_token);
+      }
 
-    localStorage.setItem(
-      "user",
-      JSON.stringify(user)
-    );
+      console.log(
+        "LOCAL STORAGE USER =",
+        localStorage.getItem("user")
+      );
 
-    if (res.data.access_token) {
-      localStorage.setItem(
-        "token",
-        res.data.access_token
+      // Update authentication state
+      onLogin(user);
+
+      // Redirect based on role
+      if (["admin", "manager", "staff"].includes(user.role)) {
+        console.log("Going to admin");
+        router.push("/admin");
+      } else {
+        console.log("Going to website");
+        router.push("/");
+      }
+    } catch (error: any) {
+      console.error("LOGIN ERROR =", error);
+
+      alert(
+        error.response?.data?.message ||
+          "Invalid email or password"
       );
     }
-
-    onLogin(user);
-
-    console.log("Role:", user.role);
-
-    if (
-      ["admin", "manager", "staff"].includes(
-        user.role
-      )
-    ) {
-      console.log("Going to admin");
-      router.push("/admin");
-    } else {
-      console.log("Going to website");
-      router.push("/");
-    }
-
-  } catch (error: any) {
-    console.error("LOGIN ERROR =", error);
-
-    alert(
-      error.response?.data?.message ||
-      "Invalid email or password"
-    );
-  }
-};
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center from-slate-50 via-white to-slate-100 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 via-white to-slate-100 px-4">
       <div className="w-full max-w-md">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-8">
 
@@ -128,6 +114,7 @@ console.log(
             onSubmit={handleSubmit(handleLogin)}
             className="space-y-5"
           >
+            {/* Email */}
             <div>
               <Label>Email</Label>
 
@@ -144,6 +131,7 @@ console.log(
               )}
             </div>
 
+            {/* Password */}
             <div>
               <Label>Password</Label>
 
@@ -160,6 +148,7 @@ console.log(
               )}
             </div>
 
+            {/* Forgot Password */}
             <div className="text-right">
               <button
                 type="button"
@@ -169,6 +158,7 @@ console.log(
               </button>
             </div>
 
+            {/* Submit */}
             <Button
               type="submit"
               disabled={isSubmitting}
@@ -177,6 +167,7 @@ console.log(
               {isSubmitting ? "Signing in..." : "Sign In"}
             </Button>
 
+            {/* Register */}
             <div className="text-center pt-2">
               <p className="text-sm text-slate-600">
                 Don't have an account?{" "}
@@ -189,9 +180,9 @@ console.log(
               </p>
             </div>
           </form>
-
         </div>
       </div>
     </div>
   );
 }
+
