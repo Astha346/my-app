@@ -1,274 +1,181 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
+import axios from "axios";
 
-type Permission = {
-  id: string;
+type Role = {
+  _id: string;
   name: string;
-  category: string;
+  description?: string;
+  isActive?: boolean;
 };
 
-const permissions: Permission[] = [
-  // Dashboard
-  {
-    id: "dashboard.view",
-    name: "View Dashboard",
-    category: "Dashboard",
-  },
+type Permission = {
+  _id: string;
+  name: string;
+  module: string;
+  description: string;
+};
 
-  // Products
-  {
-    id: "products.view",
-    name: "View Products",
-    category: "Products",
-  },
-  {
-    id: "products.create",
-    name: "Add Product",
-    category: "Products",
-  },
-  {
-    id: "products.update",
-    name: "Edit Product",
-    category: "Products",
-  },
-  {
-    id: "products.delete",
-    name: "Delete Product",
-    category: "Products",
-  },
-
-  // Categories
-  {
-    id: "categories.view",
-    name: "View Categories",
-    category: "Categories",
-  },
-  {
-    id: "categories.create",
-    name: "Add Category",
-    category: "Categories",
-  },
-  {
-    id: "categories.update",
-    name: "Edit Category",
-    category: "Categories",
-  },
-  {
-    id: "categories.delete",
-    name: "Delete Category",
-    category: "Categories",
-  },
-
-  // Orders
-  {
-    id: "orders.view",
-    name: "View Orders",
-    category: "Orders",
-  },
-  {
-    id: "orders.update",
-    name: "Update Order",
-    category: "Orders",
-  },
-  {
-    id: "orders.delete",
-    name: "Delete Order",
-    category: "Orders",
-  },
-
-  // Customers
-  {
-    id: "customers.view",
-    name: "View Customers",
-    category: "Customers",
-  },
-  {
-    id: "customers.create",
-    name: "Add Customer",
-    category: "Customers",
-  },
-  {
-    id: "customers.update",
-    name: "Edit Customer",
-    category: "Customers",
-  },
-  {
-    id: "customers.delete",
-    name: "Delete Customer",
-    category: "Customers",
-  },
-
-  // Analytics
-  {
-    id: "analytics.view",
-    name: "View Analytics",
-    category: "Analytics",
-  },
-  {
-    id: "analytics.sales",
-    name: "View Sales Reports",
-    category: "Analytics",
-  },
-  {
-    id: "analytics.revenue",
-    name: "View Revenue Reports",
-    category: "Analytics",
-  },
-
-  // Settings
-  {
-    id: "settings.view",
-    name: "View Settings",
-    category: "Settings",
-  },
-  {
-    id: "settings.update",
-    name: "Edit Settings",
-    category: "Settings",
-  },
-
-  // User Management
-  {
-    id: "users.view",
-    name: "View Users",
-    category: "User Management",
-  },
-  {
-    id: "users.create",
-    name: "Add User",
-    category: "User Management",
-  },
-  {
-    id: "users.update",
-    name: "Edit User",
-    category: "User Management",
-  },
-  {
-    id: "users.delete",
-    name: "Delete User",
-    category: "User Management",
-  },
-
-  // Role Management
-  {
-    id: "roles.view",
-    name: "View Roles",
-    category: "Role Management",
-  },
-  {
-    id: "roles.create",
-    name: "Add Role",
-    category: "Role Management",
-  },
-  {
-    id: "roles.update",
-    name: "Edit Role",
-    category: "Role Management",
-  },
-  {
-    id: "roles.delete",
-    name: "Delete Role",
-    category: "Role Management",
-  },
-
-  // Permission Management
-  {
-    id: "permissions.view",
-    name: "View Permissions",
-    category: "Permission Management",
-  },
-  {
-    id: "permissions.update",
-    name: "Manage Permissions",
-    category: "Permission Management",
-  },
-];
-
-const roles = ["admin", "manager", "staff", "customer"];
-
-const initialPermissions: Record<string, string[]> = {
-  // Admin has everything for now
-  admin: permissions.map((permission) => permission.id),
-
-  // Manager permissions
-  manager: [
-    "dashboard.view",
-
-    "products.view",
-    "products.create",
-    "products.update",
-
-    "categories.view",
-    "categories.create",
-    "categories.update",
-
-    "orders.view",
-    "orders.update",
-
-    "customers.view",
-    "customers.create",
-    "customers.update",
-
-    "analytics.view",
-    "analytics.sales",
-    "analytics.revenue",
-
-    "settings.view",
-
-    "users.view",
-    "users.create",
-    "users.update",
-
-    "roles.view",
-  ],
-
-  // Staff permissions
-  staff: [
-    "dashboard.view",
-
-    "products.view",
-
-    "categories.view",
-
-    "orders.view",
-    "orders.update",
-
-    "customers.view",
-
-    "analytics.view",
-  ],
-
-  // Customer has no admin permissions
-  customer: [],
+type RolePermission = {
+  _id: string;
+  role: string;
+  permission: Permission;
 };
 
 export default function PermissionMatrix() {
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [permissions, setPermissions] = useState<Permission[]>(
+    []
+  );
+
+  /*
+   * Example:
+   *
+   * {
+   *   "managerId": [
+   *      "products.view",
+   *      "products.create"
+   *   ]
+   * }
+   *
+   * Actually we store permission IDs here.
+   */
   const [rolePermissions, setRolePermissions] =
-    useState<Record<string, string[]>>(initialPermissions);
+    useState<Record<string, string[]>>({});
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // =====================================================
+  // LOAD ROLES + PERMISSIONS + EXISTING ROLE PERMISSIONS
+  // =====================================================
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+
+      // Get roles and permissions
+      const [
+        rolesResponse,
+        permissionsResponse,
+      ] = await Promise.all([
+        axios.get("http://localhost:3001/roles"),
+        axios.get("http://localhost:3001/permissions"),
+      ]);
+
+      const rolesData: Role[] = rolesResponse.data;
+
+      const permissionsData: Permission[] =
+        permissionsResponse.data;
+
+      setRoles(rolesData);
+      setPermissions(permissionsData);
+
+      // =================================================
+      // GET PERMISSIONS FOR EACH ROLE
+      // =================================================
+
+      const rolePermissionData: Record<
+        string,
+        string[]
+      > = {};
+
+      for (const role of rolesData) {
+        try {
+          const response = await axios.get(
+            `http://localhost:3001/role-permissions/${role._id}`
+          );
+
+          const data: RolePermission[] =
+            response.data;
+
+          rolePermissionData[role._id] =
+            data
+              .filter(
+                (item) =>
+                  item.permission &&
+                  item.permission._id
+              )
+              .map(
+                (item) =>
+                  item.permission._id
+              );
+        } catch (error) {
+          console.error(
+            `Failed to load permissions for role ${role.name}:`,
+            error
+          );
+
+          rolePermissionData[role._id] = [];
+        }
+      }
+
+      setRolePermissions(rolePermissionData);
+
+      console.log(
+        "Roles:",
+        rolesData
+      );
+
+      console.log(
+        "Permissions:",
+        permissionsData
+      );
+
+      console.log(
+        "Role Permissions:",
+        rolePermissionData
+      );
+    } catch (error) {
+      console.error(
+        "Failed to fetch roles and permissions:",
+        error
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =====================================================
+  // CHECKBOX CHANGE
+  // =====================================================
 
   const handlePermissionChange = (
-    role: string,
+    roleId: string,
     permissionId: string
   ) => {
     setRolePermissions((current) => {
-      const currentPermissions = current[role] || [];
+      const currentPermissions =
+        current[roleId] || [];
 
       const hasPermission =
-        currentPermissions.includes(permissionId);
+        currentPermissions.includes(
+          permissionId
+        );
 
+      // REMOVE PERMISSION
       if (hasPermission) {
         return {
           ...current,
-          [role]: currentPermissions.filter(
-            (id) => id !== permissionId
-          ),
+
+          [roleId]:
+            currentPermissions.filter(
+              (id) =>
+                id !== permissionId
+            ),
         };
       }
 
+      // ADD PERMISSION
       return {
         ...current,
-        [role]: [
+
+        [roleId]: [
           ...currentPermissions,
           permissionId,
         ],
@@ -276,14 +183,96 @@ export default function PermissionMatrix() {
     });
   };
 
-  const handleSave = () => {
-    console.log("Role Permissions:", rolePermissions);
+  // =====================================================
+  // SAVE PERMISSIONS
+  // =====================================================
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+
+      /*
+       * Loop through every role.
+       */
+      for (const role of roles) {
+        // -----------------------------------------------
+        // 1. DELETE OLD ROLE PERMISSIONS
+        // -----------------------------------------------
+
+        await axios.delete(
+          `http://localhost:3001/role-permissions/${role._id}`
+        );
+
+        // -----------------------------------------------
+        // 2. GET CURRENTLY SELECTED PERMISSIONS
+        // -----------------------------------------------
+
+        const selectedPermissions =
+          rolePermissions[role._id] || [];
+
+        // -----------------------------------------------
+        // 3. SAVE NEW PERMISSIONS
+        // -----------------------------------------------
+
+        for (const permissionId of selectedPermissions) {
+          await axios.post(
+            "http://localhost:3001/role-permissions",
+            {
+              role: role._id,
+              permission: permissionId,
+            }
+          );
+        }
+      }
+
+      alert(
+        "Permissions saved successfully"
+      );
+
+      // -----------------------------------------------
+      // 4. LOAD DATA AGAIN FROM MONGODB
+      // -----------------------------------------------
+
+      await fetchData();
+    } catch (error) {
+      console.error(
+        "Failed to save permissions:",
+        error
+      );
+
+      alert(
+        "Failed to save permissions"
+      );
+    } finally {
+      setSaving(false);
+    }
   };
+
+  // =====================================================
+  // LOADING
+  // =====================================================
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border bg-white p-8">
+        <p className="text-gray-500">
+          Loading permissions...
+        </p>
+      </div>
+    );
+  }
+
+  // =====================================================
+  // UI
+  // =====================================================
 
   return (
     <div className="space-y-6">
 
-      {/* Header */}
+      {/* =================================================
+          HEADER
+      ================================================= */}
+
       <div>
         <h1 className="text-3xl font-bold text-gray-900">
           Permission Management
@@ -294,138 +283,204 @@ export default function PermissionMatrix() {
         </p>
       </div>
 
-      {/* Permission Table */}
-      <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+      {/* =================================================
+          EMPTY STATE
+      ================================================= */}
 
-        <div className="overflow-x-auto">
+      {roles.length === 0 ||
+      permissions.length === 0 ? (
+        <div className="rounded-xl border bg-white p-8">
+          <p className="text-gray-500">
+            No roles or permissions found.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* =============================================
+              PERMISSION TABLE
+          ============================================= */}
 
-          <table className="w-full min-w-225 border-collapse">
+          <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
 
-            {/* Table Header */}
-            <thead>
-              <tr className="border-b bg-gray-50">
+            <div className="overflow-x-auto">
 
-                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
-                  Permission
-                </th>
+              <table className="w-full min-w-[900px] border-collapse">
 
-                {roles.map((role) => (
-                  <th
-                    key={role}
-                    className="px-6 py-4 text-center text-sm font-semibold capitalize text-gray-900"
-                  >
-                    {role}
-                  </th>
-                ))}
+                {/* =======================================
+                    TABLE HEADER
+                ======================================= */}
 
-              </tr>
-            </thead>
+                <thead>
+                  <tr className="border-b bg-gray-50">
 
-            {/* Table Body */}
-            <tbody>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                      Permission
+                    </th>
 
-              {permissions.map(
-                (permission, index) => {
+                    {roles.map((role) => (
+                      <th
+                        key={role._id}
+                        className="px-6 py-4 text-center text-sm font-semibold capitalize text-gray-900"
+                      >
+                        {role.name}
+                      </th>
+                    ))}
 
-                  const previousPermission =
-                    permissions[index - 1];
+                  </tr>
+                </thead>
 
-                  const showCategory =
-                    !previousPermission ||
-                    previousPermission.category !==
-                      permission.category;
+                {/* =======================================
+                    TABLE BODY
+                ======================================= */}
 
-                  return (
-                    <Fragment key={permission.id}>
+                <tbody>
 
-                      {/* Category Header */}
-                      {showCategory && (
-                        <tr className="bg-gray-100">
+                  {permissions.map(
+                    (
+                      permission,
+                      index
+                    ) => {
 
-                          <td
-                            colSpan={roles.length + 1}
-                            className="px-6 py-3 text-sm font-semibold text-gray-700"
-                          >
-                            {permission.category}
-                          </td>
+                      const previousPermission =
+                        permissions[
+                          index - 1
+                        ];
 
-                        </tr>
-                      )}
+                      /*
+                       * Show module header when
+                       * module changes.
+                       */
+                      const showModule =
+                        !previousPermission ||
+                        previousPermission.module !==
+                          permission.module;
 
-                      {/* Permission Row */}
-                      <tr className="border-b hover:bg-gray-50">
+                      return (
+                        <Fragment
+                          key={
+                            permission._id
+                          }
+                        >
 
-                        {/* Permission Name */}
-                        <td className="px-6 py-4">
+                          {/* =================================
+                              MODULE HEADER
+                          ================================= */}
 
-                          <p className="text-sm font-medium text-gray-900">
-                            {permission.name}
-                          </p>
+                          {showModule && (
+                            <tr className="bg-gray-100">
 
-                          <p className="mt-1 text-xs text-gray-500">
-                            {permission.id}
-                          </p>
-
-                        </td>
-
-                        {/* Role Checkboxes */}
-                        {roles.map((role) => {
-
-                          const checked =
-                            rolePermissions[role]?.includes(
-                              permission.id
-                            ) ?? false;
-
-                          return (
-                            <td
-                              key={`${permission.id}-${role}`}
-                              className="px-6 py-4 text-center"
-                            >
-
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() =>
-                                  handlePermissionChange(
-                                    role,
-                                    permission.id
-                                  )
+                              <td
+                                colSpan={
+                                  roles.length +
+                                  1
                                 }
-                                className="h-5 w-5 cursor-pointer rounded border-gray-300"
-                              />
+                                className="px-6 py-3 text-sm font-semibold capitalize text-gray-700"
+                              >
+                                {permission.module}
+                              </td>
+
+                            </tr>
+                          )}
+
+                          {/* =================================
+                              PERMISSION ROW
+                          ================================= */}
+
+                          <tr className="border-b hover:bg-gray-50">
+
+                            {/* Permission information */}
+
+                            <td className="px-6 py-4">
+
+                              <p className="text-sm font-medium text-gray-900">
+                                {
+                                  permission.description
+                                }
+                              </p>
+
+                              <p className="mt-1 text-xs text-gray-500">
+                                {
+                                  permission.name
+                                }
+                              </p>
 
                             </td>
-                          );
 
-                        })}
+                            {/* =================================
+                                ROLE CHECKBOXES
+                            ================================= */}
 
-                      </tr>
+                            {roles.map(
+                              (role) => {
 
-                    </Fragment>
-                  );
-                }
-              )}
+                                const checked =
+                                  rolePermissions[
+                                    role._id
+                                  ]?.includes(
+                                    permission._id
+                                  ) ??
+                                  false;
 
-            </tbody>
+                                return (
+                                  <td
+                                    key={`${role._id}-${permission._id}`}
+                                    className="px-6 py-4 text-center"
+                                  >
 
-          </table>
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        checked
+                                      }
+                                      onChange={() =>
+                                        handlePermissionChange(
+                                          role._id,
+                                          permission._id
+                                        )
+                                      }
+                                      className="h-5 w-5 cursor-pointer rounded border-gray-300"
+                                    />
 
-        </div>
+                                  </td>
+                                );
+                              }
+                            )}
 
-      </div>
+                          </tr>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
+                        </Fragment>
+                      );
+                    }
+                  )}
 
-        <button
-          type="button"
-          onClick={handleSave}
-          className="rounded-lg bg-black px-6 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
-        >
-          Save Permissions
-        </button>
+                </tbody>
 
-      </div>
+              </table>
+
+            </div>
+
+          </div>
+
+          {/* =============================================
+              SAVE BUTTON
+          ============================================= */}
+
+          <div className="flex justify-end">
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-lg bg-black px-6 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving
+                ? "Saving..."
+                : "Save Permissions"}
+            </button>
+
+          </div>
+        </>
+      )}
 
     </div>
   );
