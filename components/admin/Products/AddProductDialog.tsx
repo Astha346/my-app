@@ -3,8 +3,27 @@
 import { useState } from "react";
 import api from "@/lib/api";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+
+import {
+  Loader2,
+  PackagePlus,
+  ImageIcon,
+  IndianRupee,
+  Boxes,
+} from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -20,147 +39,330 @@ export default function AddProductDialog({
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [price, setPrice] = useState("");
+  const [stock, setStock] = useState("");
   const [image, setImage] = useState("");
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  if (!open) return null;
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  function resetForm() {
+    setName("");
+    setCategory("");
+    setPrice("");
+    setStock("");
+    setImage("");
+    setDescription("");
+    setErrorMessage("");
+  }
+
+  function handleClose() {
+    if (loading) return;
+
+    resetForm();
+    onClose();
+  }
 
   async function handleSubmit() {
+    setErrorMessage("");
+
+    // Validation
+    if (!name.trim()) {
+      setErrorMessage("Product name is required.");
+      return;
+    }
+
+    if (!category.trim()) {
+      setErrorMessage("Category is required.");
+      return;
+    }
+
+    if (!price || Number(price) <= 0) {
+      setErrorMessage("Please enter a valid price.");
+      return;
+    }
+
+    if (stock === "" || Number(stock) < 0) {
+      setErrorMessage("Please enter a valid stock quantity.");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      await api.post("/products", {
-        name,
-        category,
-        price,
-        image,
-        description,
-      });
+      const productData = {
+        name: name.trim(),
+        category: category.trim(),
+        price: Number(price),
+        stock: Number(stock),
+        image: image.trim(),
+        description: description.trim(),
+      };
 
-      alert("Product added successfully!");
+      console.log("ADDING PRODUCT:", productData);
 
-      setName("");
-      setCategory("");
-      setPrice("");
-      setImage("");
-      setDescription("");
+      await api.post("/products", productData);
 
+      // Reset form
+      resetForm();
+
+      // Close dialog
       onClose();
+
+      // Tell parent to refresh products
       onSuccess();
-    } catch (error) {
-      console.error(error);
-      alert("Failed to add product");
+
+    } catch (error: any) {
+      console.error("ADD PRODUCT ERROR:", error);
+
+      console.error(
+        "BACKEND RESPONSE:",
+        error?.response?.data
+      );
+
+      const backendMessage =
+        error?.response?.data?.message;
+
+      if (Array.isArray(backendMessage)) {
+        setErrorMessage(backendMessage.join(", "));
+      } else {
+        setErrorMessage(
+          backendMessage ||
+            "Failed to add product. Please try again."
+        );
+      }
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
-
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!value) {
+          handleClose();
+        }
+      }}
+    >
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[650px]">
+        
         {/* Header */}
-        <div className="flex items-center justify-between border-b p-6">
-          <div>
-            <h2 className="text-2xl font-bold">Add Product</h2>
-            <p className="text-sm text-gray-500">
-              Create a new product
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10">
+              <PackagePlus className="h-5 w-5 text-primary" />
+            </div>
+
+            <div>
+              <DialogTitle className="text-xl">
+                Add Product
+              </DialogTitle>
+
+              <DialogDescription>
+                Add a new product to your store.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Error */}
+        {errorMessage && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {errorMessage}
+          </div>
+        )}
+
+        {/* Form */}
+        <div className="space-y-5 py-4">
+
+          {/* Product Name */}
+          <div className="space-y-2">
+            <Label htmlFor="product-name">
+              Product Name
+              <span className="ml-1 text-red-500">*</span>
+            </Label>
+
+            <Input
+              id="product-name"
+              placeholder="e.g. L'Oréal Revitalift Face Serum"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          {/* Category */}
+          <div className="space-y-2">
+            <Label htmlFor="product-category">
+              Category
+              <span className="ml-1 text-red-500">*</span>
+            </Label>
+
+            <Input
+              id="product-category"
+              placeholder="e.g. Beauty"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              disabled={loading}
+            />
+
+            <p className="text-xs text-muted-foreground">
+              Use the same category name used by your existing
+              products.
             </p>
           </div>
 
-          <Button
-            variant="outline"
-            onClick={onClose}
-          >
-            ✕
-          </Button>
-        </div>
+          {/* Price + Stock */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
-        {/* Body */}
-        <div className="space-y-5 p-6">
+            {/* Price */}
+            <div className="space-y-2">
+              <Label htmlFor="product-price">
+                Price
+                <span className="ml-1 text-red-500">*</span>
+              </Label>
 
-          <div>
-            <label className="mb-2 block font-medium">
-              Product Name
-            </label>
+              <div className="relative">
+                <IndianRupee className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 
-            <Input
-              placeholder="iPhone 16"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
+                <Input
+                  id="product-price"
+                  type="number"
+                  min="0"
+                  placeholder="1299"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  disabled={loading}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            {/* Stock */}
+            <div className="space-y-2">
+              <Label htmlFor="product-stock">
+                Stock
+                <span className="ml-1 text-red-500">*</span>
+              </Label>
+
+              <div className="relative">
+                <Boxes className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                <Input
+                  id="product-stock"
+                  type="number"
+                  min="0"
+                  placeholder="20"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  disabled={loading}
+                  className="pl-9"
+                />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="mb-2 block font-medium">
-              Category
-            </label>
-
-            <Input
-              placeholder="Mobile"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block font-medium">
-              Price
-            </label>
-
-            <Input
-              type="number"
-              placeholder="120000"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block font-medium">
+          {/* Image */}
+          <div className="space-y-2">
+            <Label htmlFor="product-image">
               Image URL
-            </label>
+            </Label>
 
-            <Input
-              placeholder="https://..."
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-            />
+            <div className="relative">
+              <ImageIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+              <Input
+                id="product-image"
+                type="url"
+                placeholder="https://example.com/product.jpg"
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+                disabled={loading}
+                className="pl-9"
+              />
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Add a public image URL for the product.
+            </p>
           </div>
 
-          <div>
-            <label className="mb-2 block font-medium">
-              Description
-            </label>
+          {/* Image Preview */}
+          {image.trim() && (
+            <div className="overflow-hidden rounded-lg border bg-muted/30">
+              <div className="border-b px-4 py-2">
+                <p className="text-sm font-medium">
+                  Image Preview
+                </p>
+              </div>
 
-            <textarea
-              className="min-h-30 w-full rounded-md border p-3"
+              <div className="flex justify-center p-4">
+                <img
+                  src={image}
+                  alt="Product preview"
+                  className="h-40 w-40 rounded-lg object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Description */}
+          <div className="space-y-2">
+            <Label htmlFor="product-description">
+              Description
+            </Label>
+
+            <Textarea
+              id="product-description"
+              placeholder="Write a short description about this product..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              disabled={loading}
+              className="min-h-[120px] resize-none"
             />
-          </div>
 
+            <p className="text-xs text-muted-foreground">
+              Give customers a short description of the product.
+            </p>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 border-t p-6">
+        <DialogFooter className="gap-2 sm:gap-2">
+
           <Button
+            type="button"
             variant="outline"
-            onClick={onClose}
+            onClick={handleClose}
+            disabled={loading}
           >
             Cancel
           </Button>
 
           <Button
+            type="button"
             onClick={handleSubmit}
             disabled={loading}
           >
-            {loading ? "Saving..." : "Save Product"}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adding Product...
+              </>
+            ) : (
+              <>
+                <PackagePlus className="mr-2 h-4 w-4" />
+                Add Product
+              </>
+            )}
           </Button>
-        </div>
 
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

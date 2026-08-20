@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,7 +7,6 @@ import type { Category } from "@/types/category";
 
 import CategoryHeader from "./CategoryHeader";
 import CategoryTable from "./CategoryTable";
-import AddCategoryDialog from "./AddCategoryDialog";
 import EditCategoryDialog from "./EditCategoryDialog";
 import DeleteCategoryDialog from "./DeleteCategoryDialog";
 
@@ -19,7 +17,7 @@ interface Product {
   price: string | number;
   image?: string;
   description?: string;
-  stock: number;
+  stock: string | number;
 }
 
 export default function CategoriesContent() {
@@ -34,99 +32,129 @@ export default function CategoriesContent() {
   const [deleteCategory, setDeleteCategory] =
     useState<Category | null>(null);
 
-  const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const fetchData = async () => {
+  
+  // FETCH PRODUCTS
+
+
+  const fetchProducts = async () => {
     try {
       setLoading(true);
 
-      const [categoriesResponse, productsResponse] =
-        await Promise.all([
-          axios.get("http://localhost:3001/categories"),
-          axios.get("http://localhost:3001/products"),
-        ]);
-
-      console.log(
-        "CATEGORIES RESPONSE:",
-        categoriesResponse.data
+      const response = await axios.get(
+        "http://localhost:3001/products"
       );
-
-      console.log(
-        "PRODUCTS RESPONSE:",
-        productsResponse.data
-      );
-
-      const categoryData: Category[] =
-        Array.isArray(categoriesResponse.data)
-          ? categoriesResponse.data
-          : [];
 
       const productData: Product[] =
-        Array.isArray(productsResponse.data)
-          ? productsResponse.data
+        Array.isArray(response.data)
+          ? response.data
           : [];
 
-      console.log("CATEGORY COUNT:", categoryData.length);
-      console.log("PRODUCT COUNT:", productData.length);
+      console.log("PRODUCTS:", productData);
 
-      setCategories(categoryData);
       setProducts(productData);
+
+      // CREATE CATEGORIES FROM PRODUCTS
+      
+
+      const categoryMap = new Map<string, Category>();
+
+      productData.forEach((product) => {
+        const categoryName =
+          product.category?.trim();
+
+        if (!categoryName) return;
+
+        const normalizedName =
+          categoryName.toLowerCase();
+
+        if (!categoryMap.has(normalizedName)) {
+          categoryMap.set(normalizedName, {
+            _id: normalizedName,
+            name: categoryName,
+            description: "",
+            status: "active",
+            parentId: null,
+          } as Category);
+        }
+      });
+
+      const generatedCategories =
+        Array.from(categoryMap.values());
+
+      console.log(
+        "GENERATED CATEGORIES:",
+        generatedCategories
+      );
+
+      setCategories(generatedCategories);
     } catch (error) {
       console.error(
-        "Failed to fetch category/product data:",
+        "Failed to fetch products:",
         error
       );
 
-      setCategories([]);
       setProducts([]);
+      setCategories([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // INITIAL LOAD
+  
+
   useEffect(() => {
-    fetchData();
+    fetchProducts();
   }, []);
+
+  // EDIT
+  
 
   const handleEdit = (category: Category) => {
     setEditCategory(category);
     setEditOpen(true);
   };
 
+
+  // DELETE
+  
   const handleDelete = (category: Category) => {
     setDeleteCategory(category);
     setDeleteOpen(true);
   };
 
+  // SUCCESS
+  
+
   const handleSuccess = () => {
-    fetchData();
+    fetchProducts();
   };
 
   return (
     <div className="space-y-6">
 
       {/* HEADER */}
+
       <CategoryHeader
-        onAddCategory={() => setAddOpen(true)}
+        onAddCategory={() => {
+          console.log(
+            "Add Category clicked"
+          );
+        }}
       />
 
-      {/* ADD CATEGORY */}
-      <AddCategoryDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
+      {/* DEBUG */}
 
-      {/* DEBUG COUNTS */}
       <div className="text-sm text-muted-foreground">
         Categories: {categories.length} | Products:{" "}
         {products.length}
       </div>
 
       {/* TABLE */}
+
       {loading ? (
         <div className="flex min-h-75 items-center justify-center">
           <p className="text-sm text-muted-foreground">
@@ -143,6 +171,7 @@ export default function CategoriesContent() {
       )}
 
       {/* EDIT */}
+
       <EditCategoryDialog
         open={editOpen}
         onOpenChange={setEditOpen}
@@ -152,6 +181,7 @@ export default function CategoriesContent() {
       />
 
       {/* DELETE */}
+
       <DeleteCategoryDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
@@ -162,4 +192,3 @@ export default function CategoriesContent() {
     </div>
   );
 }
-
