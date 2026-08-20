@@ -50,9 +50,15 @@ export default function ProductsContent() {
     try {
       await api.delete(`/products/${deleteProduct._id}`);
 
+      // Remove deleted product from frontend state
+      setProducts((prev) =>
+      prev.filter(
+        (product) => product._id !== deleteProduct._id
+      )
+    );
+
       setDeleteProduct(null);
 
-      setRefresh((prev) => !prev);
     } catch (error) {
       console.error(error);
       alert("Failed to delete product.");

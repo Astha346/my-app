@@ -109,7 +109,9 @@ try {
 
 };
 
-return ( <Dialog open={open} onOpenChange={onOpenChange}> <DialogContent className="sm:max-w-125"> <DialogHeader> <DialogTitle>Add Category</DialogTitle>
+     return ( <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="sm:max-w-125"> <DialogHeader> 
+      <DialogTitle>Add Category</DialogTitle>
 
       <DialogDescription>
         Create a new category or subcategory.
