@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -16,7 +15,9 @@ import { User } from "@/types/types";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters"),
 });
 
 type AuthFormData = z.infer<typeof authSchema>;
@@ -38,9 +39,17 @@ export default function AuthForm({
 
   const handleLogin = async (data: AuthFormData) => {
     try {
+      // ==========================================
+      // LOGIN API
+      // ==========================================
+
       const res = await api.post("/auth/login", data);
 
       console.log("LOGIN RESPONSE =", res.data);
+
+      // ==========================================
+      // GET USER
+      // ==========================================
 
       const user = res.data.user;
 
@@ -51,28 +60,93 @@ export default function AuthForm({
       console.log("LOGIN USER =", user);
       console.log("Role:", user.role);
 
-      // Save logged-in user
-      localStorage.setItem("user", JSON.stringify(user));
+      // ==========================================
+      // CHECK ACCESS TOKEN
+      // ==========================================
 
-      // Save JWT token
-      if (res.data.access_token) {
-        localStorage.setItem("token", res.data.access_token);
+      if (!res.data.access_token) {
+        throw new Error(
+          "Access token not received from server"
+        );
       }
 
+      // ==========================================
+      // CHECK REFRESH TOKEN
+      // ==========================================
+
+      if (!res.data.refresh_token) {
+        throw new Error(
+          "Refresh token not received from server"
+        );
+      }
+
+      // ==========================================
+      // SAVE USER
+      // ==========================================
+
+      localStorage.setItem(
+        "user",
+        JSON.stringify(user)
+      );
+
+      // ==========================================
+      // SAVE ACCESS TOKEN
+      // ==========================================
+
+      localStorage.setItem(
+        "token",
+        res.data.access_token
+      );
+
+      // ==========================================
+      // SAVE REFRESH TOKEN
+      // ==========================================
+
+      localStorage.setItem(
+        "refresh_token",
+        res.data.refresh_token
+      );
+
+      // ==========================================
+      // CHECK LOCAL STORAGE
+      // ==========================================
+
       console.log(
-        "LOCAL STORAGE USER =",
+        "ACCESS TOKEN =",
+        localStorage.getItem("token")
+      );
+
+      console.log(
+        "REFRESH TOKEN =",
+        localStorage.getItem("refresh_token")
+      );
+
+      console.log(
+        "USER =",
         localStorage.getItem("user")
       );
 
-      // Update authentication state
+      // ==========================================
+      // UPDATE AUTH STATE
+      // ==========================================
+
       onLogin(user);
 
-      // Redirect based on role
-      if (["admin", "manager", "staff"].includes(user.role)) {
+      // ==========================================
+      // REDIRECT BASED ON ROLE
+      // ==========================================
+
+      if (
+        ["admin", "manager", "staff"].includes(
+          user.role
+        )
+      ) {
         console.log("Going to admin");
+
         router.push("/admin");
       } else {
         console.log("Going to website");
+
         router.push("/");
       }
     } catch (error: any) {
@@ -80,6 +154,7 @@ export default function AuthForm({
 
       alert(
         error.response?.data?.message ||
+          error.message ||
           "Invalid email or password"
       );
     }
@@ -164,13 +239,16 @@ export default function AuthForm({
               disabled={isSubmitting}
               className="w-full rounded-xl bg-blue-600 py-2.5 hover:bg-blue-700"
             >
-              {isSubmitting ? "Signing in..." : "Sign In"}
+              {isSubmitting
+                ? "Signing in..."
+                : "Sign In"}
             </Button>
 
             {/* Register */}
             <div className="text-center pt-2">
               <p className="text-sm text-slate-600">
                 Don't have an account?{" "}
+
                 <Link
                   href="/register"
                   className="font-semibold text-blue-600 hover:underline"
@@ -185,4 +263,3 @@ export default function AuthForm({
     </div>
   );
 }
-

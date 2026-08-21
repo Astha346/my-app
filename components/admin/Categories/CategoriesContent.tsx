@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+
+import api from "@/lib/api";
 
 import type { Category } from "@/types/category";
 
@@ -35,108 +36,101 @@ export default function CategoriesContent() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  
-  // FETCH PRODUCTS
+  // ==========================================
+  // FETCH CATEGORIES + PRODUCTS
+  // ==========================================
 
-
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
 
-      const response = await axios.get(
-        "http://localhost:3001/products"
-      );
+      const [
+        categoriesResponse,
+        productsResponse,
+      ] = await Promise.all([
+        api.get("/categories"),
+        api.get("/products"),
+      ]);
 
-      const productData: Product[] =
-        Array.isArray(response.data)
-          ? response.data
+      const categoryData: Category[] =
+        Array.isArray(categoriesResponse.data)
+          ? categoriesResponse.data
           : [];
 
-      console.log("PRODUCTS:", productData);
-
-      setProducts(productData);
-
-      // CREATE CATEGORIES FROM PRODUCTS
-      
-
-      const categoryMap = new Map<string, Category>();
-
-      productData.forEach((product) => {
-        const categoryName =
-          product.category?.trim();
-
-        if (!categoryName) return;
-
-        const normalizedName =
-          categoryName.toLowerCase();
-
-        if (!categoryMap.has(normalizedName)) {
-          categoryMap.set(normalizedName, {
-            _id: normalizedName,
-            name: categoryName,
-            description: "",
-            status: "active",
-            parentId: null,
-          } as Category);
-        }
-      });
-
-      const generatedCategories =
-        Array.from(categoryMap.values());
+      const productData: Product[] =
+        Array.isArray(productsResponse.data)
+          ? productsResponse.data
+          : [];
 
       console.log(
-        "GENERATED CATEGORIES:",
-        generatedCategories
+        "CATEGORIES:",
+        categoryData
       );
 
-      setCategories(generatedCategories);
+      console.log(
+        "PRODUCTS:",
+        productData
+      );
+
+      setCategories(categoryData);
+      setProducts(productData);
     } catch (error) {
       console.error(
-        "Failed to fetch products:",
+        "Failed to fetch data:",
         error
       );
 
-      setProducts([]);
       setCategories([]);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // ==========================================
   // INITIAL LOAD
-  
+  // ==========================================
 
   useEffect(() => {
-    fetchProducts();
+    fetchData();
   }, []);
 
-  // EDIT
-  
+  // ==========================================
+  // EDIT CATEGORY
+  // ==========================================
 
-  const handleEdit = (category: Category) => {
+  const handleEdit = (
+    category: Category
+  ) => {
     setEditCategory(category);
     setEditOpen(true);
   };
 
+  // ==========================================
+  // DELETE CATEGORY
+  // ==========================================
 
-  // DELETE
-  
-  const handleDelete = (category: Category) => {
+  const handleDelete = (
+    category: Category
+  ) => {
     setDeleteCategory(category);
     setDeleteOpen(true);
   };
 
-  // SUCCESS
-  
+  // ==========================================
+  // AFTER CREATE / UPDATE / DELETE
+  // ==========================================
 
   const handleSuccess = () => {
-    fetchProducts();
+    fetchData();
   };
 
   return (
     <div className="space-y-6">
 
-      {/* HEADER */}
+      {/* ======================================
+          HEADER
+      ====================================== */}
 
       <CategoryHeader
         onAddCategory={() => {
@@ -146,14 +140,19 @@ export default function CategoriesContent() {
         }}
       />
 
-      {/* DEBUG */}
+      {/* ======================================
+          DEBUG INFO
+          You can remove this later
+      ====================================== */}
 
       <div className="text-sm text-muted-foreground">
         Categories: {categories.length} | Products:{" "}
         {products.length}
       </div>
 
-      {/* TABLE */}
+      {/* ======================================
+          TABLE
+      ====================================== */}
 
       {loading ? (
         <div className="flex min-h-75 items-center justify-center">
@@ -170,7 +169,9 @@ export default function CategoriesContent() {
         />
       )}
 
-      {/* EDIT */}
+      {/* ======================================
+          EDIT CATEGORY
+      ====================================== */}
 
       <EditCategoryDialog
         open={editOpen}
@@ -180,7 +181,9 @@ export default function CategoriesContent() {
         onSuccess={handleSuccess}
       />
 
-      {/* DELETE */}
+      {/* ======================================
+          DELETE CATEGORY
+      ====================================== */}
 
       <DeleteCategoryDialog
         open={deleteOpen}
