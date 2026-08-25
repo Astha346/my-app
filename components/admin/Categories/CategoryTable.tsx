@@ -1,23 +1,25 @@
 "use client";
 
+import { useState } from "react";
+
 import {
   ChevronDown,
   ChevronRight,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
   Folder,
   FolderOpen,
+  MoreHorizontal,
   Package,
+  Pencil,
+  Trash2,
 } from "lucide-react";
-
-import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
 import {
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 
 import {
@@ -64,161 +66,139 @@ export default function CategoryTable({
   onEdit,
   onDelete,
 }: CategoryTableProps) {
-  const [expanded, setExpanded] = useState<string[]>([]);
+  const [expanded, setExpanded] =
+    useState<string[]>([]);
 
-  /*
-   * SAFETY
-   *
-   * Make sure categories and products
-   * are always arrays.
-   */
-  const safeCategories = Array.isArray(categories)
-    ? categories
-    : [];
-
-  const safeProducts = Array.isArray(products)
-    ? products
-    : [];
-
-  /*
-   * NORMALIZE TEXT
-   *
-   * Beauty
-   * beauty
-   * " Beauty "
-   *
-   * all become:
-   *
-   * beauty
-   */
-  const normalize = (value: unknown) => {
-    return String(value ?? "")
+  const normalize = (value: unknown) =>
+    String(value ?? "")
       .trim()
       .toLowerCase();
-  };
 
-  /*
-   * MAIN CATEGORIES
-   *
-   * parentId = null
-   * parentId = undefined
-   * parentId = ""
-   *
-   * means it is a main category.
-   */
-  const mainCategories = safeCategories.filter(
-    (category) => !category.parentId
-  );
+  // =====================================================
+  // MAIN CATEGORIES
+  // =====================================================
 
-  /*
-   * GET SUBCATEGORIES
-   */
-  const getChildren = (parentId: string) => {
-    return safeCategories.filter(
+  const mainCategories =
+    categories.filter(
+      (category) => !category.parentId
+    );
+
+  // =====================================================
+  // CHILD CATEGORIES
+  // =====================================================
+
+  const getChildren = (
+    parentId: string
+  ) => {
+    return categories.filter(
       (category) =>
-        normalize(category.parentId) === normalize(parentId)
+        normalize(category.parentId) ===
+        normalize(parentId)
     );
   };
 
-  /*
-   * GET PRODUCTS BELONGING TO CATEGORY
-   *
-   * Category:
-   * {
-   *   name: "Beauty"
-   * }
-   *
-   * Product:
-   * {
-   *   category: "Beauty"
-   * }
-   *
-   * So we compare:
-   *
-   * category.name
-   * with
-   * product.category
-   */
-  const getProductsByCategory = (categoryName: string) => {
-    return safeProducts.filter(
+  // =====================================================
+  // PRODUCTS FOR CATEGORY
+  // =====================================================
+
+  const getProductsByCategory = (
+    categoryName: string
+  ) => {
+    return products.filter(
       (product) =>
         normalize(product.category) ===
         normalize(categoryName)
     );
   };
 
-  /*
-   * EXPAND / COLLAPSE
-   */
-  const toggleExpand = (categoryId: string) => {
+  // =====================================================
+  // EXPAND
+  // =====================================================
+
+  const toggleExpand = (
+    categoryId: string
+  ) => {
     setExpanded((previous) => {
-      if (previous.includes(categoryId)) {
+      if (
+        previous.includes(categoryId)
+      ) {
         return previous.filter(
           (id) => id !== categoryId
         );
       }
 
-      return [...previous, categoryId];
+      return [
+        ...previous,
+        categoryId,
+      ];
     });
   };
 
-  /*
-   * DEBUG
-   */
-  console.log(
-    "CATEGORY NAMES:",
-    safeCategories.map((category) => category.name)
-  );
+  // =====================================================
+  // EMPTY
+  // =====================================================
 
-  console.log(
-    "PRODUCT CATEGORY VALUES:",
-    safeProducts.map((product) => product.category)
-  );
-
-  console.log(
-    "MAIN CATEGORIES:",
-    mainCategories.map((category) => category.name)
-  );
-
-  /*
-   * NO CATEGORY
-   */
-  if (safeCategories.length === 0) {
+  if (categories.length === 0) {
     return (
-      <Card className="border-border/60 shadow-sm">
+      <Card>
+
         <CardContent className="flex min-h-75 flex-col items-center justify-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <Folder className="h-6 w-6 text-muted-foreground" />
-          </div>
+
+          <Folder className="mb-3 h-10 w-10 text-muted-foreground" />
 
           <h3 className="text-lg font-semibold">
             No categories found
           </h3>
 
-          <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-            There are no categories to display yet.
-            Create your first category to get started.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Create a category to get started.
           </p>
+
         </CardContent>
+
       </Card>
     );
   }
 
-  /*
-   * TABLE
-   */
   return (
-    <Card className="border-border/60 shadow-sm">
+    <Card className="overflow-hidden">
+
+      <CardHeader className="border-b bg-muted/20">
+
+        <div className="flex items-center justify-between">
+
+          <div>
+
+            <CardTitle>
+              Categories & Products
+            </CardTitle>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              Expand a category to see its products.
+            </p>
+
+          </div>
+
+          <Badge variant="secondary">
+            {products.length} Products
+          </Badge>
+
+        </div>
+
+      </CardHeader>
+
       <CardContent className="p-0">
+
         <div className="overflow-x-auto">
+
           <Table>
 
-            {/* TABLE HEADER */}
             <TableHeader>
-              <TableRow className="bg-muted/40 hover:bg-muted/40">
 
-                <TableHead className="w-[45%]">
-                  Category
+              <TableRow className="bg-muted/40">
+
+                <TableHead className="min-w-75">
+                  Category / Product
                 </TableHead>
 
                 <TableHead>
@@ -226,67 +206,96 @@ export default function CategoryTable({
                 </TableHead>
 
                 <TableHead>
-                  Products
+                  Price
+                </TableHead>
+
+                <TableHead>
+                  Stock
                 </TableHead>
 
                 <TableHead>
                   Status
                 </TableHead>
 
-                <TableHead className="w-17.5 text-right">
+                <TableHead className="w-20 text-right">
                   Actions
                 </TableHead>
 
               </TableRow>
+
             </TableHeader>
 
-            {/* TABLE BODY */}
             <TableBody>
 
-              {mainCategories.map((category) => {
-                const children = getChildren(
-                  category._id
-                );
+              {mainCategories.map(
+                (category) => {
 
-                const categoryProducts =
-                  getProductsByCategory(
-                    category.name
+                  const children =
+                    getChildren(
+                      category._id
+                    );
+
+                  const categoryProducts =
+                    getProductsByCategory(
+                      category.name
+                    );
+
+                  const isExpanded =
+                    expanded.includes(
+                      category._id
+                    );
+
+                  return (
+                    <CategoryRows
+                      key={
+                        category._id
+                      }
+                      category={
+                        category
+                      }
+                      children={
+                        children
+                      }
+                      products={
+                        categoryProducts
+                      }
+                      expanded={
+                        isExpanded
+                      }
+                      onToggle={() =>
+                        toggleExpand(
+                          category._id
+                        )
+                      }
+                      onEdit={
+                        onEdit
+                      }
+                      onDelete={
+                        onDelete
+                      }
+                      getProductsByCategory={
+                        getProductsByCategory
+                      }
+                    />
                   );
-
-                const isExpanded =
-                  expanded.includes(category._id);
-
-                return (
-                  <CategoryRows
-                    key={category._id}
-                    category={category}
-                    children={children}
-                    products={categoryProducts}
-                    expanded={isExpanded}
-                    onToggle={() =>
-                      toggleExpand(category._id)
-                    }
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    getProductsByCategory={
-                      getProductsByCategory
-                    }
-                  />
-                );
-              })}
+                }
+              )}
 
             </TableBody>
 
           </Table>
+
         </div>
+
       </CardContent>
+
     </Card>
   );
 }
 
-/* =========================================================
-   CATEGORY ROWS
-   ========================================================= */
+// =======================================================
+// CATEGORY ROW
+// =======================================================
 
 interface CategoryRowsProps {
   category: Category;
@@ -294,8 +303,12 @@ interface CategoryRowsProps {
   products: Product[];
   expanded: boolean;
   onToggle: () => void;
-  onEdit?: (category: Category) => void;
-  onDelete?: (category: Category) => void;
+  onEdit?: (
+    category: Category
+  ) => void;
+  onDelete?: (
+    category: Category
+  ) => void;
   getProductsByCategory: (
     categoryName: string
   ) => Product[];
@@ -311,25 +324,26 @@ function CategoryRows({
   onDelete,
   getProductsByCategory,
 }: CategoryRowsProps) {
+
   return (
     <>
       {/* =================================================
-          MAIN CATEGORY
-          ================================================= */}
+          CATEGORY
+      ================================================= */}
 
-      <TableRow className="group">
+      <TableRow className="hover:bg-muted/30">
 
-        {/* CATEGORY NAME */}
         <TableCell>
+
           <div className="flex items-center gap-3">
 
-            {/* EXPAND BUTTON */}
-            {children.length > 0 ||
-            products.length > 0 ? (
+            {(children.length > 0 ||
+              products.length > 0) ? (
+
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-8 w-8"
                 onClick={onToggle}
               >
                 {expanded ? (
@@ -338,69 +352,85 @@ function CategoryRows({
                   <ChevronRight className="h-4 w-4" />
                 )}
               </Button>
+
             ) : (
-              <div className="w-7" />
+              <div className="w-8" />
             )}
 
-            {/* FOLDER ICON */}
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+
               {expanded ? (
-                <FolderOpen className="h-4 w-4 text-primary" />
+                <FolderOpen className="h-5 w-5 text-primary" />
               ) : (
-                <Folder className="h-4 w-4 text-primary" />
+                <Folder className="h-5 w-5 text-primary" />
               )}
+
             </div>
 
-            {/* NAME */}
-            <div className="min-w-0">
+            <div>
 
-              <p className="font-medium">
+              <p className="font-semibold">
                 {category.name}
               </p>
 
               {category.description && (
-                <p className="max-w-87.5 truncate text-xs text-muted-foreground">
-                  {category.description}
+                <p className="max-w-100 truncate text-xs text-muted-foreground">
+                  {
+                    category.description
+                  }
                 </p>
               )}
 
             </div>
 
           </div>
+
         </TableCell>
 
-        {/* TYPE */}
         <TableCell>
+
           <Badge variant="secondary">
-            Main
+            Main Category
           </Badge>
+
         </TableCell>
 
-        {/* PRODUCT COUNT */}
         <TableCell>
-          <div className="flex items-center gap-2 text-sm">
+          -
+        </TableCell>
+
+        <TableCell>
+
+          <div className="flex items-center gap-2">
 
             <Package className="h-4 w-4 text-muted-foreground" />
 
             {products.length}
 
           </div>
+
         </TableCell>
 
-        {/* STATUS */}
         <TableCell>
           <StatusBadge
-            status={category.status}
+            status={
+              category.status
+            }
           />
         </TableCell>
 
-        {/* ACTIONS */}
         <TableCell className="text-right">
 
           <CategoryActions
-            category={category}
-            onEdit={onEdit}
-            onDelete={onDelete}
+            category={
+              category
+            }
+            onEdit={
+              onEdit
+            }
+            onDelete={
+              onDelete
+            }
           />
 
         </TableCell>
@@ -409,46 +439,148 @@ function CategoryRows({
 
       {/* =================================================
           SUBCATEGORIES
-          ================================================= */}
+      ================================================= */}
 
       {expanded &&
-        children.map((child) => {
+        children.map(
+          (child) => {
 
-          const childProducts =
-            getProductsByCategory(
-              child.name
-            );
+            const childProducts =
+              getProductsByCategory(
+                child.name
+              );
 
-          return (
-            <TableRow
-              key={child._id}
-              className="bg-muted/20"
-            >
+            return (
+              <TableRow
+                key={
+                  child._id
+                }
+                className="bg-muted/20"
+              >
 
-              {/* NAME */}
-              <TableCell>
+                <TableCell>
 
-                <div className="flex items-center gap-3 pl-12">
-
-                  <div className="h-6 w-px bg-border" />
-
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
+                  <div className="flex items-center gap-3 pl-12">
 
                     <Folder className="h-4 w-4 text-muted-foreground" />
 
+                    <div>
+
+                      <p className="text-sm font-medium">
+                        {
+                          child.name
+                        }
+                      </p>
+
+                    </div>
+
                   </div>
+
+                </TableCell>
+
+                <TableCell>
+
+                  <Badge variant="outline">
+                    Subcategory
+                  </Badge>
+
+                </TableCell>
+
+                <TableCell>
+                  -
+                </TableCell>
+
+                <TableCell>
+                  {
+                    childProducts.length
+                  }
+                </TableCell>
+
+                <TableCell>
+
+                  <StatusBadge
+                    status={
+                      child.status
+                    }
+                  />
+
+                </TableCell>
+
+                <TableCell className="text-right">
+
+                  <CategoryActions
+                    category={
+                      child
+                    }
+                    onEdit={
+                      onEdit
+                    }
+                    onDelete={
+                      onDelete
+                    }
+                  />
+
+                </TableCell>
+
+              </TableRow>
+            );
+          }
+        )}
+
+      {/* =================================================
+          PRODUCTS
+      ================================================= */}
+
+      {expanded &&
+        products.map(
+          (product) => (
+
+            <TableRow
+              key={
+                product._id
+              }
+              className="bg-background hover:bg-muted/20"
+            >
+
+              <TableCell>
+
+                <div className="flex items-center gap-3 pl-20">
+
+                  {product.image ? (
+
+                    <img
+                      src={
+                        product.image
+                      }
+                      alt={
+                        product.name
+                      }
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+
+                  ) : (
+
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+
+                      <Package className="h-4 w-4 text-muted-foreground" />
+
+                    </div>
+
+                  )}
 
                   <div>
 
                     <p className="text-sm font-medium">
-                      {child.name}
+                      {
+                        product.name
+                      }
                     </p>
 
-                    {child.description && (
-                      <p className="max-w-75 truncate text-xs text-muted-foreground">
-                        {child.description}
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {
+                        product.category
+                      }
+                    </p>
 
                   </div>
 
@@ -456,192 +588,94 @@ function CategoryRows({
 
               </TableCell>
 
-              {/* TYPE */}
               <TableCell>
 
                 <Badge variant="outline">
-                  Subcategory
+                  Product
                 </Badge>
 
               </TableCell>
 
-              {/* PRODUCTS */}
               <TableCell>
 
-                <div className="flex items-center gap-2 text-sm">
-
-                  <Package className="h-4 w-4 text-muted-foreground" />
-
-                  {childProducts.length}
-
-                </div>
+                <span className="font-medium">
+                  Rs.{" "}
+                  {
+                    product.price
+                  }
+                </span>
 
               </TableCell>
 
-              {/* STATUS */}
+              <TableCell>
+                {
+                  product.stock
+                }
+              </TableCell>
+
               <TableCell>
 
-                <StatusBadge
-                  status={child.status}
-                />
+                <Badge
+                  variant={
+                    Number(
+                      product.stock
+                    ) > 0
+                      ? "default"
+                      : "destructive"
+                  }
+                >
+                  {Number(
+                    product.stock
+                  ) > 0
+                    ? "In Stock"
+                    : "Out of Stock"}
+                </Badge>
 
               </TableCell>
 
-              {/* ACTIONS */}
-              <TableCell className="text-right">
-
-                <CategoryActions
-                  category={child}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                />
-
-              </TableCell>
+              <TableCell />
 
             </TableRow>
-          );
-        })}
 
-      {/* =================================================
-          PRODUCTS
-          ================================================= */}
-
-      {expanded &&
-        products.map((product) => (
-
-          <TableRow
-            key={product._id}
-            className="bg-background"
-          >
-
-            {/* PRODUCT */}
-            <TableCell>
-
-              <div className="flex items-center gap-3 pl-20">
-
-                {/* IMAGE */}
-                {product.image ? (
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="h-9 w-9 rounded-md object-cover"
-                  />
-                ) : (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-md bg-muted">
-
-                    <Package className="h-4 w-4 text-muted-foreground" />
-
-                  </div>
-                )}
-
-                {/* NAME */}
-                <div className="min-w-0">
-
-                  <p className="text-sm font-medium">
-                    {product.name}
-                  </p>
-
-                  <p className="text-xs text-muted-foreground">
-                    Stock: {product.stock}
-                  </p>
-
-                </div>
-
-              </div>
-
-            </TableCell>
-
-            {/* TYPE */}
-            <TableCell>
-
-              <Badge variant="outline">
-                Product
-              </Badge>
-
-            </TableCell>
-
-            {/* PRICE */}
-            <TableCell>
-
-              <span className="text-sm">
-                Rs. {product.price}
-              </span>
-
-            </TableCell>
-
-            {/* STOCK */}
-            <TableCell>
-
-              <Badge
-                variant={
-                  Number(product.stock) > 0
-                    ? "secondary"
-                    : "destructive"
-                }
-              >
-                {Number(product.stock) > 0
-                  ? "In Stock"
-                  : "Out of Stock"}
-              </Badge>
-
-            </TableCell>
-
-            {/* EMPTY ACTION */}
-            <TableCell />
-
-          </TableRow>
-
-        ))}
+          )
+        )}
 
     </>
   );
 }
 
-/* =========================================================
-   STATUS BADGE
-   ========================================================= */
+// =======================================================
+// STATUS BADGE
+// =======================================================
 
 function StatusBadge({
   status,
 }: {
   status?: string;
 }) {
-  const isActive =
-    status?.toLowerCase() === "active";
+
+  const active =
+    status?.toLowerCase() ===
+    "active";
 
   return (
     <Badge
       variant={
-        isActive
+        active
           ? "default"
           : "secondary"
       }
-      className={
-        isActive
-          ? "bg-emerald-600 hover:bg-emerald-600"
-          : ""
-      }
     >
-
-      <span
-        className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-          isActive
-            ? "bg-white"
-            : "bg-muted-foreground"
-        }`}
-      />
-
-      {isActive
+      {active
         ? "Active"
         : "Inactive"}
-
     </Badge>
   );
 }
 
-/* =========================================================
-   CATEGORY ACTIONS
-   ========================================================= */
+// =======================================================
+// ACTIONS
+// =======================================================
 
 function CategoryActions({
   category,
@@ -649,13 +683,20 @@ function CategoryActions({
   onDelete,
 }: {
   category: Category;
-  onEdit?: (category: Category) => void;
-  onDelete?: (category: Category) => void;
+  onEdit?: (
+    category: Category
+  ) => void;
+  onDelete?: (
+    category: Category
+  ) => void;
 }) {
+
   return (
     <DropdownMenu>
 
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger
+        asChild
+      >
 
         <Button
           variant="ghost"
@@ -666,7 +707,7 @@ function CategoryActions({
           <MoreHorizontal className="h-4 w-4" />
 
           <span className="sr-only">
-            Open actions
+            Category actions
           </span>
 
         </Button>
@@ -675,10 +716,11 @@ function CategoryActions({
 
       <DropdownMenuContent align="end">
 
-        {/* EDIT */}
         <DropdownMenuItem
           onClick={() =>
-            onEdit?.(category)
+            onEdit?.(
+              category
+            )
           }
         >
 
@@ -690,11 +732,12 @@ function CategoryActions({
 
         <DropdownMenuSeparator />
 
-        {/* DELETE */}
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
           onClick={() =>
-            onDelete?.(category)
+            onDelete?.(
+              category
+            )
           }
         >
 

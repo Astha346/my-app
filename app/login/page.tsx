@@ -26,8 +26,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -37,74 +36,161 @@ export default function LoginPage() {
       isSubmitting,
     },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(
-      loginSchema
-    ),
+    resolver: zodResolver(loginSchema),
   });
 
-  const handleLogin = async (
-    data: LoginFormData
-  ) => {
+  const handleLogin = async (data: LoginFormData) => {
     try {
-      const response =
-        await api.post(
-          "/auth/login",
-          data
-        );
+      // ================================
+      // LOGIN
+      // ================================
+
+      const response = await api.post(
+        "/auth/login",
+        data
+      );
 
       console.log(
         "Login Response:",
         response.data
       );
 
+      // ================================
+      // GET TOKENS + USER
+      // ================================
+
       const {
         access_token,
+        refresh_token,
         user,
       } = response.data;
+
+      // ================================
+      // CHECK ACCESS TOKEN
+      // ================================
+
+      if (!access_token) {
+        throw new Error(
+          "Access token not received"
+        );
+      }
+
+      // ================================
+      // CHECK REFRESH TOKEN
+      // ================================
+
+      if (!refresh_token) {
+        throw new Error(
+          "Refresh token not received"
+        );
+      }
+
+      // ================================
+      // CHECK USER
+      // ================================
+
+      if (!user) {
+        throw new Error(
+          "User data not received"
+        );
+      }
+
+      // ================================
+      // SAVE ACCESS TOKEN
+      // ================================
 
       localStorage.setItem(
         "token",
         access_token
       );
 
+      // ================================
+      // SAVE REFRESH TOKEN
+      // ================================
+
+      localStorage.setItem(
+        "refresh_token",
+        refresh_token
+      );
+
+      // ================================
+      // SAVE USER
+      // ================================
+
       localStorage.setItem(
         "user",
         JSON.stringify(user)
       );
 
-      alert(
-        "Login successful!"
+      // ================================
+      // DEBUG
+      // ================================
+
+      console.log(
+        "ACCESS TOKEN =",
+        localStorage.getItem("token")
       );
 
-      // Role based redirect
+      console.log(
+        "REFRESH TOKEN =",
+        localStorage.getItem("refresh_token")
+      );
+
+      console.log(
+        "USER =",
+        localStorage.getItem("user")
+      );
+
+      // ================================
+      // LOGIN SUCCESS
+      // ================================
+
+      alert("Login successful!");
+
+      // ================================
+      // ROLE BASED REDIRECT
+      // ================================
+
       if (
-      ["admin", "manager", "staff"].includes(
-    user.role
-    )
-    ) {
-   router.push("/admin");
-   } else {
-  router.push("/");
-    }
-    } catch (
-      error: any
-    ) {
-      console.log(error);
+        ["admin", "manager", "staff"].includes(
+          user.role
+        )
+      ) {
+        console.log(
+          "Going to admin"
+        );
+
+        router.push("/admin");
+      } else {
+        console.log(
+          "Going to website"
+        );
+
+        router.push("/");
+      }
+    } catch (error: any) {
+      console.error(
+        "LOGIN ERROR =",
+        error
+      );
 
       alert(
-        error.response?.data
-          ?.message ||
+        error.response?.data?.message ||
+          error.message ||
           "Invalid email or password"
       );
     }
   };
 
-     return (
+  return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 px-4">
       <div className="w-full max-w-md">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-8">
+
           {/* Header */}
+
           <div className="text-center mb-8">
+
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 shadow-lg">
               <ShoppingBag className="h-8 w-8 text-white" />
             </div>
@@ -120,16 +206,20 @@ export default function LoginPage() {
             <p className="mt-2 text-sm text-slate-500">
               Login to continue shopping
             </p>
+
           </div>
 
+          {/* Login Form */}
+
           <form
-            onSubmit={handleSubmit(
-              handleLogin
-            )}
+            onSubmit={handleSubmit(handleLogin)}
             className="space-y-5"
           >
+
             {/* Email */}
+
             <div>
+
               <Label>
                 Email
               </Label>
@@ -137,29 +227,27 @@ export default function LoginPage() {
               <Input
                 type="email"
                 placeholder="Enter your email"
-                {...register(
-                  "email"
-                )}
+                {...register("email")}
               />
 
               {errors.email && (
                 <p className="text-red-500 text-xs mt-1">
-                  {
-                    errors
-                      .email
-                      .message
-                  }
+                  {errors.email.message}
                 </p>
               )}
+
             </div>
 
             {/* Password */}
+
             <div>
+
               <Label>
                 Password
               </Label>
 
               <div className="relative">
+
                 <Input
                   type={
                     showPassword
@@ -168,9 +256,7 @@ export default function LoginPage() {
                   }
                   placeholder="Enter your password"
                   className="pr-10"
-                  {...register(
-                    "password"
-                  )}
+                  {...register("password")}
                 />
 
                 <button
@@ -183,43 +269,40 @@ export default function LoginPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
                 >
                   {showPassword ? (
-                    <EyeOff
-                      size={20}
-                    />
+                    <EyeOff size={20} />
                   ) : (
-                    <Eye
-                      size={20}
-                    />
+                    <Eye size={20} />
                   )}
                 </button>
+
               </div>
 
               {errors.password && (
                 <p className="text-red-500 text-xs mt-1">
-                  {
-                    errors
-                      .password
-                      .message
-                  }
+                  {errors.password.message}
                 </p>
               )}
+
             </div>
 
             {/* Forgot Password */}
+
             <div className="text-right">
+
               <Link
                 href="/forgot-password"
                 className="text-sm text-blue-600 hover:underline"
               >
                 Forgot password?
               </Link>
+
             </div>
+
+            {/* Login Button */}
 
             <Button
               type="submit"
-              disabled={
-                isSubmitting
-              }
+              disabled={isSubmitting}
               className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl"
             >
               {isSubmitting
@@ -228,20 +311,26 @@ export default function LoginPage() {
             </Button>
 
             {/* Register */}
+
             <div className="text-center">
+
               <p className="text-sm text-slate-600">
-                Don't have an
-                account?{" "}
+
+                Don't have an account?{" "}
+
                 <Link
                   href="/register"
                   className="font-semibold text-blue-600 hover:underline"
                 >
-                  Create
-                  Account
+                  Create Account
                 </Link>
+
               </p>
+
             </div>
+
           </form>
+
         </div>
       </div>
     </div>
