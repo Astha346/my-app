@@ -102,24 +102,32 @@ export default function AuthForm({
       // SAVE REFRESH TOKEN
       // ==========================================
 
-      localStorage.setItem(
-        "refresh_token",
-        res.data.refresh_token
-      );
+     const refreshToken = res.data.refresh_token;
 
-      // ==========================================
-      // CHECK LOCAL STORAGE
-      // ==========================================
+console.log(
+  "REFRESH TOKEN FROM API =",
+  refreshToken
+);
 
-      console.log(
-        "ACCESS TOKEN =",
-        localStorage.getItem("token")
-      );
+localStorage.setItem(
+  "refresh_token",
+  refreshToken
+);
 
-      console.log(
-        "REFRESH TOKEN =",
-        localStorage.getItem("refresh_token")
-      );
+   console.log(
+  "REFRESH TOKEN AFTER SAVE =",
+  localStorage.getItem("refresh_token")
+    );
+
+    console.log(
+  "ACCESS TOKEN =",
+  localStorage.getItem("token")
+   );
+
+   console.log(
+  "USER =",
+  localStorage.getItem("user")
+);
 
       console.log(
         "USER =",
