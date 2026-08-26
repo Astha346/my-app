@@ -20,6 +20,7 @@ import ViewOrderModal from "@/components/admin/Dashboard/ViewOrderModal";
 import PermissionMatrix from "@/components/admin/Permissions/PermissionMatrix";
 
 import CategoriesContent from "@/components/admin/Categories/CategoriesContent";
+import OrdersContent from "@/components/admin/Orders/OrdersContent";
 
 export default function AdminPage() {
   const [activePage, setActivePage] = useState("Dashboard");
@@ -239,20 +240,12 @@ export default function AdminPage() {
             <PermissionMatrix />
           )}
 
-          {/* ================= ORDERS ================= */}
+         {/* ================= ORDERS ================= */}
 
-          {activePage === "Orders" && (
-            <div className="rounded-xl border bg-white p-8">
-              <h1 className="text-2xl font-bold">
-                Orders
-              </h1>
-
-              <p className="mt-2 text-gray-500">
-                Orders management will appear here.
-              </p>
-            </div>
-          )}
-
+            {activePage === "Orders" && (
+             <OrdersContent />
+            )}
+            
           {/* ================= CUSTOMERS ================= */}
 
           {activePage === "Customers" && (
