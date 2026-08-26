@@ -298,7 +298,7 @@ export default function CategoriesContent() {
       ================================================= */}
 
       {loading ? (
-        <div className="flex min-h-[300px] items-center justify-center rounded-xl border bg-card">
+        <div className="flex min-h-75 items-center justify-center rounded-xl border bg-card">
 
           <div className="text-center">
 
