@@ -19,9 +19,9 @@ export type PaymentStatus =
 export interface OrderItem {
   productId: string;
   name: string;
-  image?: string;
   price: number;
   quantity: number;
+  image?: string;
 }
 
 export interface Customer {
