@@ -6,8 +6,14 @@ import OrderStats from "./OrderStats";
 import OrderFilters from "./OrderFilters";
 import OrderTable from "./OrderTable";
 import OrderDetailsDialog from "./OrderDetailsDialog";
+import ChangeStatusDialog from "./ChangeStatusDialog";
+import CancelOrderDialog from "./CancelOrderDialog";
+import Invoice from "@/components/admin/Orders/Invoice";
 
-import { Order } from "@/types/order";
+import {
+  Order,
+  OrderStatus,
+} from "@/types/order";
 
 const mockOrders: Order[] = [
   {
@@ -171,10 +177,16 @@ const mockOrders: Order[] = [
 
 export default function OrdersContent() {
 
-  // IMPORTANT:
-  // We need setOrders so the frontend can update order status.
+  // =========================================================
+  // ORDERS
+  // =========================================================
+
   const [orders, setOrders] =
     useState<Order[]>(mockOrders);
+
+  // =========================================================
+  // FILTERS
+  // =========================================================
 
   const [search, setSearch] =
     useState("");
@@ -185,28 +197,52 @@ export default function OrdersContent() {
   const [payment, setPayment] =
     useState("all");
 
+  const [paymentStatus, setPaymentStatus] =
+    useState("all");
+
+  // =========================================================
+  // DETAILS
+  // =========================================================
+
   const [selectedOrder, setSelectedOrder] =
     useState<Order | null>(null);
 
-  // -----------------------------------------
-  // UPDATE ORDER STATUS
-  // -----------------------------------------
+  // =========================================================
+  // CHANGE STATUS
+  // =========================================================
+
+  const [statusOrder, setStatusOrder] =
+    useState<Order | null>(null);
+
+  // =========================================================
+  // CANCEL
+  // =========================================================
+
+  const [cancelOrder, setCancelOrder] =
+    useState<Order | null>(null);
+
+  // =========================================================
+  // INVOICE
+  // =========================================================
+
+  const [invoiceOrder, setInvoiceOrder] =
+    useState<Order | null>(null);
+
+  // =========================================================
+  // SELECTED ORDERS
+  // =========================================================
+
+  const [selectedOrders, setSelectedOrders] =
+    useState<string[]>([]);
+
+  // =========================================================
+  // SINGLE STATUS UPDATE
+  // =========================================================
 
   const handleStatusUpdate = (
     orderId: string,
-    newStatus: Order["status"]
+    newStatus: OrderStatus
   ) => {
-
-    console.log(
-      "Updating order:",
-      orderId
-    );
-
-    console.log(
-      "New order status:",
-      newStatus
-    );
-
     setOrders((currentOrders) =>
       currentOrders.map((order) =>
         order._id === orderId
@@ -217,28 +253,106 @@ export default function OrdersContent() {
           : order
       )
     );
+
+    setStatusOrder(null);
+    setSelectedOrder(null);
   };
 
-  // -----------------------------------------
-  // FILTER ORDERS
-  // -----------------------------------------
+  // =========================================================
+  // OPEN STATUS DIALOG
+  // =========================================================
+
+  const handleChangeStatus = (
+    order: Order
+  ) => {
+    setStatusOrder(order);
+  };
+
+  // =========================================================
+  // OPEN CANCEL DIALOG
+  // =========================================================
+
+  const handleCancelOrder = (
+    order: Order
+  ) => {
+    setCancelOrder(order);
+  };
+
+  // =========================================================
+  // CONFIRM CANCEL
+  // =========================================================
+
+  const confirmCancelOrder = (
+    order: Order
+  ) => {
+    setOrders((currentOrders) =>
+      currentOrders.map((currentOrder) =>
+        currentOrder._id === order._id
+          ? {
+              ...currentOrder,
+              status: "cancelled",
+            }
+          : currentOrder
+      )
+    );
+
+    setCancelOrder(null);
+
+    setSelectedOrders((current) =>
+      current.filter(
+        (id) => id !== order._id
+      )
+    );
+  };
+
+  // =========================================================
+  // BULK STATUS
+  // =========================================================
+
+  const handleBulkStatusUpdate = (
+    newStatus: OrderStatus
+  ) => {
+    if (selectedOrders.length === 0) {
+      return;
+    }
+
+    setOrders((currentOrders) =>
+      currentOrders.map((order) =>
+        selectedOrders.includes(order._id)
+          ? {
+              ...order,
+              status: newStatus,
+            }
+          : order
+      )
+    );
+
+    setSelectedOrders([]);
+  };
+
+  // =========================================================
+  // FILTER
+  // =========================================================
 
   const filteredOrders = useMemo(() => {
 
     return orders.filter((order) => {
 
+      const searchValue =
+        search.toLowerCase().trim();
+
       const searchMatch =
         order.orderNumber
           .toLowerCase()
-          .includes(search.toLowerCase()) ||
+          .includes(searchValue) ||
 
         order.customer.name
           .toLowerCase()
-          .includes(search.toLowerCase()) ||
+          .includes(searchValue) ||
 
         order.customer.email
           .toLowerCase()
-          .includes(search.toLowerCase());
+          .includes(searchValue);
 
       const statusMatch =
         status === "all" ||
@@ -248,10 +362,16 @@ export default function OrdersContent() {
         payment === "all" ||
         order.paymentMethod === payment;
 
+      const paymentStatusMatch =
+        paymentStatus === "all" ||
+        order.paymentStatus ===
+          paymentStatus;
+
       return (
         searchMatch &&
         statusMatch &&
-        paymentMatch
+        paymentMatch &&
+        paymentStatusMatch
       );
     });
 
@@ -260,30 +380,39 @@ export default function OrdersContent() {
     search,
     status,
     payment,
+    paymentStatus,
   ]);
 
   return (
     <div className="space-y-6">
 
-      {/* HEADER */}
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
       <div>
-        <h1 className="text-3xl font-bold">
+
+        <h1 className="text-3xl font-bold text-slate-900">
           Orders
         </h1>
 
-        <p className="mt-1 text-gray-500">
+        <p className="mt-1 text-slate-500">
           Manage and track customer orders
         </p>
+
       </div>
 
-      {/* STATS */}
+      {/* =====================================================
+          STATS
+      ===================================================== */}
 
       <OrderStats
         orders={orders}
       />
 
-      {/* FILTERS */}
+      {/* =====================================================
+          FILTERS
+      ===================================================== */}
 
       <OrderFilters
         search={search}
@@ -292,16 +421,148 @@ export default function OrdersContent() {
         setStatus={setStatus}
         payment={payment}
         setPayment={setPayment}
+        paymentStatus={paymentStatus}
+        setPaymentStatus={
+          setPaymentStatus
+        }
       />
 
-      {/* TABLE */}
+      {/* =====================================================
+          BULK ACTION
+      ===================================================== */}
+
+      {selectedOrders.length > 0 && (
+
+        <div className="rounded-xl bg-slate-900 p-4 text-white">
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+
+              <p className="font-semibold">
+                {selectedOrders.length}{" "}
+                {selectedOrders.length === 1
+                  ? "order"
+                  : "orders"}{" "}
+                selected
+              </p>
+
+              <p className="mt-1 text-xs text-slate-400">
+                Choose an action
+              </p>
+
+            </div>
+
+            <div className="flex gap-2">
+
+              <select
+                defaultValue=""
+                onChange={(e) => {
+
+                  if (!e.target.value) {
+                    return;
+                  }
+
+                  handleBulkStatusUpdate(
+                    e.target.value as OrderStatus
+                  );
+
+                  e.target.value = "";
+                }}
+                className="
+                  rounded-lg
+                  border
+                  border-slate-700
+                  bg-slate-800
+                  px-4
+                  py-2
+                  text-sm
+                  text-white
+                "
+              >
+
+                <option value="" disabled>
+                  Update Status
+                </option>
+
+                <option value="pending">
+                  Pending
+                </option>
+
+                <option value="confirmed">
+                  Confirmed
+                </option>
+
+                <option value="processing">
+                  Processing
+                </option>
+
+                <option value="shipped">
+                  Shipped
+                </option>
+
+                <option value="delivered">
+                  Delivered
+                </option>
+
+                <option value="cancelled">
+                  Cancelled
+                </option>
+
+              </select>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedOrders([])
+                }
+                className="
+                  rounded-lg
+                  border
+                  border-slate-700
+                  px-4
+                  py-2
+                  text-sm
+                  text-slate-300
+                  hover:bg-slate-800
+                "
+              >
+                Clear
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* =====================================================
+          TABLE
+      ===================================================== */}
 
       <OrderTable
         orders={filteredOrders}
         onView={setSelectedOrder}
+        selectedOrders={selectedOrders}
+        onSelectionChange={
+          setSelectedOrders
+        }
+        onPrintInvoice={(order) => {
+          setInvoiceOrder(order);
+        }}
+        onChangeStatus={
+          handleChangeStatus
+        }
+        onCancelOrder={
+          handleCancelOrder
+        }
       />
 
-      {/* ORDER DETAILS */}
+      {/* =====================================================
+          ORDER DETAILS DIALOG
+      ===================================================== */}
 
       <OrderDetailsDialog
         order={selectedOrder}
@@ -312,7 +573,54 @@ export default function OrdersContent() {
         onStatusUpdate={
           handleStatusUpdate
         }
+        onPrintInvoice={(order) => {
+          setInvoiceOrder(order);
+          setSelectedOrder(null);
+        }}
       />
+
+      {/* =====================================================
+          CHANGE STATUS DIALOG
+      ===================================================== */}
+
+      <ChangeStatusDialog
+        order={statusOrder}
+        open={!!statusOrder}
+        onClose={() =>
+          setStatusOrder(null)
+        }
+        onConfirm={
+          handleStatusUpdate
+        }
+      />
+
+      {/* =====================================================
+          CANCEL ORDER DIALOG
+      ===================================================== */}
+
+      <CancelOrderDialog
+        order={cancelOrder}
+        open={!!cancelOrder}
+        onClose={() =>
+          setCancelOrder(null)
+        }
+        onConfirm={
+          confirmCancelOrder
+        }
+      />
+
+      {/* =====================================================
+          INVOICE
+      ===================================================== */}
+
+      {invoiceOrder && (
+        <Invoice
+          order={invoiceOrder}
+          onClose={() =>
+            setInvoiceOrder(null)
+          }
+        />
+      )}
 
     </div>
   );
