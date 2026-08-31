@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useState } from "react";
@@ -9,11 +10,19 @@ import OrderDetailsDialog from "./OrderDetailsDialog";
 import ChangeStatusDialog from "./ChangeStatusDialog";
 import CancelOrderDialog from "./CancelOrderDialog";
 import Invoice from "@/components/admin/Orders/Invoice";
+import OrderAnalysis from "./OrderAnalysis";
+import ReturnRefundDialog from "./ReturnRefundDialog";
+import ReturnRefundReviewDialog from "./ReturnRefundReviewDialog";
 
 import {
   Order,
   OrderStatus,
+  ReturnRefundStatus,
 } from "@/types/order";
+
+/* =========================================================
+   MOCK ORDERS
+========================================================= */
 
 const mockOrders: Order[] = [
   {
@@ -47,6 +56,10 @@ const mockOrders: Order[] = [
     total: 2450,
 
     status: "delivered",
+
+    // TEST REQUEST
+    // This order will show "Review Return / Refund"
+    returnRefundStatus: "requested",
 
     paymentMethod: "esewa",
     paymentStatus: "paid",
@@ -86,6 +99,8 @@ const mockOrders: Order[] = [
 
     status: "processing",
 
+    returnRefundStatus: "none",
+
     paymentMethod: "cod",
     paymentStatus: "pending",
 
@@ -123,6 +138,8 @@ const mockOrders: Order[] = [
     total: 80000,
 
     status: "shipped",
+
+    returnRefundStatus: "none",
 
     paymentMethod: "khalti",
     paymentStatus: "paid",
@@ -162,6 +179,8 @@ const mockOrders: Order[] = [
 
     status: "pending",
 
+    returnRefundStatus: "none",
+
     paymentMethod: "cod",
     paymentStatus: "pending",
 
@@ -175,18 +194,21 @@ const mockOrders: Order[] = [
   },
 ];
 
-export default function OrdersContent() {
+/* =========================================================
+   COMPONENT
+========================================================= */
 
-  // =========================================================
-  // ORDERS
-  // =========================================================
+export default function OrdersContent() {
+  /* =======================================================
+     ORDERS
+  ======================================================= */
 
   const [orders, setOrders] =
     useState<Order[]>(mockOrders);
 
-  // =========================================================
-  // FILTERS
-  // =========================================================
+  /* =======================================================
+     FILTERS
+  ======================================================= */
 
   const [search, setSearch] =
     useState("");
@@ -200,44 +222,58 @@ export default function OrdersContent() {
   const [paymentStatus, setPaymentStatus] =
     useState("all");
 
-  // =========================================================
-  // DETAILS
-  // =========================================================
+  /* =======================================================
+     DETAILS
+  ======================================================= */
 
   const [selectedOrder, setSelectedOrder] =
     useState<Order | null>(null);
 
-  // =========================================================
-  // CHANGE STATUS
-  // =========================================================
+  /* =======================================================
+     CHANGE STATUS
+  ======================================================= */
 
   const [statusOrder, setStatusOrder] =
     useState<Order | null>(null);
 
-  // =========================================================
-  // CANCEL
-  // =========================================================
+  /* =======================================================
+     CANCEL
+  ======================================================= */
 
   const [cancelOrder, setCancelOrder] =
     useState<Order | null>(null);
 
-  // =========================================================
-  // INVOICE
-  // =========================================================
+  /* =======================================================
+     INVOICE
+  ======================================================= */
 
   const [invoiceOrder, setInvoiceOrder] =
     useState<Order | null>(null);
 
-  // =========================================================
-  // SELECTED ORDERS
-  // =========================================================
+  /* =======================================================
+     SELECTED ORDERS
+  ======================================================= */
 
   const [selectedOrders, setSelectedOrders] =
     useState<string[]>([]);
 
-  // =========================================================
-  // SINGLE STATUS UPDATE
-  // =========================================================
+  /* =======================================================
+     RETURN / REFUND REQUEST
+  ======================================================= */
+
+  const [returnOrder, setReturnOrder] =
+    useState<Order | null>(null);
+
+  /* =======================================================
+     RETURN / REFUND REVIEW
+  ======================================================= */
+
+  const [reviewReturnOrder, setReviewReturnOrder] =
+    useState<Order | null>(null);
+
+  /* =======================================================
+     SINGLE ORDER STATUS UPDATE
+  ======================================================= */
 
   const handleStatusUpdate = (
     orderId: string,
@@ -258,9 +294,9 @@ export default function OrdersContent() {
     setSelectedOrder(null);
   };
 
-  // =========================================================
-  // OPEN STATUS DIALOG
-  // =========================================================
+  /* =======================================================
+     OPEN CHANGE STATUS
+  ======================================================= */
 
   const handleChangeStatus = (
     order: Order
@@ -268,9 +304,9 @@ export default function OrdersContent() {
     setStatusOrder(order);
   };
 
-  // =========================================================
-  // OPEN CANCEL DIALOG
-  // =========================================================
+  /* =======================================================
+     OPEN CANCEL
+  ======================================================= */
 
   const handleCancelOrder = (
     order: Order
@@ -278,9 +314,9 @@ export default function OrdersContent() {
     setCancelOrder(order);
   };
 
-  // =========================================================
-  // CONFIRM CANCEL
-  // =========================================================
+  /* =======================================================
+     CONFIRM CANCEL
+  ======================================================= */
 
   const confirmCancelOrder = (
     order: Order
@@ -305,9 +341,9 @@ export default function OrdersContent() {
     );
   };
 
-  // =========================================================
-  // BULK STATUS
-  // =========================================================
+  /* =======================================================
+     BULK STATUS UPDATE
+  ======================================================= */
 
   const handleBulkStatusUpdate = (
     newStatus: OrderStatus
@@ -330,14 +366,95 @@ export default function OrdersContent() {
     setSelectedOrders([]);
   };
 
-  // =========================================================
-  // FILTER
-  // =========================================================
+  /* =======================================================
+     OPEN RETURN / REFUND REQUEST
+  ======================================================= */
+
+  const handleReturnRefund = (
+    order: Order
+  ) => {
+    setReturnOrder(order);
+  };
+
+  /* =======================================================
+     SUBMIT RETURN / REFUND REQUEST
+  ======================================================= */
+
+  const handleReturnRefundSubmit = (
+    data: any
+  ) => {
+    if (!returnOrder) {
+      return;
+    }
+
+    console.log(
+      "Return / Refund Request:",
+      data
+    );
+
+    setOrders((currentOrders) =>
+      currentOrders.map((order) =>
+        order._id === returnOrder._id
+          ? {
+              ...order,
+              returnRefundStatus:
+                "requested",
+            }
+          : order
+      )
+    );
+
+    setReturnOrder(null);
+  };
+
+  /* =======================================================
+     OPEN REVIEW RETURN / REFUND
+  ======================================================= */
+
+  const handleReviewReturnRefund = (
+    order: Order
+  ) => {
+    setReviewReturnOrder(order);
+  };
+
+  /* =======================================================
+     UPDATE RETURN / REFUND STATUS
+  ======================================================= */
+
+  const handleReturnRefundStatusUpdate = (
+    orderId: string,
+    newStatus: ReturnRefundStatus
+  ) => {
+    setOrders((currentOrders) =>
+      currentOrders.map((order) =>
+        order._id === orderId
+          ? {
+              ...order,
+              returnRefundStatus: newStatus,
+            }
+          : order
+      )
+    );
+
+    setSelectedOrder((currentOrder) =>
+      currentOrder &&
+      currentOrder._id === orderId
+        ? {
+            ...currentOrder,
+            returnRefundStatus: newStatus,
+          }
+        : currentOrder
+    );
+
+    setReviewReturnOrder(null);
+  };
+
+  /* =======================================================
+     FILTER ORDERS
+  ======================================================= */
 
   const filteredOrders = useMemo(() => {
-
     return orders.filter((order) => {
-
       const searchValue =
         search.toLowerCase().trim();
 
@@ -345,11 +462,9 @@ export default function OrdersContent() {
         order.orderNumber
           .toLowerCase()
           .includes(searchValue) ||
-
         order.customer.name
           .toLowerCase()
           .includes(searchValue) ||
-
         order.customer.email
           .toLowerCase()
           .includes(searchValue);
@@ -374,7 +489,6 @@ export default function OrdersContent() {
         paymentStatusMatch
       );
     });
-
   }, [
     orders,
     search,
@@ -383,15 +497,18 @@ export default function OrdersContent() {
     paymentStatus,
   ]);
 
+  /* =======================================================
+     RETURN
+  ======================================================= */
+
   return (
     <div className="space-y-6">
 
-      {/* =====================================================
+      {/* ===================================================
           HEADER
-      ===================================================== */}
+      =================================================== */}
 
       <div>
-
         <h1 className="text-3xl font-bold text-slate-900">
           Orders
         </h1>
@@ -399,20 +516,23 @@ export default function OrdersContent() {
         <p className="mt-1 text-slate-500">
           Manage and track customer orders
         </p>
-
       </div>
 
-      {/* =====================================================
+      {/* ===================================================
           STATS
-      ===================================================== */}
+      =================================================== */}
 
-      <OrderStats
-        orders={orders}
-      />
+      <OrderStats orders={orders} />
 
-      {/* =====================================================
+      {/* ===================================================
+          ORDER ANALYSIS
+      =================================================== */}
+
+      <OrderAnalysis />
+
+      {/* ===================================================
           FILTERS
-      ===================================================== */}
+      =================================================== */}
 
       <OrderFilters
         search={search}
@@ -422,23 +542,49 @@ export default function OrdersContent() {
         payment={payment}
         setPayment={setPayment}
         paymentStatus={paymentStatus}
-        setPaymentStatus={
-          setPaymentStatus
+        setPaymentStatus={setPaymentStatus}
+      />
+
+      {/* ===================================================
+          RETURN / REFUND REQUEST DIALOG
+      =================================================== */}
+
+      <ReturnRefundDialog
+        order={returnOrder}
+        open={!!returnOrder}
+        onClose={() =>
+          setReturnOrder(null)
+        }
+        onSubmit={
+          handleReturnRefundSubmit
         }
       />
 
-      {/* =====================================================
+      {/* ===================================================
+          RETURN / REFUND REVIEW DIALOG
+      =================================================== */}
+
+      <ReturnRefundReviewDialog
+        order={reviewReturnOrder}
+        open={!!reviewReturnOrder}
+        onClose={() =>
+          setReviewReturnOrder(null)
+        }
+        onStatusUpdate={
+          handleReturnRefundStatusUpdate
+        }
+      />
+
+      {/* ===================================================
           BULK ACTION
-      ===================================================== */}
+      =================================================== */}
 
       {selectedOrders.length > 0 && (
-
         <div className="rounded-xl bg-slate-900 p-4 text-white">
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
-
               <p className="font-semibold">
                 {selectedOrders.length}{" "}
                 {selectedOrders.length === 1
@@ -450,24 +596,25 @@ export default function OrdersContent() {
               <p className="mt-1 text-xs text-slate-400">
                 Choose an action
               </p>
-
             </div>
 
             <div className="flex gap-2">
 
               <select
                 defaultValue=""
-                onChange={(e) => {
+                onChange={(event) => {
+                  const value =
+                    event.target.value;
 
-                  if (!e.target.value) {
+                  if (!value) {
                     return;
                   }
 
                   handleBulkStatusUpdate(
-                    e.target.value as OrderStatus
+                    value as OrderStatus
                   );
 
-                  e.target.value = "";
+                  event.target.value = "";
                 }}
                 className="
                   rounded-lg
@@ -480,8 +627,10 @@ export default function OrdersContent() {
                   text-white
                 "
               >
-
-                <option value="" disabled>
+                <option
+                  value=""
+                  disabled
+                >
                   Update Status
                 </option>
 
@@ -508,7 +657,6 @@ export default function OrdersContent() {
                 <option value="cancelled">
                   Cancelled
                 </option>
-
               </select>
 
               <button
@@ -531,16 +679,13 @@ export default function OrdersContent() {
               </button>
 
             </div>
-
           </div>
-
         </div>
-
       )}
 
-      {/* =====================================================
-          TABLE
-      ===================================================== */}
+      {/* ===================================================
+          ORDER TABLE
+      =================================================== */}
 
       <OrderTable
         orders={filteredOrders}
@@ -558,11 +703,23 @@ export default function OrdersContent() {
         onCancelOrder={
           handleCancelOrder
         }
+        onReturnRefund={
+          handleReturnRefund
+        }
+
+        /*
+         * IMPORTANT:
+         * This connects the Review button
+         * from OrderTable to the Review Dialog.
+         */
+        onReviewReturnRefund={
+          handleReviewReturnRefund
+        }
       />
 
-      {/* =====================================================
-          ORDER DETAILS DIALOG
-      ===================================================== */}
+      {/* ===================================================
+          ORDER DETAILS
+      =================================================== */}
 
       <OrderDetailsDialog
         order={selectedOrder}
@@ -577,11 +734,14 @@ export default function OrdersContent() {
           setInvoiceOrder(order);
           setSelectedOrder(null);
         }}
+        onReturnRefund={(order) => {
+          setReturnOrder(order);
+        }}
       />
 
-      {/* =====================================================
+      {/* ===================================================
           CHANGE STATUS DIALOG
-      ===================================================== */}
+      =================================================== */}
 
       <ChangeStatusDialog
         order={statusOrder}
@@ -594,9 +754,9 @@ export default function OrdersContent() {
         }
       />
 
-      {/* =====================================================
+      {/* ===================================================
           CANCEL ORDER DIALOG
-      ===================================================== */}
+      =================================================== */}
 
       <CancelOrderDialog
         order={cancelOrder}
@@ -609,9 +769,9 @@ export default function OrdersContent() {
         }
       />
 
-      {/* =====================================================
+      {/* ===================================================
           INVOICE
-      ===================================================== */}
+      =================================================== */}
 
       {invoiceOrder && (
         <Invoice
@@ -625,3 +785,4 @@ export default function OrdersContent() {
     </div>
   );
 }
+

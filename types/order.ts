@@ -1,3 +1,4 @@
+
 export type OrderStatus =
   | "pending"
   | "confirmed"
@@ -15,6 +16,14 @@ export type PaymentStatus =
   | "paid"
   | "pending"
   | "failed";
+
+export type ReturnRefundStatus =
+  | "none"
+  | "requested"
+  | "approved"
+  | "processing"
+  | "refunded"
+  | "rejected";
 
 export interface OrderItem {
   productId: string;
@@ -51,6 +60,11 @@ export interface Order {
 
   status: OrderStatus;
 
+  /*
+   * Return / Refund status
+   */
+  returnRefundStatus?: ReturnRefundStatus;
+
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
 
@@ -58,3 +72,4 @@ export interface Order {
 
   createdAt: string;
 }
+
