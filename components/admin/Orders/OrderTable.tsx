@@ -1,16 +1,20 @@
+
 "use client";
 
 import {
   Check,
+  ClipboardCheck,
   Eye,
   MoreHorizontal,
   PackageCheck,
   Printer,
+  RotateCcw,
   XCircle,
 } from "lucide-react";
 
 import { Order } from "@/types/order";
 import OrderStatusBadge from "./OrderStatusBadge";
+import ReturnRefundStatusBadge from "./ReturnRefundStatus";
 
 interface Props {
   orders: Order[];
@@ -19,34 +23,30 @@ interface Props {
 
   selectedOrders: string[];
 
-  onSelectionChange: (
-    orderIds: string[]
-  ) => void;
+  onSelectionChange: (orderIds: string[]) => void;
 
-  onPrintInvoice?: (
-    order: Order
-  ) => void;
+  onPrintInvoice?: (order: Order) => void;
 
-  onChangeStatus?: (
-    order: Order
-  ) => void;
+  onChangeStatus?: (order: Order) => void;
 
-  onCancelOrder?: (
-    order: Order
-  ) => void;
+  onCancelOrder?: (order: Order) => void;
+
+  onReturnRefund?: (order: Order) => void;
+
+  onReviewReturnRefund?: (order: Order) => void;
 }
 
 const PAYMENT_METHOD_LABELS = {
   cod: "Cash on Delivery",
   esewa: "eSewa",
   khalti: "Khalti",
-};
+} as const;
 
 const PAYMENT_STATUS_LABELS = {
   paid: "Paid",
   pending: "Pending",
   failed: "Failed",
-};
+} as const;
 
 export default function OrderTable({
   orders,
@@ -56,7 +56,12 @@ export default function OrderTable({
   onPrintInvoice,
   onChangeStatus,
   onCancelOrder,
+  onReturnRefund,
+  onReviewReturnRefund,
 }: Props) {
+  /* =========================================================
+     SELECTION
+  ========================================================= */
 
   const allSelected =
     orders.length > 0 &&
@@ -69,9 +74,9 @@ export default function OrderTable({
       selectedOrders.includes(order._id)
     ) && !allSelected;
 
-  // =========================================================
-  // SELECT ALL
-  // =========================================================
+  /* =========================================================
+     SELECT ALL
+  ========================================================= */
 
   const handleSelectAll = () => {
     const visibleIds = orders.map(
@@ -81,8 +86,7 @@ export default function OrderTable({
     if (allSelected) {
       onSelectionChange(
         selectedOrders.filter(
-          (id) =>
-            !visibleIds.includes(id)
+          (id) => !visibleIds.includes(id)
         )
       );
 
@@ -92,21 +96,18 @@ export default function OrderTable({
     const newSelection = [
       ...selectedOrders,
       ...visibleIds.filter(
-        (id) =>
-          !selectedOrders.includes(id)
+        (id) => !selectedOrders.includes(id)
       ),
     ];
 
     onSelectionChange(newSelection);
   };
 
-  // =========================================================
-  // SELECT ONE
-  // =========================================================
+  /* =========================================================
+     SELECT ONE
+  ========================================================= */
 
-  const handleSelectOrder = (
-    orderId: string
-  ) => {
+  const handleSelectOrder = (orderId: string) => {
     if (selectedOrders.includes(orderId)) {
       onSelectionChange(
         selectedOrders.filter(
@@ -123,28 +124,20 @@ export default function OrderTable({
     ]);
   };
 
-  // =========================================================
-  // PRICE
-  // =========================================================
+  /* =========================================================
+     PRICE
+  ========================================================= */
 
-  const formatPrice = (
-    value: number
-  ) => {
-    return `Rs. ${value.toLocaleString(
-      "en-IN"
-    )}`;
+  const formatPrice = (value: number) => {
+    return `Rs. ${value.toLocaleString("en-IN")}`;
   };
 
-  // =========================================================
-  // DATE
-  // =========================================================
+  /* =========================================================
+     DATE
+  ========================================================= */
 
-  const formatDate = (
-    date: string
-  ) => {
-    return new Date(
-      date
-    ).toLocaleDateString(
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString(
       "en-US",
       {
         day: "2-digit",
@@ -154,9 +147,9 @@ export default function OrderTable({
     );
   };
 
-  // =========================================================
-  // PAYMENT STATUS
-  // =========================================================
+  /* =========================================================
+     PAYMENT STATUS
+  ========================================================= */
 
   const getPaymentStatusClass = (
     paymentStatus: Order["paymentStatus"]
@@ -176,24 +169,52 @@ export default function OrderTable({
     }
   };
 
+  /* =========================================================
+     RETURN / REFUND
+  ========================================================= */
+
+  const canReturnRefund = (order: Order) => {
+    return (
+      order.status === "delivered" &&
+      (!order.returnRefundStatus ||
+        order.returnRefundStatus === "none" ||
+        order.returnRefundStatus === "rejected")
+    );
+  };
+
+  /* =========================================================
+     REVIEW RETURN / REFUND
+  ========================================================= */
+
+  const canReviewReturnRefund = (order: Order) => {
+    return (
+      order.returnRefundStatus === "requested"
+    );
+  };
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
       <div className="overflow-x-auto">
 
-        <table className="w-full min-w-275 text-sm">
+        <table className="w-full min-w-[1200px] text-sm">
 
-          {/* HEADER */}
+          {/* =====================================================
+              HEADER
+          ====================================================== */}
 
           <thead className="border-b border-slate-200 bg-slate-50">
 
             <tr>
+
+              {/* SELECT */}
 
               <th className="w-14 px-5 py-4">
 
                 <button
                   type="button"
                   onClick={handleSelectAll}
+                  aria-label="Select all orders"
                   className={`
                     flex
                     h-5
@@ -203,8 +224,7 @@ export default function OrderTable({
                     rounded
                     border
                     ${
-                      allSelected ||
-                      someSelected
+                      allSelected || someSelected
                         ? "border-slate-900 bg-slate-900 text-white"
                         : "border-slate-300 bg-white"
                     }
@@ -222,33 +242,55 @@ export default function OrderTable({
 
               </th>
 
+              {/* ORDER */}
+
               <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
                 Order
               </th>
+
+              {/* CUSTOMER */}
 
               <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
                 Customer
               </th>
 
+              {/* DATE */}
+
               <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
                 Date
               </th>
+
+              {/* ITEMS */}
 
               <th className="px-5 py-4 text-center text-xs font-semibold uppercase text-slate-500">
                 Items
               </th>
 
+              {/* AMOUNT */}
+
               <th className="px-5 py-4 text-right text-xs font-semibold uppercase text-slate-500">
                 Amount
               </th>
+
+              {/* PAYMENT */}
 
               <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
                 Payment
               </th>
 
+              {/* ORDER STATUS */}
+
               <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
                 Status
               </th>
+
+              {/* RETURN / REFUND STATUS */}
+
+              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                Return / Refund
+              </th>
+
+              {/* ACTION */}
 
               <th className="px-5 py-4 text-center text-xs font-semibold uppercase text-slate-500">
                 Action
@@ -258,7 +300,9 @@ export default function OrderTable({
 
           </thead>
 
-          {/* BODY */}
+          {/* =====================================================
+              BODY
+          ====================================================== */}
 
           <tbody className="divide-y divide-slate-100">
 
@@ -276,6 +320,12 @@ export default function OrderTable({
                   0
                 );
 
+              const showReturnRefund =
+                canReturnRefund(order);
+
+              const showReviewReturnRefund =
+                canReviewReturnRefund(order);
+
               return (
                 <tr
                   key={order._id}
@@ -286,7 +336,9 @@ export default function OrderTable({
                   }
                 >
 
-                  {/* CHECKBOX */}
+                  {/* =================================================
+                      CHECKBOX
+                  ================================================== */}
 
                   <td className="px-5 py-4">
 
@@ -297,6 +349,7 @@ export default function OrderTable({
                           order._id
                         )
                       }
+                      aria-label={`Select ${order.orderNumber}`}
                       className={`
                         flex
                         h-5
@@ -319,7 +372,9 @@ export default function OrderTable({
 
                   </td>
 
-                  {/* ORDER */}
+                  {/* =================================================
+                      ORDER
+                  ================================================== */}
 
                   <td className="px-5 py-4">
 
@@ -339,7 +394,9 @@ export default function OrderTable({
 
                   </td>
 
-                  {/* CUSTOMER */}
+                  {/* =================================================
+                      CUSTOMER
+                  ================================================== */}
 
                   <td className="px-5 py-4">
 
@@ -359,15 +416,21 @@ export default function OrderTable({
 
                   </td>
 
-                  {/* DATE */}
+                  {/* =================================================
+                      DATE
+                  ================================================== */}
 
                   <td className="whitespace-nowrap px-5 py-4 text-slate-600">
+
                     {formatDate(
                       order.createdAt
                     )}
+
                   </td>
 
-                  {/* ITEMS */}
+                  {/* =================================================
+                      ITEMS
+                  ================================================== */}
 
                   <td className="px-5 py-4 text-center">
 
@@ -377,7 +440,9 @@ export default function OrderTable({
 
                   </td>
 
-                  {/* AMOUNT */}
+                  {/* =================================================
+                      AMOUNT
+                  ================================================== */}
 
                   <td className="whitespace-nowrap px-5 py-4 text-right">
 
@@ -389,7 +454,9 @@ export default function OrderTable({
 
                   </td>
 
-                  {/* PAYMENT */}
+                  {/* =================================================
+                      PAYMENT
+                  ================================================== */}
 
                   <td className="px-5 py-4">
 
@@ -424,7 +491,9 @@ export default function OrderTable({
 
                   </td>
 
-                  {/* STATUS */}
+                  {/* =================================================
+                      ORDER STATUS
+                  ================================================== */}
 
                   <td className="px-5 py-4">
 
@@ -434,7 +503,23 @@ export default function OrderTable({
 
                   </td>
 
-                  {/* ACTION */}
+                  {/* =================================================
+                      RETURN / REFUND STATUS
+                  ================================================== */}
+
+                  <td className="px-5 py-4">
+
+                    <ReturnRefundStatusBadge
+                      status={
+                        order.returnRefundStatus
+                      }
+                    />
+
+                  </td>
+
+                  {/* =================================================
+                      ACTION
+                  ================================================== */}
 
                   <td className="px-5 py-4">
 
@@ -448,6 +533,7 @@ export default function OrderTable({
                           onView(order)
                         }
                         title="View order"
+                        aria-label="View order"
                         className="
                           flex
                           h-9
@@ -470,6 +556,7 @@ export default function OrderTable({
                         <button
                           type="button"
                           title="More actions"
+                          aria-label="More actions"
                           className="
                             flex
                             h-9
@@ -485,7 +572,9 @@ export default function OrderTable({
                           <MoreHorizontal className="h-5 w-5" />
                         </button>
 
-                        {/* DROPDOWN */}
+                        {/* =================================================
+                            DROPDOWN
+                        ================================================== */}
 
                         <div
                           className="
@@ -494,7 +583,7 @@ export default function OrderTable({
                             right-0
                             top-10
                             z-50
-                            w-48
+                            w-56
                             rounded-xl
                             border
                             border-slate-200
@@ -502,6 +591,8 @@ export default function OrderTable({
                             p-1.5
                             opacity-0
                             shadow-xl
+                            transition-all
+                            duration-150
                             group-hover:visible
                             group-hover:opacity-100
                           "
@@ -557,7 +648,7 @@ export default function OrderTable({
                             Change Status
                           </button>
 
-                          {/* PRINT */}
+                          {/* PRINT INVOICE */}
 
                           <button
                             type="button"
@@ -583,14 +674,73 @@ export default function OrderTable({
                             Print Invoice
                           </button>
 
-                          <div className="my-1 border-t" />
+                          {/* RETURN / REFUND */}
+
+                          {showReturnRefund && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onReturnRefund?.(
+                                  order
+                                )
+                              }
+                              className="
+                                flex
+                                w-full
+                                items-center
+                                gap-3
+                                rounded-lg
+                                px-3
+                                py-2.5
+                                text-left
+                                text-sm
+                                text-orange-600
+                                hover:bg-orange-50
+                              "
+                            >
+                              <RotateCcw className="h-4 w-4" />
+
+                              Return / Refund
+                            </button>
+                          )}
+
+                          {/* REVIEW RETURN / REFUND */}
+
+                          {showReviewReturnRefund && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onReviewReturnRefund?.(
+                                  order
+                                )
+                              }
+                              className="
+                                flex
+                                w-full
+                                items-center
+                                gap-3
+                                rounded-lg
+                                px-3
+                                py-2.5
+                                text-left
+                                text-sm
+                                font-medium
+                                text-blue-600
+                                hover:bg-blue-50
+                              "
+                            >
+                              <ClipboardCheck className="h-4 w-4" />
+
+                              Review Return / Refund
+                            </button>
+                          )}
+
+                          <div className="my-1 border-t border-slate-100" />
 
                           {/* CANCEL */}
 
-                          {order.status !==
-                            "cancelled" &&
-                            order.status !==
-                              "delivered" && (
+                          {order.status !== "cancelled" &&
+                            order.status !== "delivered" && (
 
                               <button
                                 type="button"
@@ -614,6 +764,7 @@ export default function OrderTable({
                                 "
                               >
                                 <XCircle className="h-4 w-4" />
+
                                 Cancel Order
                               </button>
 
@@ -637,7 +788,9 @@ export default function OrderTable({
 
       </div>
 
-      {/* EMPTY */}
+      {/* =========================================================
+          EMPTY STATE
+      ========================================================== */}
 
       {orders.length === 0 && (
 
@@ -660,3 +813,4 @@ export default function OrderTable({
     </div>
   );
 }
+
