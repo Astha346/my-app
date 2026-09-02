@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import OrderStats from "./OrderStats";
 import OrderFilters from "./OrderFilters";
@@ -13,6 +12,7 @@ import Invoice from "@/components/admin/Orders/Invoice";
 import OrderAnalysis from "./OrderAnalysis";
 import ReturnRefundDialog from "./ReturnRefundDialog";
 import ReturnRefundReviewDialog from "./ReturnRefundReviewDialog";
+import Pagination from "./Pagination";
 
 import {
   Order,
@@ -21,178 +21,131 @@ import {
 } from "@/types/order";
 
 /* =========================================================
-   MOCK ORDERS
+   BACKEND URL
 ========================================================= */
 
-const mockOrders: Order[] = [
-  {
-    _id: "1",
-    orderNumber: "#ORD-1024",
+const API_URL = "http://localhost:3001";
+
+/* =========================================================
+   BACKEND ORDER TYPE
+========================================================= */
+
+type BackendOrder = {
+  _id: string;
+  userId: string;
+  customerName: string;
+
+  items: {
+    productId: string;
+    name: string;
+    price: number;
+    image?: string;
+    quantity: number;
+  }[];
+
+  total: number;
+
+  status:
+    | "pending"
+    | "confirmed"
+    | "processing"
+    | "shipped"
+    | "delivered"
+    | "cancelled";
+
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+/* =========================================================
+   PAGINATION RESPONSE
+========================================================= */
+
+type OrdersResponse = {
+  orders: BackendOrder[];
+
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+};
+
+/* =========================================================
+   MAP BACKEND ORDER -> FRONTEND ORDER
+========================================================= */
+
+const mapBackendOrderToFrontend = (
+  backendOrder: BackendOrder,
+  index: number
+): Order => {
+  const subtotal = backendOrder.items.reduce(
+    (sum, item) =>
+      sum + item.price * item.quantity,
+    0
+  );
+
+  return {
+    _id: backendOrder._id,
+
+    /*
+     * Your current backend does not have orderNumber.
+     * We create a temporary display number from the index/id.
+     */
+    orderNumber: `#ORD-${1024 + index}`,
 
     customer: {
-      name: "Ram Sharma",
-      email: "ram@gmail.com",
-      phone: "9800000000",
+      name: backendOrder.customerName || "Unknown Customer",
+      email: "",
+      phone: "",
     },
 
-    items: [
-      {
-        productId: "p1",
-        name: "Wireless Headphone",
-        price: 1500,
-        quantity: 1,
-      },
-      {
-        productId: "p2",
-        name: "T-Shirt",
-        price: 475,
-        quantity: 2,
-      },
-    ],
+    items: backendOrder.items.map((item) => ({
+      productId: item.productId,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+      image: item.image || "",
+    })),
 
-    subtotal: 2450,
-    shipping: 100,
-    discount: 100,
-    total: 2450,
+    subtotal,
 
-    status: "delivered",
-
-    // TEST REQUEST
-    // This order will show "Review Return / Refund"
-    returnRefundStatus: "requested",
-
-    paymentMethod: "esewa",
-    paymentStatus: "paid",
-
-    shippingAddress: {
-      address: "New Baneshwor",
-      city: "Kathmandu",
-      country: "Nepal",
-    },
-
-    createdAt: "2026-08-26",
-  },
-
-  {
-    _id: "2",
-    orderNumber: "#ORD-1023",
-
-    customer: {
-      name: "Sita Thapa",
-      email: "sita@gmail.com",
-      phone: "9811111111",
-    },
-
-    items: [
-      {
-        productId: "p3",
-        name: "Smart Watch",
-        price: 2500,
-        quantity: 1,
-      },
-    ],
-
-    subtotal: 2500,
-    shipping: 100,
-    discount: 0,
-    total: 2600,
-
-    status: "processing",
-
-    returnRefundStatus: "none",
-
-    paymentMethod: "cod",
-    paymentStatus: "pending",
-
-    shippingAddress: {
-      address: "Lalitpur",
-      city: "Lalitpur",
-      country: "Nepal",
-    },
-
-    createdAt: "2026-08-26",
-  },
-
-  {
-    _id: "3",
-    orderNumber: "#ORD-1022",
-
-    customer: {
-      name: "Hari KC",
-      email: "hari@gmail.com",
-      phone: "9822222222",
-    },
-
-    items: [
-      {
-        productId: "p4",
-        name: "Laptop",
-        price: 85000,
-        quantity: 1,
-      },
-    ],
-
-    subtotal: 85000,
     shipping: 0,
-    discount: 5000,
-    total: 80000,
 
-    status: "shipped",
+    discount: Math.max(
+      subtotal - backendOrder.total,
+      0
+    ),
 
-    returnRefundStatus: "none",
+    total: backendOrder.total,
 
-    paymentMethod: "khalti",
-    paymentStatus: "paid",
-
-    shippingAddress: {
-      address: "Pokhara",
-      city: "Pokhara",
-      country: "Nepal",
-    },
-
-    createdAt: "2026-08-25",
-  },
-
-  {
-    _id: "4",
-    orderNumber: "#ORD-1021",
-
-    customer: {
-      name: "Mina Rai",
-      email: "mina@gmail.com",
-      phone: "9833333333",
-    },
-
-    items: [
-      {
-        productId: "p5",
-        name: "Face Cream",
-        price: 699,
-        quantity: 1,
-      },
-    ],
-
-    subtotal: 699,
-    shipping: 100,
-    discount: 0,
-    total: 799,
-
-    status: "pending",
+    status: backendOrder.status,
 
     returnRefundStatus: "none",
 
+    /*
+     * These values are temporary defaults because
+     * the current backend Order schema does not contain
+     * payment information yet.
+     */
     paymentMethod: "cod",
+
     paymentStatus: "pending",
 
     shippingAddress: {
-      address: "Bhaktapur",
-      city: "Bhaktapur",
+      address: "",
+      city: "",
       country: "Nepal",
     },
 
-    createdAt: "2026-08-25",
-  },
-];
+    createdAt:
+      backendOrder.createdAt ||
+      new Date().toISOString(),
+  };
+};
 
 /* =========================================================
    COMPONENT
@@ -204,7 +157,21 @@ export default function OrdersContent() {
   ======================================================= */
 
   const [orders, setOrders] =
-    useState<Order[]>(mockOrders);
+    useState<Order[]>([]);
+
+  /* =======================================================
+     LOADING
+  ======================================================= */
+
+  const [loading, setLoading] =
+    useState(true);
+
+  /* =======================================================
+     ERROR
+  ======================================================= */
+
+  const [error, setError] =
+    useState("");
 
   /* =======================================================
      FILTERS
@@ -272,26 +239,243 @@ export default function OrdersContent() {
     useState<Order | null>(null);
 
   /* =======================================================
+     PAGINATION
+  ======================================================= */
+
+  const [currentPage, setCurrentPage] =
+    useState(1);
+
+  const [itemsPerPage, setItemsPerPage] =
+    useState(5);
+
+  /* =======================================================
+     BACKEND PAGINATION INFO
+  ======================================================= */
+
+  const [pagination, setPagination] =
+    useState({
+      page: 1,
+      limit: 5,
+      total: 0,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    });
+
+  /* =======================================================
+     FETCH ORDERS
+  ======================================================= */
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const params = new URLSearchParams();
+
+        params.set(
+          "page",
+          String(currentPage)
+        );
+
+        params.set(
+          "limit",
+          String(itemsPerPage)
+        );
+
+        if (search.trim()) {
+          params.set(
+            "search",
+            search.trim()
+          );
+        }
+
+        if (status !== "all") {
+          params.set(
+            "status",
+            status
+          );
+        }
+
+        const response = await fetch(
+          `${API_URL}/orders?${params.toString()}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch orders (${response.status})`
+          );
+        }
+
+        const data: OrdersResponse =
+          await response.json();
+
+        const mappedOrders =
+          data.orders.map(
+            (order, index) =>
+              mapBackendOrderToFrontend(
+                order,
+                index
+              )
+          );
+
+        setOrders(mappedOrders);
+
+        setPagination(
+          data.pagination
+        );
+
+        /*
+         * Remove selected orders that are
+         * no longer visible on the current page.
+         */
+        setSelectedOrders([]);
+      } catch (err) {
+        console.error(
+          "Failed to fetch orders:",
+          err
+        );
+
+        setError(
+          "Unable to load orders. Make sure the backend is running."
+        );
+
+        setOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [
+    currentPage,
+    itemsPerPage,
+    search,
+    status,
+  ]);
+
+  /* =======================================================
+     PAYMENT FILTER
+     
+     Backend does not support payment filters yet,
+     so these are still handled on the frontend.
+  ======================================================= */
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const paymentMatch =
+        payment === "all" ||
+        order.paymentMethod === payment;
+
+      const paymentStatusMatch =
+        paymentStatus === "all" ||
+        order.paymentStatus ===
+          paymentStatus;
+
+      return (
+        paymentMatch &&
+        paymentStatusMatch
+      );
+    });
+  }, [
+    orders,
+    payment,
+    paymentStatus,
+  ]);
+
+  /* =======================================================
+     RESET PAGE WHEN FILTERS CHANGE
+  ======================================================= */
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    search,
+    status,
+    payment,
+    paymentStatus,
+    itemsPerPage,
+  ]);
+
+  /* =======================================================
      SINGLE ORDER STATUS UPDATE
   ======================================================= */
 
-  const handleStatusUpdate = (
+  const handleStatusUpdate = async (
     orderId: string,
     newStatus: OrderStatus
   ) => {
-    setOrders((currentOrders) =>
-      currentOrders.map((order) =>
-        order._id === orderId
-          ? {
-              ...order,
-              status: newStatus,
-            }
-          : order
-      )
-    );
+    try {
+      setError("");
 
-    setStatusOrder(null);
-    setSelectedOrder(null);
+      const response = await fetch(
+        `${API_URL}/orders/${orderId}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            status: newStatus,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "Failed to update order status"
+        );
+      }
+
+      /*
+       * Update current UI immediately.
+       */
+      setOrders((currentOrders) =>
+        currentOrders.map((order) =>
+          order._id === orderId
+            ? {
+                ...order,
+                status: newStatus,
+              }
+            : order
+        )
+      );
+
+      /*
+       * Also update selected dialog order.
+       */
+      setSelectedOrder(
+        (currentOrder) =>
+          currentOrder &&
+          currentOrder._id === orderId
+            ? {
+                ...currentOrder,
+                status: newStatus,
+              }
+            : currentOrder
+      );
+
+      setStatusOrder(null);
+      setSelectedOrder(null);
+    } catch (err) {
+      console.error(
+        "Status update failed:",
+        err
+      );
+
+      setError(
+        "Failed to update order status."
+      );
+    }
   };
 
   /* =======================================================
@@ -318,18 +502,16 @@ export default function OrdersContent() {
      CONFIRM CANCEL
   ======================================================= */
 
-  const confirmCancelOrder = (
+  const confirmCancelOrder = async (
     order: Order
   ) => {
-    setOrders((currentOrders) =>
-      currentOrders.map((currentOrder) =>
-        currentOrder._id === order._id
-          ? {
-              ...currentOrder,
-              status: "cancelled",
-            }
-          : currentOrder
-      )
+    /*
+     * Cancel is implemented using the same
+     * backend status endpoint.
+     */
+    await handleStatusUpdate(
+      order._id,
+      "cancelled"
     );
 
     setCancelOrder(null);
@@ -345,25 +527,76 @@ export default function OrdersContent() {
      BULK STATUS UPDATE
   ======================================================= */
 
-  const handleBulkStatusUpdate = (
+  const handleBulkStatusUpdate = async (
     newStatus: OrderStatus
   ) => {
     if (selectedOrders.length === 0) {
       return;
     }
 
-    setOrders((currentOrders) =>
-      currentOrders.map((order) =>
-        selectedOrders.includes(order._id)
-          ? {
-              ...order,
-              status: newStatus,
-            }
-          : order
-      )
-    );
+    try {
+      setError("");
 
-    setSelectedOrders([]);
+      /*
+       * Update every selected order
+       * through the backend.
+       */
+      await Promise.all(
+        selectedOrders.map(
+          async (orderId) => {
+            const response =
+              await fetch(
+                `${API_URL}/orders/${orderId}/status`,
+                {
+                  method: "PATCH",
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                  },
+                  body: JSON.stringify({
+                    status:
+                      newStatus,
+                  }),
+                }
+              );
+
+            if (!response.ok) {
+              throw new Error(
+                `Failed to update order ${orderId}`
+              );
+            }
+          }
+        )
+      );
+
+      /*
+       * Update current page UI.
+       */
+      setOrders((currentOrders) =>
+        currentOrders.map((order) =>
+          selectedOrders.includes(
+            order._id
+          )
+            ? {
+                ...order,
+                status:
+                  newStatus,
+              }
+            : order
+        )
+      );
+
+      setSelectedOrders([]);
+    } catch (err) {
+      console.error(
+        "Bulk status update failed:",
+        err
+      );
+
+      setError(
+        "Failed to update one or more orders."
+      );
+    }
   };
 
   /* =======================================================
@@ -392,9 +625,14 @@ export default function OrdersContent() {
       data
     );
 
+    /*
+     * Return/refund backend is not implemented yet.
+     * Keep this frontend behavior for now.
+     */
     setOrders((currentOrders) =>
       currentOrders.map((order) =>
-        order._id === returnOrder._id
+        order._id ===
+        returnOrder._id
           ? {
               ...order,
               returnRefundStatus:
@@ -430,72 +668,82 @@ export default function OrdersContent() {
         order._id === orderId
           ? {
               ...order,
-              returnRefundStatus: newStatus,
+              returnRefundStatus:
+                newStatus,
             }
           : order
       )
     );
 
-    setSelectedOrder((currentOrder) =>
-      currentOrder &&
-      currentOrder._id === orderId
-        ? {
-            ...currentOrder,
-            returnRefundStatus: newStatus,
-          }
-        : currentOrder
+    setSelectedOrder(
+      (currentOrder) =>
+        currentOrder &&
+        currentOrder._id === orderId
+          ? {
+              ...currentOrder,
+              returnRefundStatus:
+                newStatus,
+            }
+          : currentOrder
     );
 
     setReviewReturnOrder(null);
   };
 
   /* =======================================================
-     FILTER ORDERS
+     CHANGE ITEMS PER PAGE
   ======================================================= */
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      const searchValue =
-        search.toLowerCase().trim();
+  const handleItemsPerPageChange = (
+    value: string
+  ) => {
+    setItemsPerPage(
+      Number(value)
+    );
 
-      const searchMatch =
-        order.orderNumber
-          .toLowerCase()
-          .includes(searchValue) ||
-        order.customer.name
-          .toLowerCase()
-          .includes(searchValue) ||
-        order.customer.email
-          .toLowerCase()
-          .includes(searchValue);
+    setCurrentPage(1);
+  };
 
-      const statusMatch =
-        status === "all" ||
-        order.status === status;
+  /* =======================================================
+     CHANGE PAGE
+  ======================================================= */
 
-      const paymentMatch =
-        payment === "all" ||
-        order.paymentMethod === payment;
+  const handlePageChange = (
+    page: number
+  ) => {
+    if (page < 1) {
+      return;
+    }
 
-      const paymentStatusMatch =
-        paymentStatus === "all" ||
-        order.paymentStatus ===
-          paymentStatus;
+    if (
+      pagination.totalPages > 0 &&
+      page > pagination.totalPages
+    ) {
+      return;
+    }
 
-      return (
-        searchMatch &&
-        statusMatch &&
-        paymentMatch &&
-        paymentStatusMatch
-      );
-    });
-  }, [
-    orders,
-    search,
-    status,
-    payment,
-    paymentStatus,
-  ]);
+    setCurrentPage(page);
+  };
+
+  /* =======================================================
+     SHOWING RANGE
+  ======================================================= */
+
+  const startIndex =
+    pagination.total === 0
+      ? 0
+      : (currentPage - 1) *
+          itemsPerPage +
+        1;
+
+  const endIndex =
+    pagination.total === 0
+      ? 0
+      : Math.min(
+          currentPage *
+            itemsPerPage,
+          pagination.total
+        );
 
   /* =======================================================
      RETURN
@@ -517,6 +765,16 @@ export default function OrdersContent() {
           Manage and track customer orders
         </p>
       </div>
+
+      {/* ===================================================
+          ERROR MESSAGE
+      =================================================== */}
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+          {error}
+        </div>
+      )}
 
       {/* ===================================================
           STATS
@@ -542,7 +800,9 @@ export default function OrdersContent() {
         payment={payment}
         setPayment={setPayment}
         paymentStatus={paymentStatus}
-        setPaymentStatus={setPaymentStatus}
+        setPaymentStatus={
+          setPaymentStatus
+        }
       />
 
       {/* ===================================================
@@ -587,7 +847,8 @@ export default function OrdersContent() {
             <div>
               <p className="font-semibold">
                 {selectedOrders.length}{" "}
-                {selectedOrders.length === 1
+                {selectedOrders.length ===
+                1
                   ? "order"
                   : "orders"}{" "}
                 selected
@@ -687,35 +948,186 @@ export default function OrdersContent() {
           ORDER TABLE
       =================================================== */}
 
-      <OrderTable
-        orders={filteredOrders}
-        onView={setSelectedOrder}
-        selectedOrders={selectedOrders}
-        onSelectionChange={
-          setSelectedOrders
-        }
-        onPrintInvoice={(order) => {
-          setInvoiceOrder(order);
-        }}
-        onChangeStatus={
-          handleChangeStatus
-        }
-        onCancelOrder={
-          handleCancelOrder
-        }
-        onReturnRefund={
-          handleReturnRefund
-        }
+      {loading ? (
+        <div className="rounded-xl border bg-white p-10 text-center">
+          <p className="text-sm text-slate-500">
+            Loading orders...
+          </p>
+        </div>
+      ) : filteredOrders.length === 0 ? (
+        <div className="rounded-xl border bg-white p-10 text-center">
+          <p className="font-medium text-slate-700">
+            No orders found
+          </p>
 
-        /*
-         * IMPORTANT:
-         * This connects the Review button
-         * from OrderTable to the Review Dialog.
-         */
-        onReviewReturnRefund={
-          handleReviewReturnRefund
-        }
-      />
+          <p className="mt-1 text-sm text-slate-500">
+            Try changing your search or filters.
+          </p>
+        </div>
+      ) : (
+        <OrderTable
+          orders={filteredOrders}
+          onView={setSelectedOrder}
+          selectedOrders={
+            selectedOrders
+          }
+          onSelectionChange={
+            setSelectedOrders
+          }
+          onPrintInvoice={(order) => {
+            setInvoiceOrder(order);
+          }}
+          onChangeStatus={
+            handleChangeStatus
+          }
+          onCancelOrder={
+            handleCancelOrder
+          }
+          onReturnRefund={
+            handleReturnRefund
+          }
+          onReviewReturnRefund={
+            handleReviewReturnRefund
+          }
+        />
+      )}
+
+      {/* ===================================================
+          PAGINATION
+      =================================================== */}
+
+      {!loading &&
+        pagination.total > 0 && (
+          <div
+            className="
+              flex
+              flex-col
+              gap-4
+              rounded-xl
+              border
+              bg-white
+              p-4
+              sm:flex-row
+              sm:items-center
+              sm:justify-between
+            "
+          >
+
+            {/* SHOWING INFO */}
+
+            <div className="text-sm text-slate-500">
+
+              Showing{" "}
+
+              <span className="font-medium text-slate-900">
+                {startIndex}
+              </span>
+
+              {" - "}
+
+              <span className="font-medium text-slate-900">
+                {endIndex}
+              </span>
+
+              {" of "}
+
+              <span className="font-medium text-slate-900">
+                {pagination.total}
+              </span>
+
+              {" orders"}
+
+            </div>
+
+            {/* RIGHT SIDE */}
+
+            <div
+              className="
+                flex
+                flex-wrap
+                items-center
+                gap-4
+              "
+            >
+
+              {/* ROWS PER PAGE */}
+
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-2
+                "
+              >
+
+                <span
+                  className="
+                    text-sm
+                    text-slate-500
+                  "
+                >
+                  Rows per page:
+                </span>
+
+                <select
+                  value={itemsPerPage}
+                  onChange={(event) =>
+                    handleItemsPerPageChange(
+                      event.target.value
+                    )
+                  }
+                  className="
+                    rounded-lg
+                    border
+                    border-slate-200
+                    bg-white
+                    px-3
+                    py-2
+                    text-sm
+                    text-slate-700
+                    outline-none
+                    focus:border-slate-400
+                  "
+                >
+                  <option value={5}>
+                    5
+                  </option>
+
+                  <option value={10}>
+                    10
+                  </option>
+
+                  <option value={20}>
+                    20
+                  </option>
+
+                </select>
+
+              </div>
+
+              {/* PAGINATION */}
+
+              <Pagination
+                currentPage={
+                  currentPage
+                }
+                totalPages={
+                  pagination.totalPages
+                }
+                totalItems={
+                  pagination.total
+                }
+                itemsPerPage={
+                  itemsPerPage
+                }
+                onPageChange={
+                  handlePageChange
+                }
+              />
+
+            </div>
+          </div>
+        )}
 
       {/* ===================================================
           ORDER DETAILS
@@ -785,4 +1197,3 @@ export default function OrdersContent() {
     </div>
   );
 }
-
