@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { RotateCcw, X } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 
 import {
   Dialog,
@@ -21,7 +21,7 @@ type ReturnRefundDialogProps = {
   order: Order | null;
   open: boolean;
   onClose: () => void;
-  onSubmit?: (data: ReturnRefundData) => void;
+  onSubmit?: (data: ReturnRefundData) => Promise<void> | void;
 };
 
 export type ReturnRefundData = {
@@ -49,9 +49,7 @@ export default function ReturnRefundDialog({
   onSubmit,
 }: ReturnRefundDialogProps) {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-
   const [reason, setReason] = useState("");
-
   const [note, setNote] = useState("");
 
   const [refundMethod, setRefundMethod] = useState<
@@ -59,6 +57,7 @@ export default function ReturnRefundDialog({
   >("original");
 
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const refundAmount = useMemo(() => {
     if (!order) return 0;
@@ -83,37 +82,64 @@ export default function ReturnRefundDialog({
   };
 
   const handleClose = () => {
+    if (loading) return;
+
     setSelectedItems([]);
     setReason("");
     setNote("");
     setRefundMethod("original");
     setSubmitted(false);
+    setLoading(false);
+
     onClose();
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!order) return;
 
     if (selectedItems.length === 0) {
+      alert("Please select at least one item.");
       return;
     }
 
     if (!reason) {
+      alert("Please select a return reason.");
       return;
     }
 
-    const returnData: ReturnRefundData = {
-      orderId: order._id,
-      itemIds: selectedItems,
-      reason,
-      note,
-      refundMethod,
-      refundAmount,
-    };
+    if (refundAmount <= 0) {
+      alert("Refund amount must be greater than 0.");
+      return;
+    }
 
-    onSubmit?.(returnData);
+    if (!onSubmit) {
+      alert("Return/refund handler is not connected.");
+      return;
+    }
 
-    setSubmitted(true);
+    try {
+      setLoading(true);
+
+      const returnData: ReturnRefundData = {
+        orderId: order._id,
+        itemIds: selectedItems,
+        reason,
+        note,
+        refundMethod,
+        refundAmount,
+      };
+
+      await onSubmit(returnData);
+
+      setSubmitted(true);
+    } catch (error) {
+      console.error(
+        "Return/refund submission failed:",
+        error
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!order) {
@@ -121,8 +147,15 @@ export default function ReturnRefundDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[650px]">
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!value) {
+          handleClose();
+        }
+      }}
+    >
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-162.5">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-100">
@@ -227,9 +260,10 @@ export default function ReturnRefundDialog({
 
               <div className="space-y-2">
                 {order.items.map((item) => {
-                  const selected = selectedItems.includes(
-                    item.productId
-                  );
+                  const selected =
+                    selectedItems.includes(
+                      item.productId
+                    );
 
                   return (
                     <button
@@ -272,7 +306,8 @@ export default function ReturnRefundDialog({
                         <p className="font-semibold">
                           Rs.{" "}
                           {(
-                            item.price * item.quantity
+                            item.price *
+                            item.quantity
                           ).toLocaleString()}
                         </p>
                       </div>
@@ -302,7 +337,10 @@ export default function ReturnRefundDialog({
                 </option>
 
                 {RETURN_REASONS.map((item) => (
-                  <option key={item} value={item}>
+                  <option
+                    key={item}
+                    value={item}
+                  >
                     {item}
                   </option>
                 ))}
@@ -323,7 +361,7 @@ export default function ReturnRefundDialog({
                   setNote(e.target.value)
                 }
                 placeholder="Add any additional information..."
-                className="min-h-[90px]"
+                className="min-h-22.5"
               />
             </div>
 
@@ -436,7 +474,8 @@ export default function ReturnRefundDialog({
                 </span>
 
                 <span className="text-lg font-bold">
-                  Rs. {refundAmount.toLocaleString()}
+                  Rs.{" "}
+                  {refundAmount.toLocaleString()}
                 </span>
               </div>
             </div>
@@ -447,6 +486,7 @@ export default function ReturnRefundDialog({
               <Button
                 type="button"
                 variant="outline"
+                disabled={loading}
                 onClick={handleClose}
               >
                 Cancel
@@ -455,6 +495,7 @@ export default function ReturnRefundDialog({
               <Button
                 type="button"
                 disabled={
+                  loading ||
                   selectedItems.length === 0 ||
                   !reason ||
                   refundAmount <= 0
@@ -462,7 +503,9 @@ export default function ReturnRefundDialog({
                 onClick={handleSubmit}
                 className="bg-orange-600 hover:bg-orange-700"
               >
-                Submit Request
+                {loading
+                  ? "Submitting..."
+                  : "Submit Request"}
               </Button>
             </div>
           </div>

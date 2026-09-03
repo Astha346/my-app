@@ -1,55 +1,36 @@
-
 "use client";
 
 import {
-  Check,
-  ClipboardCheck,
   Eye,
   MoreHorizontal,
-  PackageCheck,
   Printer,
   RotateCcw,
   XCircle,
+  CheckCircle,
 } from "lucide-react";
 
-import { Order } from "@/types/order";
-import OrderStatusBadge from "./OrderStatusBadge";
-import ReturnRefundStatusBadge from "./ReturnRefundStatus";
+import type { Order, ReturnRefundStatus } from "@/types/order";
 
 interface Props {
   orders: Order[];
+  currentPage: number;
 
   onView: (order: Order) => void;
 
   selectedOrders: string[];
+  onSelectionChange: (ids: string[]) => void;
 
-  onSelectionChange: (orderIds: string[]) => void;
+  onPrintInvoice: (order: Order) => void;
+  onChangeStatus: (order: Order) => void;
+  onCancelOrder: (order: Order) => void;
 
-  onPrintInvoice?: (order: Order) => void;
-
-  onChangeStatus?: (order: Order) => void;
-
-  onCancelOrder?: (order: Order) => void;
-
-  onReturnRefund?: (order: Order) => void;
-
-  onReviewReturnRefund?: (order: Order) => void;
+  onReturnRefund: (order: Order) => void;
+  onReviewReturnRefund: (order: Order) => void;
 }
-
-const PAYMENT_METHOD_LABELS = {
-  cod: "Cash on Delivery",
-  esewa: "eSewa",
-  khalti: "Khalti",
-} as const;
-
-const PAYMENT_STATUS_LABELS = {
-  paid: "Paid",
-  pending: "Pending",
-  failed: "Failed",
-} as const;
 
 export default function OrderTable({
   orders,
+  currentPage,
   onView,
   selectedOrders,
   onSelectionChange,
@@ -59,119 +40,35 @@ export default function OrderTable({
   onReturnRefund,
   onReviewReturnRefund,
 }: Props) {
-  /* =========================================================
-     SELECTION
-  ========================================================= */
-
   const allSelected =
     orders.length > 0 &&
-    orders.every((order) =>
-      selectedOrders.includes(order._id)
-    );
+    orders.every((order) => selectedOrders.includes(order._id));
 
-  const someSelected =
-    orders.some((order) =>
-      selectedOrders.includes(order._id)
-    ) && !allSelected;
-
-  /* =========================================================
-     SELECT ALL
-  ========================================================= */
-
-  const handleSelectAll = () => {
-    const visibleIds = orders.map(
-      (order) => order._id
-    );
-
+  const toggleAll = () => {
     if (allSelected) {
       onSelectionChange(
         selectedOrders.filter(
-          (id) => !visibleIds.includes(id)
+          (id) => !orders.some((order) => order._id === id)
         )
       );
+    } else {
+      const newIds = orders
+        .map((order) => order._id)
+        .filter((id) => !selectedOrders.includes(id));
 
-      return;
+      onSelectionChange([...selectedOrders, ...newIds]);
     }
-
-    const newSelection = [
-      ...selectedOrders,
-      ...visibleIds.filter(
-        (id) => !selectedOrders.includes(id)
-      ),
-    ];
-
-    onSelectionChange(newSelection);
   };
 
-  /* =========================================================
-     SELECT ONE
-  ========================================================= */
-
-  const handleSelectOrder = (orderId: string) => {
-    if (selectedOrders.includes(orderId)) {
+  const toggleOrder = (id: string) => {
+    if (selectedOrders.includes(id)) {
       onSelectionChange(
-        selectedOrders.filter(
-          (id) => id !== orderId
-        )
+        selectedOrders.filter((selectedId) => selectedId !== id)
       );
-
-      return;
-    }
-
-    onSelectionChange([
-      ...selectedOrders,
-      orderId,
-    ]);
-  };
-
-  /* =========================================================
-     PRICE
-  ========================================================= */
-
-  const formatPrice = (value: number) => {
-    return `Rs. ${value.toLocaleString("en-IN")}`;
-  };
-
-  /* =========================================================
-     DATE
-  ========================================================= */
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString(
-      "en-US",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }
-    );
-  };
-
-  /* =========================================================
-     PAYMENT STATUS
-  ========================================================= */
-
-  const getPaymentStatusClass = (
-    paymentStatus: Order["paymentStatus"]
-  ) => {
-    switch (paymentStatus) {
-      case "paid":
-        return "bg-emerald-50 text-emerald-700";
-
-      case "pending":
-        return "bg-amber-50 text-amber-700";
-
-      case "failed":
-        return "bg-red-50 text-red-700";
-
-      default:
-        return "bg-gray-50 text-gray-600";
+    } else {
+      onSelectionChange([...selectedOrders, id]);
     }
   };
-
-  /* =========================================================
-     RETURN / REFUND
-  ========================================================= */
 
   const canReturnRefund = (order: Order) => {
     return (
@@ -182,635 +79,479 @@ export default function OrderTable({
     );
   };
 
-  /* =========================================================
-     REVIEW RETURN / REFUND
-  ========================================================= */
-
   const canReviewReturnRefund = (order: Order) => {
-    return (
-      order.returnRefundStatus === "requested"
-    );
+    return order.returnRefundStatus === "requested";
   };
+
+  const getReturnRefundLabel = (
+    status?: ReturnRefundStatus
+  ): string | null => {
+    switch (status) {
+      case "requested":
+        return "Return Requested";
+
+      case "approved":
+        return "Return Approved";
+
+      case "refunded":
+        return "Refunded";
+
+      case "rejected":
+        return "Return Rejected";
+
+      default:
+        return null;
+    }
+  };
+
+  const getReturnRefundClass = (
+    status?: ReturnRefundStatus
+  ): string => {
+    switch (status) {
+      case "requested":
+        return "bg-amber-50 text-amber-700 border-amber-200";
+
+      case "approved":
+        return "bg-blue-50 text-blue-700 border-blue-200";
+
+      case "refunded":
+        return "bg-green-50 text-green-700 border-green-200";
+
+      case "rejected":
+        return "bg-red-50 text-red-700 border-red-200";
+
+      default:
+        return "";
+    }
+  };
+
+  if (orders.length === 0) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-10 text-center">
+        <p className="text-sm text-slate-500">
+          No orders found.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-
       <div className="overflow-x-auto">
-
-        <table className="w-full min-w-[1200px] text-sm">
-
-          {/* =====================================================
-              HEADER
-          ====================================================== */}
-
+        <table className="w-full min-w-[1100px] text-sm">
+          {/* ================= HEADER ================= */}
           <thead className="border-b border-slate-200 bg-slate-50">
-
             <tr>
-
-              {/* SELECT */}
-
-              <th className="w-14 px-5 py-4">
-
-                <button
-                  type="button"
-                  onClick={handleSelectAll}
-                  aria-label="Select all orders"
-                  className={`
-                    flex
-                    h-5
-                    w-5
-                    items-center
-                    justify-center
-                    rounded
-                    border
-                    ${
-                      allSelected || someSelected
-                        ? "border-slate-900 bg-slate-900 text-white"
-                        : "border-slate-300 bg-white"
-                    }
-                  `}
-                >
-                  {allSelected && (
-                    <Check className="h-3.5 w-3.5" />
-                  )}
-
-                  {someSelected &&
-                    !allSelected && (
-                      <div className="h-0.5 w-2.5 rounded bg-white" />
-                    )}
-                </button>
-
+              <th className="w-12 px-4 py-3 text-left">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleAll}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
               </th>
 
-              {/* ORDER */}
-
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <th className="px-4 py-3 text-left font-semibold text-slate-600">
                 Order
               </th>
 
-              {/* CUSTOMER */}
-
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <th className="px-4 py-3 text-left font-semibold text-slate-600">
                 Customer
               </th>
 
-              {/* DATE */}
-
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
-                Date
-              </th>
-
-              {/* ITEMS */}
-
-              <th className="px-5 py-4 text-center text-xs font-semibold uppercase text-slate-500">
+              <th className="px-4 py-3 text-left font-semibold text-slate-600">
                 Items
               </th>
 
-              {/* AMOUNT */}
-
-              <th className="px-5 py-4 text-right text-xs font-semibold uppercase text-slate-500">
-                Amount
+              <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                Total
               </th>
 
-              {/* PAYMENT */}
-
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <th className="px-4 py-3 text-left font-semibold text-slate-600">
                 Payment
               </th>
 
-              {/* ORDER STATUS */}
-
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <th className="px-4 py-3 text-left font-semibold text-slate-600">
                 Status
               </th>
 
-              {/* RETURN / REFUND STATUS */}
-
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
-                Return / Refund
+              <th className="px-4 py-3 text-left font-semibold text-slate-600">
+                Date
               </th>
 
-              {/* ACTION */}
-
-              <th className="px-5 py-4 text-center text-xs font-semibold uppercase text-slate-500">
+              <th className="w-16 px-4 py-3 text-center font-semibold text-slate-600">
                 Action
               </th>
-
             </tr>
-
           </thead>
 
-          {/* =====================================================
-              BODY
-          ====================================================== */}
-
+          {/* ================= BODY ================= */}
           <tbody className="divide-y divide-slate-100">
+            {orders.map((order, index) => {
+              /*
+               * Special dropdown positioning:
+               *
+               * Only the LAST ROW of PAGE 2 opens upward.
+               *
+               * This prevents the dropdown from going outside
+               * the table/container.
+               */
+              const isLastRowOfPage2 =
+                currentPage === 2 &&
+                index === orders.length - 1;
 
-            {orders.map((order) => {
-
-              const isSelected =
-                selectedOrders.includes(
-                  order._id
-                );
-
-              const totalItems =
-                order.items.reduce(
-                  (sum, item) =>
-                    sum + item.quantity,
-                  0
-                );
-
-              const showReturnRefund =
-                canReturnRefund(order);
-
-              const showReviewReturnRefund =
-                canReviewReturnRefund(order);
+              const returnRefundLabel = getReturnRefundLabel(
+                order.returnRefundStatus
+              );
 
               return (
                 <tr
                   key={order._id}
-                  className={
-                    isSelected
-                      ? "bg-slate-50"
-                      : "hover:bg-slate-50/70"
-                  }
+                  className="group hover:bg-slate-50"
                 >
-
-                  {/* =================================================
-                      CHECKBOX
-                  ================================================== */}
-
-                  <td className="px-5 py-4">
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleSelectOrder(
-                          order._id
-                        )
-                      }
-                      aria-label={`Select ${order.orderNumber}`}
-                      className={`
-                        flex
-                        h-5
-                        w-5
-                        items-center
-                        justify-center
-                        rounded
-                        border
-                        ${
-                          isSelected
-                            ? "border-slate-900 bg-slate-900 text-white"
-                            : "border-slate-300 bg-white"
-                        }
-                      `}
-                    >
-                      {isSelected && (
-                        <Check className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-
+                  {/* ================= CHECKBOX ================= */}
+                  <td className="px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedOrders.includes(order._id)}
+                      onChange={() => toggleOrder(order._id)}
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
                   </td>
 
-                  {/* =================================================
-                      ORDER
-                  ================================================== */}
-
-                  <td className="px-5 py-4">
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onView(order)
-                      }
-                      className="font-semibold text-slate-900 hover:text-blue-600"
-                    >
-                      {order.orderNumber}
-                    </button>
-
-                    <p className="mt-1 text-xs text-slate-400">
-                      ID: {order._id}
-                    </p>
-
-                  </td>
-
-                  {/* =================================================
-                      CUSTOMER
-                  ================================================== */}
-
-                  <td className="px-5 py-4">
-
-                    <p className="font-medium text-slate-900">
-                      {order.customer.name}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {order.customer.email}
-                    </p>
-
-                    {order.customer.phone && (
-                      <p className="mt-1 text-xs text-slate-400">
-                        {order.customer.phone}
+                  {/* ================= ORDER ================= */}
+                  <td className="px-4 py-4">
+                    <div>
+                      <p className="font-semibold text-slate-800">
+                        #{order.orderNumber}
                       </p>
-                    )}
 
+                      <p className="mt-1 text-xs text-slate-400">
+                        {order._id}
+                      </p>
+                    </div>
                   </td>
 
-                  {/* =================================================
-                      DATE
-                  ================================================== */}
+                  {/* ================= CUSTOMER ================= */}
+                  <td className="px-4 py-4">
+                    <div>
+                      <p className="font-medium text-slate-800">
+                        {order.customer?.name || "Unknown Customer"}
+                      </p>
 
-                  <td className="whitespace-nowrap px-5 py-4 text-slate-600">
+                      <p className="text-xs text-slate-500">
+                        {order.customer?.email || "-"}
+                      </p>
 
-                    {formatDate(
-                      order.createdAt
-                    )}
-
-                  </td>
-
-                  {/* =================================================
-                      ITEMS
-                  ================================================== */}
-
-                  <td className="px-5 py-4 text-center">
-
-                    <span className="rounded-md bg-slate-100 px-2 py-1 text-xs">
-                      {totalItems}
-                    </span>
-
-                  </td>
-
-                  {/* =================================================
-                      AMOUNT
-                  ================================================== */}
-
-                  <td className="whitespace-nowrap px-5 py-4 text-right">
-
-                    <span className="font-semibold">
-                      {formatPrice(
-                        order.total
+                      {order.customer?.phone && (
+                        <p className="text-xs text-slate-400">
+                          {order.customer.phone}
+                        </p>
                       )}
-                    </span>
-
+                    </div>
                   </td>
 
-                  {/* =================================================
-                      PAYMENT
-                  ================================================== */}
+                  {/* ================= ITEMS ================= */}
+                  <td className="px-4 py-4">
+                    <div className="space-y-1">
+                      {order.items?.slice(0, 2).map((item) => (
+                        <div
+                          key={`${order._id}-${item.productId}`}
+                          className="flex items-center gap-2"
+                        >
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="h-8 w-8 rounded-md object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-xs text-slate-400">
+                              IMG
+                            </div>
+                          )}
 
-                  <td className="px-5 py-4">
+                          <div className="max-w-[180px]">
+                            <p className="truncate text-xs font-medium text-slate-700">
+                              {item.name}
+                            </p>
 
-                    <p className="font-medium text-slate-900">
-                      {
-                        PAYMENT_METHOD_LABELS[
-                          order.paymentMethod
-                        ]
-                      }
+                            <p className="text-[11px] text-slate-400">
+                              Qty: {item.quantity}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+
+                      {order.items && order.items.length > 2 && (
+                        <p className="text-xs text-slate-400">
+                          +{order.items.length - 2} more item
+                          {order.items.length - 2 > 1 ? "s" : ""}
+                        </p>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* ================= TOTAL ================= */}
+                  <td className="px-4 py-4">
+                    <p className="font-semibold text-slate-800">
+                      ${Number(order.total || 0).toFixed(2)}
+                    </p>
+                  </td>
+
+                  {/* ================= PAYMENT ================= */}
+                  <td className="px-4 py-4">
+                    <div>
+                      <p className="capitalize font-medium text-slate-700">
+                        {order.paymentMethod}
+                      </p>
+
+                      <span
+                        className={`
+                          mt-1 inline-flex rounded-full border px-2 py-0.5
+                          text-[11px] font-medium
+                          ${
+                            order.paymentStatus === "paid"
+                              ? "border-green-200 bg-green-50 text-green-700"
+                              : order.paymentStatus === "failed"
+                              ? "border-red-200 bg-red-50 text-red-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                          }
+                        `}
+                      >
+                        {order.paymentStatus}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* ================= STATUS ================= */}
+                  <td className="px-4 py-4">
+                    <div className="space-y-1">
+                      <span
+                        className={`
+                          inline-flex rounded-full px-2.5 py-1
+                          text-xs font-medium capitalize
+                          ${
+                            order.status === "delivered"
+                              ? "bg-green-50 text-green-700"
+                              : order.status === "cancelled"
+                              ? "bg-red-50 text-red-700"
+                              : order.status === "shipped"
+                              ? "bg-blue-50 text-blue-700"
+                              : order.status === "processing"
+                              ? "bg-purple-50 text-purple-700"
+                              : "bg-amber-50 text-amber-700"
+                          }
+                        `}
+                      >
+                        {order.status}
+                      </span>
+
+                      {returnRefundLabel && (
+                        <div>
+                          <span
+                            className={`
+                              inline-flex rounded-full border px-2 py-0.5
+                              text-[10px] font-medium
+                              ${getReturnRefundClass(
+                                order.returnRefundStatus
+                              )}
+                            `}
+                          >
+                            {returnRefundLabel}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* ================= DATE ================= */}
+                  <td className="px-4 py-4">
+                    <p className="text-sm text-slate-700">
+                      {order.createdAt
+                        ? new Date(
+                            order.createdAt
+                          ).toLocaleDateString()
+                        : "-"}
                     </p>
 
-                    <span
-                      className={`
-                        mt-1
-                        inline-flex
-                        rounded-full
-                        px-2
-                        py-0.5
-                        text-[10px]
-                        font-semibold
-                        ${getPaymentStatusClass(
-                          order.paymentStatus
-                        )}
-                      `}
-                    >
-                      {
-                        PAYMENT_STATUS_LABELS[
-                          order.paymentStatus
-                        ]
-                      }
-                    </span>
-
+                    <p className="text-xs text-slate-400">
+                      {order.createdAt
+                        ? new Date(
+                            order.createdAt
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : ""}
+                    </p>
                   </td>
 
-                  {/* =================================================
-                      ORDER STATUS
-                  ================================================== */}
-
-                  <td className="px-5 py-4">
-
-                    <OrderStatusBadge
-                      status={order.status}
-                    />
-
-                  </td>
-
-                  {/* =================================================
-                      RETURN / REFUND STATUS
-                  ================================================== */}
-
-                  <td className="px-5 py-4">
-
-                    <ReturnRefundStatusBadge
-                      status={
-                        order.returnRefundStatus
-                      }
-                    />
-
-                  </td>
-
-                  {/* =================================================
-                      ACTION
-                  ================================================== */}
-
-                  <td className="px-5 py-4">
-
-                    <div className="flex justify-center gap-1">
-
-                      {/* VIEW */}
-
+                  {/* ================= ACTION ================= */}
+                  <td className="px-4 py-4 text-center">
+                    <div className="group relative inline-block">
+                      {/* More button */}
                       <button
                         type="button"
-                        onClick={() =>
-                          onView(order)
-                        }
-                        title="View order"
-                        aria-label="View order"
                         className="
-                          flex
-                          h-9
-                          w-9
-                          items-center
-                          justify-center
-                          rounded-lg
+                          inline-flex h-9 w-9 items-center
+                          justify-center rounded-lg
+                          border border-transparent
                           text-slate-500
-                          hover:bg-blue-50
-                          hover:text-blue-600
+                          transition
+                          hover:border-slate-200
+                          hover:bg-white
+                          hover:text-slate-800
                         "
+                        aria-label="Order actions"
                       >
-                        <Eye className="h-4 w-4" />
+                        <MoreHorizontal className="h-5 w-5" />
                       </button>
 
-                      {/* MORE */}
+                      {/* ================= DROPDOWN ================= */}
+                      <div
+                        className={`
+                          invisible
+                          absolute
+                          right-0
+                          z-[100]
+                          w-56
+                          rounded-xl
+                          border
+                          border-slate-200
+                          bg-white
+                          p-1.5
+                          text-left
+                          opacity-0
+                          shadow-xl
+                          transition-all
+                          duration-150
+                          group-hover:visible
+                          group-hover:opacity-100
 
-                      <div className="group relative">
-
+                          ${
+                            isLastRowOfPage2
+                              ? "bottom-10"
+                              : "top-10"
+                          }
+                        `}
+                      >
+                        {/* View Order */}
                         <button
                           type="button"
-                          title="More actions"
-                          aria-label="More actions"
+                          onClick={() => onView(order)}
                           className="
-                            flex
-                            h-9
-                            w-9
-                            items-center
-                            justify-center
-                            rounded-lg
-                            text-slate-500
+                            flex w-full items-center gap-3
+                            rounded-lg px-3 py-2.5
+                            text-sm text-slate-700
                             hover:bg-slate-100
-                            hover:text-slate-900
                           "
                         >
-                          <MoreHorizontal className="h-5 w-5" />
+                          <Eye className="h-4 w-4" />
+                          <span>View Order</span>
                         </button>
 
-                        {/* =================================================
-                            DROPDOWN
-                        ================================================== */}
-
-                        <div
+                        {/* Print Invoice */}
+                        <button
+                          type="button"
+                          onClick={() => onPrintInvoice(order)}
                           className="
-                            invisible
-                            absolute
-                            right-0
-                            top-10
-                            z-50
-                            w-56
-                            rounded-xl
-                            border
-                            border-slate-200
-                            bg-white
-                            p-1.5
-                            opacity-0
-                            shadow-xl
-                            transition-all
-                            duration-150
-                            group-hover:visible
-                            group-hover:opacity-100
+                            flex w-full items-center gap-3
+                            rounded-lg px-3 py-2.5
+                            text-sm text-slate-700
+                            hover:bg-slate-100
                           "
                         >
+                          <Printer className="h-4 w-4" />
+                          <span>Print Invoice</span>
+                        </button>
 
-                          {/* VIEW DETAILS */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onView(order)
-                            }
-                            className="
-                              flex
-                              w-full
-                              items-center
-                              gap-3
-                              rounded-lg
-                              px-3
-                              py-2.5
-                              text-left
-                              text-sm
-                              hover:bg-slate-50
-                            "
-                          >
-                            <Eye className="h-4 w-4" />
-                            View Details
-                          </button>
-
-                          {/* CHANGE STATUS */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onChangeStatus?.(
-                                order
-                              )
-                            }
-                            className="
-                              flex
-                              w-full
-                              items-center
-                              gap-3
-                              rounded-lg
-                              px-3
-                              py-2.5
-                              text-left
-                              text-sm
-                              hover:bg-slate-50
-                            "
-                          >
-                            <PackageCheck className="h-4 w-4" />
-                            Change Status
-                          </button>
-
-                          {/* PRINT INVOICE */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onPrintInvoice?.(
-                                order
-                              )
-                            }
-                            className="
-                              flex
-                              w-full
-                              items-center
-                              gap-3
-                              rounded-lg
-                              px-3
-                              py-2.5
-                              text-left
-                              text-sm
-                              hover:bg-slate-50
-                            "
-                          >
-                            <Printer className="h-4 w-4" />
-                            Print Invoice
-                          </button>
-
-                          {/* RETURN / REFUND */}
-
-                          {showReturnRefund && (
+                        {/* Change Status */}
+                        {order.status !== "cancelled" &&
+                          order.status !== "delivered" && (
                             <button
                               type="button"
-                              onClick={() =>
-                                onReturnRefund?.(
-                                  order
-                                )
-                              }
+                              onClick={() => onChangeStatus(order)}
                               className="
-                                flex
-                                w-full
-                                items-center
-                                gap-3
-                                rounded-lg
-                                px-3
-                                py-2.5
-                                text-left
-                                text-sm
-                                text-orange-600
-                                hover:bg-orange-50
+                                flex w-full items-center gap-3
+                                rounded-lg px-3 py-2.5
+                                text-sm text-slate-700
+                                hover:bg-slate-100
                               "
                             >
-                              <RotateCcw className="h-4 w-4" />
-
-                              Return / Refund
+                              <CheckCircle className="h-4 w-4" />
+                              <span>Change Status</span>
                             </button>
                           )}
 
-                          {/* REVIEW RETURN / REFUND */}
-
-                          {showReviewReturnRefund && (
+                        {/* Cancel Order */}
+                        {order.status !== "cancelled" &&
+                          order.status !== "delivered" && (
                             <button
                               type="button"
-                              onClick={() =>
-                                onReviewReturnRefund?.(
-                                  order
-                                )
-                              }
+                              onClick={() => onCancelOrder(order)}
                               className="
-                                flex
-                                w-full
-                                items-center
-                                gap-3
-                                rounded-lg
-                                px-3
-                                py-2.5
-                                text-left
-                                text-sm
-                                font-medium
-                                text-blue-600
-                                hover:bg-blue-50
+                                flex w-full items-center gap-3
+                                rounded-lg px-3 py-2.5
+                                text-sm text-red-600
+                                hover:bg-red-50
                               "
                             >
-                              <ClipboardCheck className="h-4 w-4" />
-
-                              Review Return / Refund
+                              <XCircle className="h-4 w-4" />
+                              <span>Cancel Order</span>
                             </button>
                           )}
 
+                        {/* Divider */}
+                        {(canReturnRefund(order) ||
+                          canReviewReturnRefund(order)) && (
                           <div className="my-1 border-t border-slate-100" />
+                        )}
 
-                          {/* CANCEL */}
+                        {/* Return / Refund */}
+                        {canReturnRefund(order) && (
+                          <button
+                            type="button"
+                            onClick={() => onReturnRefund(order)}
+                            className="
+                              flex w-full items-center gap-3
+                              rounded-lg px-3 py-2.5
+                              text-sm text-orange-600
+                              hover:bg-orange-50
+                            "
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            <span>Return / Refund</span>
+                          </button>
+                        )}
 
-                          {order.status !== "cancelled" &&
-                            order.status !== "delivered" && (
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  onCancelOrder?.(
-                                    order
-                                  )
-                                }
-                                className="
-                                  flex
-                                  w-full
-                                  items-center
-                                  gap-3
-                                  rounded-lg
-                                  px-3
-                                  py-2.5
-                                  text-left
-                                  text-sm
-                                  text-red-600
-                                  hover:bg-red-50
-                                "
-                              >
-                                <XCircle className="h-4 w-4" />
-
-                                Cancel Order
-                              </button>
-
-                            )}
-
-                        </div>
-
+                        {/* Review Return / Refund */}
+                        {canReviewReturnRefund(order) && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onReviewReturnRefund(order)
+                            }
+                            className="
+                              flex w-full items-center gap-3
+                              rounded-lg px-3 py-2.5
+                              text-sm text-blue-600
+                              hover:bg-blue-50
+                            "
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            <span>Review Return / Refund</span>
+                          </button>
+                        )}
                       </div>
-
                     </div>
-
                   </td>
-
                 </tr>
               );
             })}
-
           </tbody>
-
         </table>
-
       </div>
-
-      {/* =========================================================
-          EMPTY STATE
-      ========================================================== */}
-
-      {orders.length === 0 && (
-
-        <div className="p-16 text-center">
-
-          <Eye className="mx-auto h-8 w-8 text-slate-300" />
-
-          <h3 className="mt-4 font-semibold">
-            No orders found
-          </h3>
-
-          <p className="mt-1 text-sm text-slate-500">
-            There are no orders matching your filters.
-          </p>
-
-        </div>
-
-      )}
-
     </div>
   );
 }
-

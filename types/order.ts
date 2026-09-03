@@ -1,4 +1,3 @@
-
 export type OrderStatus =
   | "pending"
   | "confirmed"
@@ -60,16 +59,37 @@ export interface Order {
 
   status: OrderStatus;
 
-  /*
-   * Return / Refund status
-   */
   returnRefundStatus?: ReturnRefundStatus;
 
+  returnItemIds?: string[];
+
+  returnReason?: string;
+
+  customerNote?: string;
+
+  refundMethod?:
+    | ""
+    | "original"
+    | "esewa"
+    | "khalti"
+    | "bank"
+    | "cash";
+
+  refundAmount?: number;
+
+  refundReviewNote?: string;
+
+  returnRequestedAt?: string;
+
+  returnReviewedAt?: string;
+
+  refundedAt?: string;
+
   paymentMethod: PaymentMethod;
+
   paymentStatus: PaymentStatus;
 
   shippingAddress: ShippingAddress;
 
   createdAt: string;
 }
-

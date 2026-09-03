@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import type {
+  Order,
+  OrderStatus,
+  ReturnRefundStatus,
+} from "@/types/order";
 
 import OrderStats from "./OrderStats";
 import OrderFilters from "./OrderFilters";
@@ -8,142 +14,212 @@ import OrderTable from "./OrderTable";
 import OrderDetailsDialog from "./OrderDetailsDialog";
 import ChangeStatusDialog from "./ChangeStatusDialog";
 import CancelOrderDialog from "./CancelOrderDialog";
-import Invoice from "@/components/admin/Orders/Invoice";
-import OrderAnalysis from "./OrderAnalysis";
+import Invoice from "./Invoice";
 import ReturnRefundDialog from "./ReturnRefundDialog";
 import ReturnRefundReviewDialog from "./ReturnRefundReviewDialog";
 import Pagination from "./Pagination";
 
-import {
-  Order,
-  OrderStatus,
-  ReturnRefundStatus,
-} from "@/types/order";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 /* =========================================================
-   BACKEND URL
+   BACKEND TYPES
 ========================================================= */
 
-const API_URL = "http://localhost:3001";
+interface BackendOrderItem {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+}
 
-/* =========================================================
-   BACKEND ORDER TYPE
-========================================================= */
-
-type BackendOrder = {
+interface BackendOrder {
   _id: string;
-  userId: string;
-  customerName: string;
+  orderNumber?: string;
+  userId?: string;
 
-  items: {
-    productId: string;
-    name: string;
-    price: number;
-    image?: string;
-    quantity: number;
-  }[];
+  customer?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
 
+  items: BackendOrderItem[];
+
+  subtotal?: number;
+  shipping?: number;
+  discount?: number;
   total: number;
 
-  status:
-    | "pending"
-    | "confirmed"
-    | "processing"
-    | "shipped"
-    | "delivered"
-    | "cancelled";
+  status: OrderStatus;
 
-  createdAt?: string;
-  updatedAt?: string;
-};
+  paymentMethod?: "cod" | "esewa" | "khalti";
+  paymentStatus?: "paid" | "pending" | "failed";
 
-/* =========================================================
-   PAGINATION RESPONSE
-========================================================= */
-
-type OrdersResponse = {
-  orders: BackendOrder[];
-
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
+  shippingAddress?: {
+    address?: string;
+    city?: string;
+    country?: string;
   };
-};
+
+  returnRefundStatus?: ReturnRefundStatus;
+  returnItemIds?: string[];
+  returnReason?: string;
+  customerNote?: string;
+
+  refundMethod?:
+    | ""
+    | "original"
+    | "esewa"
+    | "khalti"
+    | "bank"
+    | "cash";
+
+  refundAmount?: number;
+  refundReviewNote?: string;
+
+  returnRequestedAt?: string;
+  returnReviewedAt?: string;
+  refundedAt?: string;
+
+  createdAt: string;
+}
+
+interface OrdersResponse {
+  orders?: BackendOrder[];
+  data?: BackendOrder[];
+
+  pagination?: {
+    total?: number;
+    page?: number;
+    limit?: number;
+    totalPages?: number;
+  };
+
+  total?: number;
+  totalOrders?: number;
+  page?: number;
+  limit?: number;
+  totalPages?: number;
+}
+
+interface ReturnRefundRequestData {
+  itemIds: string[];
+  customerNote?: string;
+  reason?: string;
+  refundMethod?: string;
+  refundAmount?: number;
+}
 
 /* =========================================================
-   MAP BACKEND ORDER -> FRONTEND ORDER
+   MAP BACKEND ORDER TO FRONTEND ORDER
 ========================================================= */
 
 const mapBackendOrderToFrontend = (
-  backendOrder: BackendOrder,
-  index: number
+  order: BackendOrder
 ): Order => {
-  const subtotal = backendOrder.items.reduce(
-    (sum, item) =>
-      sum + item.price * item.quantity,
-    0
-  );
-
   return {
-    _id: backendOrder._id,
+    _id: order._id,
 
-    /*
-     * Your current backend does not have orderNumber.
-     * We create a temporary display number from the index/id.
-     */
-    orderNumber: `#ORD-${1024 + index}`,
+    orderNumber:
+      order.orderNumber ||
+      order._id.slice(-6).toUpperCase(),
 
     customer: {
-      name: backendOrder.customerName || "Unknown Customer",
-      email: "",
-      phone: "",
+      name:
+        order.customer?.name ||
+        "Unknown Customer",
+
+      email:
+        order.customer?.email ||
+        "-",
+
+      phone:
+        order.customer?.phone ||
+        "",
     },
 
-    items: backendOrder.items.map((item) => ({
+    items: (order.items || []).map((item) => ({
       productId: item.productId,
       name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-      image: item.image || "",
+      price: Number(item.price || 0),
+      quantity: Number(item.quantity || 0),
+      image: item.image,
     })),
 
-    subtotal,
+    subtotal: Number(order.subtotal || 0),
 
-    shipping: 0,
+    shipping: Number(order.shipping || 0),
 
-    discount: Math.max(
-      subtotal - backendOrder.total,
-      0
-    ),
+    discount: Number(order.discount || 0),
 
-    total: backendOrder.total,
+    total: Number(order.total || 0),
 
-    status: backendOrder.status,
+    status: order.status,
 
-    returnRefundStatus: "none",
+    returnRefundStatus:
+      order.returnRefundStatus ||
+      "none",
 
-    /*
-     * These values are temporary defaults because
-     * the current backend Order schema does not contain
-     * payment information yet.
-     */
-    paymentMethod: "cod",
+    returnItemIds:
+      order.returnItemIds ||
+      [],
 
-    paymentStatus: "pending",
+    returnReason:
+      order.returnReason ||
+      "",
+
+    customerNote:
+      order.customerNote ||
+      "",
+
+    refundMethod:
+      order.refundMethod ||
+      "",
+
+    refundAmount:
+      order.refundAmount !== undefined
+        ? Number(order.refundAmount)
+        : undefined,
+
+    refundReviewNote:
+      order.refundReviewNote ||
+      "",
+
+    returnRequestedAt:
+      order.returnRequestedAt,
+
+    returnReviewedAt:
+      order.returnReviewedAt,
+
+    refundedAt:
+      order.refundedAt,
+
+    paymentMethod:
+      order.paymentMethod ||
+      "cod",
+
+    paymentStatus:
+      order.paymentStatus ||
+      "pending",
 
     shippingAddress: {
-      address: "",
-      city: "",
-      country: "Nepal",
+      address:
+        order.shippingAddress?.address ||
+        "",
+
+      city:
+        order.shippingAddress?.city ||
+        "",
+
+      country:
+        order.shippingAddress?.country ||
+        "",
     },
 
     createdAt:
-      backendOrder.createdAt ||
-      new Date().toISOString(),
+      order.createdAt,
   };
 };
 
@@ -152,95 +228,67 @@ const mapBackendOrderToFrontend = (
 ========================================================= */
 
 export default function OrdersContent() {
-  /* =======================================================
-     ORDERS
-  ======================================================= */
+  /* =========================================================
+     ORDERS STATE
+  ========================================================= */
 
   const [orders, setOrders] =
     useState<Order[]>([]);
 
-  /* =======================================================
-     LOADING
-  ======================================================= */
-
   const [loading, setLoading] =
     useState(true);
-
-  /* =======================================================
-     ERROR
-  ======================================================= */
 
   const [error, setError] =
     useState("");
 
-  /* =======================================================
-     FILTERS
-  ======================================================= */
-
-  const [search, setSearch] =
-    useState("");
-
-  const [status, setStatus] =
-    useState("all");
-
-  const [payment, setPayment] =
-    useState("all");
-
-  const [paymentStatus, setPaymentStatus] =
-    useState("all");
-
-  /* =======================================================
-     DETAILS
-  ======================================================= */
+  /* =========================================================
+     DIALOG STATE
+  ========================================================= */
 
   const [selectedOrder, setSelectedOrder] =
     useState<Order | null>(null);
 
-  /* =======================================================
-     CHANGE STATUS
-  ======================================================= */
-
   const [statusOrder, setStatusOrder] =
     useState<Order | null>(null);
-
-  /* =======================================================
-     CANCEL
-  ======================================================= */
 
   const [cancelOrder, setCancelOrder] =
     useState<Order | null>(null);
 
-  /* =======================================================
-     INVOICE
-  ======================================================= */
-
-  const [invoiceOrder, setInvoiceOrder] =
-    useState<Order | null>(null);
-
-  /* =======================================================
-     SELECTED ORDERS
-  ======================================================= */
-
-  const [selectedOrders, setSelectedOrders] =
-    useState<string[]>([]);
-
-  /* =======================================================
-     RETURN / REFUND REQUEST
-  ======================================================= */
-
   const [returnOrder, setReturnOrder] =
     useState<Order | null>(null);
-
-  /* =======================================================
-     RETURN / REFUND REVIEW
-  ======================================================= */
 
   const [reviewReturnOrder, setReviewReturnOrder] =
     useState<Order | null>(null);
 
-  /* =======================================================
+  const [invoiceOrder, setInvoiceOrder] =
+    useState<Order | null>(null);
+
+  /* =========================================================
+     BULK SELECTION
+  ========================================================= */
+
+  const [selectedOrders, setSelectedOrders] =
+    useState<string[]>([]);
+
+  /* =========================================================
+     FILTERS
+  ========================================================= */
+
+  const [search, setSearch] =
+    useState("");
+
+  const [statusFilter, setStatusFilter] =
+    useState("all");
+
+  const [paymentFilter, setPaymentFilter] =
+    useState("all");
+
+  const [paymentStatusFilter, setPaymentStatusFilter] =
+    useState("all");
+
+  /* =========================================================
      PAGINATION
-  ======================================================= */
+  ========================================================= */
 
   const [currentPage, setCurrentPage] =
     useState(1);
@@ -248,31 +296,28 @@ export default function OrdersContent() {
   const [itemsPerPage, setItemsPerPage] =
     useState(5);
 
-  /* =======================================================
-     BACKEND PAGINATION INFO
-  ======================================================= */
+  const [totalOrders, setTotalOrders] =
+    useState(0);
 
-  const [pagination, setPagination] =
-    useState({
-      page: 1,
-      limit: 5,
-      total: 0,
-      totalPages: 0,
-      hasNextPage: false,
-      hasPreviousPage: false,
-    });
+  const totalPages = Math.max(
+    1,
+    Math.ceil(
+      totalOrders / itemsPerPage
+    )
+  );
 
-  /* =======================================================
+  /* =========================================================
      FETCH ORDERS
-  ======================================================= */
+  ========================================================= */
 
-  useEffect(() => {
-    const fetchOrders = async () => {
+  const fetchOrders = useCallback(
+    async () => {
       try {
         setLoading(true);
         setError("");
 
-        const params = new URLSearchParams();
+        const params =
+          new URLSearchParams();
 
         params.set(
           "page",
@@ -291,53 +336,95 @@ export default function OrdersContent() {
           );
         }
 
-        if (status !== "all") {
+        if (
+          statusFilter &&
+          statusFilter !== "all"
+        ) {
           params.set(
             "status",
-            status
+            statusFilter
           );
         }
 
-        const response = await fetch(
-          `${API_URL}/orders?${params.toString()}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-          }
-        );
+        if (
+          paymentFilter &&
+          paymentFilter !== "all"
+        ) {
+          params.set(
+            "paymentMethod",
+            paymentFilter
+          );
+        }
+
+        if (
+          paymentStatusFilter &&
+          paymentStatusFilter !== "all"
+        ) {
+          params.set(
+            "paymentStatus",
+            paymentStatusFilter
+          );
+        }
+
+        const response =
+          await fetch(
+            `${API_URL}/orders?${params.toString()}`,
+            {
+              method: "GET",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              cache: "no-store",
+            }
+          );
 
         if (!response.ok) {
           throw new Error(
-            `Failed to fetch orders (${response.status})`
+            `Failed to fetch orders: ${response.status}`
           );
         }
 
-        const data: OrdersResponse =
+        const result: OrdersResponse =
           await response.json();
 
+        /* =====================================================
+           GET ORDERS FROM BACKEND
+        ===================================================== */
+
+        const backendOrders =
+          result.orders ||
+          result.data ||
+          [];
+
         const mappedOrders =
-          data.orders.map(
-            (order, index) =>
-              mapBackendOrderToFrontend(
-                order,
-                index
-              )
+          backendOrders.map(
+            mapBackendOrderToFrontend
           );
 
         setOrders(mappedOrders);
 
-        setPagination(
-          data.pagination
-        );
+        /* =====================================================
+           GET TOTAL ORDERS
 
-        /*
-         * Remove selected orders that are
-         * no longer visible on the current page.
-         */
-        setSelectedOrders([]);
+           Supports:
+           1. result.pagination.total
+           2. result.total
+           3. result.totalOrders
+           4. mappedOrders.length
+        ===================================================== */
+
+        const backendTotal =
+          result.pagination?.total ??
+          result.total ??
+          result.totalOrders ??
+          mappedOrders.length;
+
+        setTotalOrders(
+          Number(backendTotal)
+        );
       } catch (err) {
         console.error(
           "Failed to fetch orders:",
@@ -345,379 +432,83 @@ export default function OrdersContent() {
         );
 
         setError(
-          "Unable to load orders. Make sure the backend is running."
+          "Failed to load orders. Please check your backend server."
         );
 
         setOrders([]);
+        setTotalOrders(0);
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchOrders();
-  }, [
-    currentPage,
-    itemsPerPage,
-    search,
-    status,
-  ]);
-
-  /* =======================================================
-     PAYMENT FILTER
-     
-     Backend does not support payment filters yet,
-     so these are still handled on the frontend.
-  ======================================================= */
-
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      const paymentMatch =
-        payment === "all" ||
-        order.paymentMethod === payment;
-
-      const paymentStatusMatch =
-        paymentStatus === "all" ||
-        order.paymentStatus ===
-          paymentStatus;
-
-      return (
-        paymentMatch &&
-        paymentStatusMatch
-      );
-    });
-  }, [
-    orders,
-    payment,
-    paymentStatus,
-  ]);
-
-  /* =======================================================
-     RESET PAGE WHEN FILTERS CHANGE
-  ======================================================= */
+    },
+    [
+      currentPage,
+      itemsPerPage,
+      search,
+      statusFilter,
+      paymentFilter,
+      paymentStatusFilter,
+    ]
+  );
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    search,
-    status,
-    payment,
-    paymentStatus,
-    itemsPerPage,
-  ]);
+    fetchOrders();
+  }, [fetchOrders]);
 
-  /* =======================================================
-     SINGLE ORDER STATUS UPDATE
-  ======================================================= */
+  /* =========================================================
+     SEARCH
+  ========================================================= */
 
-  const handleStatusUpdate = async (
-    orderId: string,
-    newStatus: OrderStatus
-  ) => {
-    try {
-      setError("");
-
-      const response = await fetch(
-        `${API_URL}/orders/${orderId}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-          body: JSON.stringify({
-            status: newStatus,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          "Failed to update order status"
-        );
-      }
-
-      /*
-       * Update current UI immediately.
-       */
-      setOrders((currentOrders) =>
-        currentOrders.map((order) =>
-          order._id === orderId
-            ? {
-                ...order,
-                status: newStatus,
-              }
-            : order
-        )
-      );
-
-      /*
-       * Also update selected dialog order.
-       */
-      setSelectedOrder(
-        (currentOrder) =>
-          currentOrder &&
-          currentOrder._id === orderId
-            ? {
-                ...currentOrder,
-                status: newStatus,
-              }
-            : currentOrder
-      );
-
-      setStatusOrder(null);
-      setSelectedOrder(null);
-    } catch (err) {
-      console.error(
-        "Status update failed:",
-        err
-      );
-
-      setError(
-        "Failed to update order status."
-      );
-    }
-  };
-
-  /* =======================================================
-     OPEN CHANGE STATUS
-  ======================================================= */
-
-  const handleChangeStatus = (
-    order: Order
-  ) => {
-    setStatusOrder(order);
-  };
-
-  /* =======================================================
-     OPEN CANCEL
-  ======================================================= */
-
-  const handleCancelOrder = (
-    order: Order
-  ) => {
-    setCancelOrder(order);
-  };
-
-  /* =======================================================
-     CONFIRM CANCEL
-  ======================================================= */
-
-  const confirmCancelOrder = async (
-    order: Order
-  ) => {
-    /*
-     * Cancel is implemented using the same
-     * backend status endpoint.
-     */
-    await handleStatusUpdate(
-      order._id,
-      "cancelled"
-    );
-
-    setCancelOrder(null);
-
-    setSelectedOrders((current) =>
-      current.filter(
-        (id) => id !== order._id
-      )
-    );
-  };
-
-  /* =======================================================
-     BULK STATUS UPDATE
-  ======================================================= */
-
-  const handleBulkStatusUpdate = async (
-    newStatus: OrderStatus
-  ) => {
-    if (selectedOrders.length === 0) {
-      return;
-    }
-
-    try {
-      setError("");
-
-      /*
-       * Update every selected order
-       * through the backend.
-       */
-      await Promise.all(
-        selectedOrders.map(
-          async (orderId) => {
-            const response =
-              await fetch(
-                `${API_URL}/orders/${orderId}/status`,
-                {
-                  method: "PATCH",
-                  headers: {
-                    "Content-Type":
-                      "application/json",
-                  },
-                  body: JSON.stringify({
-                    status:
-                      newStatus,
-                  }),
-                }
-              );
-
-            if (!response.ok) {
-              throw new Error(
-                `Failed to update order ${orderId}`
-              );
-            }
-          }
-        )
-      );
-
-      /*
-       * Update current page UI.
-       */
-      setOrders((currentOrders) =>
-        currentOrders.map((order) =>
-          selectedOrders.includes(
-            order._id
-          )
-            ? {
-                ...order,
-                status:
-                  newStatus,
-              }
-            : order
-        )
-      );
-
-      setSelectedOrders([]);
-    } catch (err) {
-      console.error(
-        "Bulk status update failed:",
-        err
-      );
-
-      setError(
-        "Failed to update one or more orders."
-      );
-    }
-  };
-
-  /* =======================================================
-     OPEN RETURN / REFUND REQUEST
-  ======================================================= */
-
-  const handleReturnRefund = (
-    order: Order
-  ) => {
-    setReturnOrder(order);
-  };
-
-  /* =======================================================
-     SUBMIT RETURN / REFUND REQUEST
-  ======================================================= */
-
-  const handleReturnRefundSubmit = (
-    data: any
-  ) => {
-    if (!returnOrder) {
-      return;
-    }
-
-    console.log(
-      "Return / Refund Request:",
-      data
-    );
-
-    /*
-     * Return/refund backend is not implemented yet.
-     * Keep this frontend behavior for now.
-     */
-    setOrders((currentOrders) =>
-      currentOrders.map((order) =>
-        order._id ===
-        returnOrder._id
-          ? {
-              ...order,
-              returnRefundStatus:
-                "requested",
-            }
-          : order
-      )
-    );
-
-    setReturnOrder(null);
-  };
-
-  /* =======================================================
-     OPEN REVIEW RETURN / REFUND
-  ======================================================= */
-
-  const handleReviewReturnRefund = (
-    order: Order
-  ) => {
-    setReviewReturnOrder(order);
-  };
-
-  /* =======================================================
-     UPDATE RETURN / REFUND STATUS
-  ======================================================= */
-
-  const handleReturnRefundStatusUpdate = (
-    orderId: string,
-    newStatus: ReturnRefundStatus
-  ) => {
-    setOrders((currentOrders) =>
-      currentOrders.map((order) =>
-        order._id === orderId
-          ? {
-              ...order,
-              returnRefundStatus:
-                newStatus,
-            }
-          : order
-      )
-    );
-
-    setSelectedOrder(
-      (currentOrder) =>
-        currentOrder &&
-        currentOrder._id === orderId
-          ? {
-              ...currentOrder,
-              returnRefundStatus:
-                newStatus,
-            }
-          : currentOrder
-    );
-
-    setReviewReturnOrder(null);
-  };
-
-  /* =======================================================
-     CHANGE ITEMS PER PAGE
-  ======================================================= */
-
-  const handleItemsPerPageChange = (
+  const handleSearchChange = (
     value: string
   ) => {
-    setItemsPerPage(
-      Number(value)
-    );
-
+    setSearch(value);
     setCurrentPage(1);
   };
 
-  /* =======================================================
-     CHANGE PAGE
-  ======================================================= */
+  /* =========================================================
+     STATUS FILTER
+  ========================================================= */
+
+  const handleStatusChange = (
+    value: string
+  ) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  /* =========================================================
+     PAYMENT FILTER
+  ========================================================= */
+
+  const handlePaymentChange = (
+    value: string
+  ) => {
+    setPaymentFilter(value);
+    setCurrentPage(1);
+  };
+
+  /* =========================================================
+     PAYMENT STATUS FILTER
+  ========================================================= */
+
+  const handlePaymentStatusChange = (
+    value: string
+  ) => {
+    setPaymentStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  /* =========================================================
+     PAGINATION
+  ========================================================= */
 
   const handlePageChange = (
     page: number
   ) => {
-    if (page < 1) {
-      return;
-    }
-
     if (
-      pagination.totalPages > 0 &&
-      page > pagination.totalPages
+      page < 1 ||
+      page > totalPages
     ) {
       return;
     }
@@ -725,258 +516,540 @@ export default function OrdersContent() {
     setCurrentPage(page);
   };
 
-  /* =======================================================
-     SHOWING RANGE
-  ======================================================= */
+  const handleItemsPerPageChange = (
+    value: number
+  ) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
+  };
 
-  const startIndex =
-    pagination.total === 0
-      ? 0
-      : (currentPage - 1) *
-          itemsPerPage +
-        1;
+  /* =========================================================
+     VIEW ORDER
+  ========================================================= */
 
-  const endIndex =
-    pagination.total === 0
-      ? 0
-      : Math.min(
-          currentPage *
-            itemsPerPage,
-          pagination.total
+  const handleView = (
+    order: Order
+  ) => {
+    setSelectedOrder(order);
+  };
+
+  /* =========================================================
+     PRINT INVOICE
+  ========================================================= */
+
+  const handlePrintInvoice = (
+    order: Order
+  ) => {
+    setInvoiceOrder(order);
+
+    setTimeout(() => {
+      window.print();
+    }, 300);
+  };
+
+  /* =========================================================
+     CHANGE ORDER STATUS
+  ========================================================= */
+
+  const handleChangeStatus = (
+    order: Order
+  ) => {
+    setStatusOrder(order);
+  };
+
+  const handleStatusUpdate = async (
+    orderId: string,
+    newStatus: OrderStatus
+  ) => {
+    try {
+      const response =
+        await fetch(
+          `${API_URL}/orders/${orderId}/status`,
+          {
+            method: "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              status: newStatus,
+            }),
+          }
         );
 
-  /* =======================================================
-     RETURN
-  ======================================================= */
+      const result =
+        await response.json().catch(
+          () => null
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Failed to update order status"
+        );
+      }
+
+      setStatusOrder(null);
+
+      await fetchOrders();
+    } catch (err) {
+      console.error(
+        "Status update failed:",
+        err
+      );
+
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to update order status."
+      );
+    }
+  };
+
+  /* =========================================================
+     CANCEL ORDER
+  ========================================================= */
+
+  const handleCancelOrder = (
+    order: Order
+  ) => {
+    setCancelOrder(order);
+  };
+
+  const handleConfirmCancel = async (
+    orderId: string,
+    reason?: string
+  ) => {
+    try {
+      const response =
+        await fetch(
+          `${API_URL}/orders/${orderId}/cancel`,
+          {
+            method: "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              reason:
+                reason ||
+                "Cancelled by admin",
+            }),
+          }
+        );
+
+      const result =
+        await response.json().catch(
+          () => null
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Failed to cancel order"
+        );
+      }
+
+      setCancelOrder(null);
+
+      await fetchOrders();
+    } catch (err) {
+      console.error(
+        "Cancel order failed:",
+        err
+      );
+
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to cancel order."
+      );
+    }
+  };
+
+  /* =========================================================
+     RETURN / REFUND REQUEST
+  ========================================================= */
+
+  const handleReturnRefund = (
+    order: Order
+  ) => {
+    setReturnOrder(order);
+  };
+
+  const handleReturnRefundSubmit =
+    async (
+      data: ReturnRefundRequestData
+    ) => {
+      if (!returnOrder) {
+        return;
+      }
+
+      try {
+        const response =
+          await fetch(
+            `${API_URL}/orders/${returnOrder._id}/return-refund`,
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+                itemIds:
+                  data.itemIds || [],
+
+                customerNote:
+                  data.customerNote || "",
+
+                reason:
+                  data.reason || "",
+
+                refundMethod:
+                  data.refundMethod || "",
+
+                refundAmount:
+                  data.refundAmount ??
+                  returnOrder.total,
+              }),
+            }
+          );
+
+        const result =
+          await response
+            .json()
+            .catch(() => null);
+
+        if (!response.ok) {
+          throw new Error(
+            result?.message ||
+              "Failed to submit return/refund request"
+          );
+        }
+
+        setReturnOrder(null);
+
+        await fetchOrders();
+
+        alert(
+          "Return/refund request submitted successfully."
+        );
+      } catch (err) {
+        console.error(
+          "Return/refund request failed:",
+          err
+        );
+
+        alert(
+          err instanceof Error
+            ? err.message
+            : "Failed to submit return/refund request."
+        );
+      }
+    };
+
+  /* =========================================================
+     REVIEW RETURN / REFUND
+  ========================================================= */
+
+  const handleReviewReturnRefund = (
+    order: Order
+  ) => {
+    setReviewReturnOrder(order);
+  };
+
+  /* =========================================================
+     RETURN / REFUND STATUS UPDATE
+  ========================================================= */
+
+  const handleReturnRefundStatusUpdate =
+    async (
+      orderId: string,
+      newStatus: ReturnRefundStatus
+    ) => {
+      /*
+       * Supported backend flow:
+       *
+       * requested -> approved
+       * requested -> rejected
+       * approved  -> refunded
+       *
+       * "processing" is NOT supported.
+       */
+
+      if (
+        newStatus === "none"
+      ) {
+        return;
+      }
+
+      if (
+        newStatus === "processing"
+      ) {
+        console.error(
+          "Processing is not supported by backend."
+        );
+
+        return;
+      }
+
+      try {
+        let reviewNote =
+          "Return/refund request updated by admin.";
+
+        if (
+          newStatus === "approved"
+        ) {
+          reviewNote =
+            "Return request approved by admin.";
+        }
+
+        if (
+          newStatus === "rejected"
+        ) {
+          reviewNote =
+            "Return/refund request rejected by admin.";
+        }
+
+        if (
+          newStatus === "refunded"
+        ) {
+          reviewNote =
+            "Refund completed successfully.";
+        }
+
+        const response =
+          await fetch(
+            `${API_URL}/orders/${orderId}/return-refund`,
+            {
+              method: "PATCH",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+                status: newStatus,
+                reviewNote,
+              }),
+            }
+          );
+
+        const result =
+          await response
+            .json()
+            .catch(() => null);
+
+        if (!response.ok) {
+          throw new Error(
+            result?.message ||
+              "Failed to update return/refund status"
+          );
+        }
+
+        setReviewReturnOrder(null);
+
+        await fetchOrders();
+
+        if (
+          newStatus === "approved"
+        ) {
+          alert(
+            "Return request approved."
+          );
+        } else if (
+          newStatus === "rejected"
+        ) {
+          alert(
+            "Return request rejected."
+          );
+        } else if (
+          newStatus === "refunded"
+        ) {
+          alert(
+            "Refund completed successfully."
+          );
+        } else {
+          alert(
+            "Return/refund updated."
+          );
+        }
+      } catch (err) {
+        console.error(
+          "Return/refund status update failed:",
+          err
+        );
+
+        alert(
+          err instanceof Error
+            ? err.message
+            : "Failed to update return/refund status."
+        );
+      }
+    };
+
+  /* =========================================================
+     STATS
+  ========================================================= */
+
+  const stats = useMemo(() => {
+    const pending =
+      orders.filter(
+        (order) =>
+          order.status === "pending"
+      ).length;
+
+    const processing =
+      orders.filter(
+        (order) =>
+          order.status === "processing"
+      ).length;
+
+    const shipped =
+      orders.filter(
+        (order) =>
+          order.status === "shipped"
+      ).length;
+
+    const delivered =
+      orders.filter(
+        (order) =>
+          order.status === "delivered"
+      ).length;
+
+    const cancelled =
+      orders.filter(
+        (order) =>
+          order.status === "cancelled"
+      ).length;
+
+    const requestedReturns =
+      orders.filter(
+        (order) =>
+          order.returnRefundStatus ===
+          "requested"
+      ).length;
+
+    return {
+      pending,
+      processing,
+      shipped,
+      delivered,
+      cancelled,
+      requestedReturns,
+    };
+  }, [orders]);
+
+  /* =========================================================
+     LOADING
+  ========================================================= */
+
+  if (
+    loading &&
+    orders.length === 0
+  ) {
+    return (
+      <div className="space-y-6">
+        <div className="h-24 animate-pulse rounded-xl bg-slate-100" />
+
+        <div className="h-20 animate-pulse rounded-xl bg-slate-100" />
+
+        <div className="h-96 animate-pulse rounded-xl bg-slate-100" />
+      </div>
+    );
+  }
+
+  /* =========================================================
+     RENDER
+  ========================================================= */
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
 
-      {/* ===================================================
-          HEADER
-      =================================================== */}
+        {/* =====================================================
+            PAGE HEADER
+        ===================================================== */}
 
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">
-          Orders
-        </h1>
-
-        <p className="mt-1 text-slate-500">
-          Manage and track customer orders
-        </p>
-      </div>
-
-      {/* ===================================================
-          ERROR MESSAGE
-      =================================================== */}
-
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
-          {error}
-        </div>
-      )}
-
-      {/* ===================================================
-          STATS
-      =================================================== */}
-
-      <OrderStats orders={orders} />
-
-      {/* ===================================================
-          ORDER ANALYSIS
-      =================================================== */}
-
-      <OrderAnalysis />
-
-      {/* ===================================================
-          FILTERS
-      =================================================== */}
-
-      <OrderFilters
-        search={search}
-        setSearch={setSearch}
-        status={status}
-        setStatus={setStatus}
-        payment={payment}
-        setPayment={setPayment}
-        paymentStatus={paymentStatus}
-        setPaymentStatus={
-          setPaymentStatus
-        }
-      />
-
-      {/* ===================================================
-          RETURN / REFUND REQUEST DIALOG
-      =================================================== */}
-
-      <ReturnRefundDialog
-        order={returnOrder}
-        open={!!returnOrder}
-        onClose={() =>
-          setReturnOrder(null)
-        }
-        onSubmit={
-          handleReturnRefundSubmit
-        }
-      />
-
-      {/* ===================================================
-          RETURN / REFUND REVIEW DIALOG
-      =================================================== */}
-
-      <ReturnRefundReviewDialog
-        order={reviewReturnOrder}
-        open={!!reviewReturnOrder}
-        onClose={() =>
-          setReviewReturnOrder(null)
-        }
-        onStatusUpdate={
-          handleReturnRefundStatusUpdate
-        }
-      />
-
-      {/* ===================================================
-          BULK ACTION
-      =================================================== */}
-
-      {selectedOrders.length > 0 && (
-        <div className="rounded-xl bg-slate-900 p-4 text-white">
-
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-            <div>
-              <p className="font-semibold">
-                {selectedOrders.length}{" "}
-                {selectedOrders.length ===
-                1
-                  ? "order"
-                  : "orders"}{" "}
-                selected
-              </p>
-
-              <p className="mt-1 text-xs text-slate-400">
-                Choose an action
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-
-              <select
-                defaultValue=""
-                onChange={(event) => {
-                  const value =
-                    event.target.value;
-
-                  if (!value) {
-                    return;
-                  }
-
-                  handleBulkStatusUpdate(
-                    value as OrderStatus
-                  );
-
-                  event.target.value = "";
-                }}
-                className="
-                  rounded-lg
-                  border
-                  border-slate-700
-                  bg-slate-800
-                  px-4
-                  py-2
-                  text-sm
-                  text-white
-                "
-              >
-                <option
-                  value=""
-                  disabled
-                >
-                  Update Status
-                </option>
-
-                <option value="pending">
-                  Pending
-                </option>
-
-                <option value="confirmed">
-                  Confirmed
-                </option>
-
-                <option value="processing">
-                  Processing
-                </option>
-
-                <option value="shipped">
-                  Shipped
-                </option>
-
-                <option value="delivered">
-                  Delivered
-                </option>
-
-                <option value="cancelled">
-                  Cancelled
-                </option>
-              </select>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedOrders([])
-                }
-                className="
-                  rounded-lg
-                  border
-                  border-slate-700
-                  px-4
-                  py-2
-                  text-sm
-                  text-slate-300
-                  hover:bg-slate-800
-                "
-              >
-                Clear
-              </button>
-
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===================================================
-          ORDER TABLE
-      =================================================== */}
-
-      {loading ? (
-        <div className="rounded-xl border bg-white p-10 text-center">
-          <p className="text-sm text-slate-500">
-            Loading orders...
-          </p>
-        </div>
-      ) : filteredOrders.length === 0 ? (
-        <div className="rounded-xl border bg-white p-10 text-center">
-          <p className="font-medium text-slate-700">
-            No orders found
-          </p>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">
+            Orders
+          </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Try changing your search or filters.
+            Manage customer orders,
+            payments, shipping, returns
+            and refunds.
           </p>
         </div>
-      ) : (
+
+        {/* =====================================================
+            ERROR
+        ===================================================== */}
+
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* =====================================================
+            STATS
+        ===================================================== */}
+
+        <OrderStats
+          orders={orders}
+        />
+
+        {/* =====================================================
+            FILTERS
+        ===================================================== */}
+
+        <OrderFilters
+          search={search}
+          status={statusFilter}
+          payment={paymentFilter}
+          paymentStatus={
+            paymentStatusFilter
+          }
+          setSearch={
+            handleSearchChange
+          }
+          setStatus={
+            handleStatusChange
+          }
+          setPayment={
+            handlePaymentChange
+          }
+          setPaymentStatus={
+            handlePaymentStatusChange
+          }
+        />
+
+        {/* =====================================================
+            ORDER TABLE
+        ===================================================== */}
+
         <OrderTable
-          orders={filteredOrders}
-          onView={setSelectedOrder}
+          orders={orders}
+          currentPage={currentPage}
+          onView={handleView}
           selectedOrders={
             selectedOrders
           }
           onSelectionChange={
             setSelectedOrders
           }
-          onPrintInvoice={(order) => {
-            setInvoiceOrder(order);
-          }}
+          onPrintInvoice={
+            handlePrintInvoice
+          }
           onChangeStatus={
             handleChangeStatus
           }
@@ -990,148 +1063,32 @@ export default function OrdersContent() {
             handleReviewReturnRefund
           }
         />
-      )}
 
-      {/* ===================================================
-          PAGINATION
-      =================================================== */}
+        {/* =====================================================
+            PAGINATION
+        ===================================================== */}
 
-      {!loading &&
-        pagination.total > 0 && (
-          <div
-            className="
-              flex
-              flex-col
-              gap-4
-              rounded-xl
-              border
-              bg-white
-              p-4
-              sm:flex-row
-              sm:items-center
-              sm:justify-between
-            "
-          >
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          itemsPerPage={
+            itemsPerPage
+          }
+          totalItems={
+            totalOrders
+          }
+          onPageChange={
+            handlePageChange
+          }
+          onItemsPerPageChange={
+            handleItemsPerPageChange
+          }
+        />
+      </div>
 
-            {/* SHOWING INFO */}
-
-            <div className="text-sm text-slate-500">
-
-              Showing{" "}
-
-              <span className="font-medium text-slate-900">
-                {startIndex}
-              </span>
-
-              {" - "}
-
-              <span className="font-medium text-slate-900">
-                {endIndex}
-              </span>
-
-              {" of "}
-
-              <span className="font-medium text-slate-900">
-                {pagination.total}
-              </span>
-
-              {" orders"}
-
-            </div>
-
-            {/* RIGHT SIDE */}
-
-            <div
-              className="
-                flex
-                flex-wrap
-                items-center
-                gap-4
-              "
-            >
-
-              {/* ROWS PER PAGE */}
-
-              <div
-                className="
-                  flex
-                  items-center
-                  gap-2
-                "
-              >
-
-                <span
-                  className="
-                    text-sm
-                    text-slate-500
-                  "
-                >
-                  Rows per page:
-                </span>
-
-                <select
-                  value={itemsPerPage}
-                  onChange={(event) =>
-                    handleItemsPerPageChange(
-                      event.target.value
-                    )
-                  }
-                  className="
-                    rounded-lg
-                    border
-                    border-slate-200
-                    bg-white
-                    px-3
-                    py-2
-                    text-sm
-                    text-slate-700
-                    outline-none
-                    focus:border-slate-400
-                  "
-                >
-                  <option value={5}>
-                    5
-                  </option>
-
-                  <option value={10}>
-                    10
-                  </option>
-
-                  <option value={20}>
-                    20
-                  </option>
-
-                </select>
-
-              </div>
-
-              {/* PAGINATION */}
-
-              <Pagination
-                currentPage={
-                  currentPage
-                }
-                totalPages={
-                  pagination.totalPages
-                }
-                totalItems={
-                  pagination.total
-                }
-                itemsPerPage={
-                  itemsPerPage
-                }
-                onPageChange={
-                  handlePageChange
-                }
-              />
-
-            </div>
-          </div>
-        )}
-
-      {/* ===================================================
+      {/* =======================================================
           ORDER DETAILS
-      =================================================== */}
+      ======================================================= */}
 
       <OrderDetailsDialog
         order={selectedOrder}
@@ -1142,18 +1099,17 @@ export default function OrdersContent() {
         onStatusUpdate={
           handleStatusUpdate
         }
-        onPrintInvoice={(order) => {
-          setInvoiceOrder(order);
-          setSelectedOrder(null);
-        }}
-        onReturnRefund={(order) => {
-          setReturnOrder(order);
-        }}
+        onPrintInvoice={
+          handlePrintInvoice
+        }
+        onReturnRefund={
+          handleReturnRefund
+        }
       />
 
-      {/* ===================================================
-          CHANGE STATUS DIALOG
-      =================================================== */}
+      {/* =======================================================
+          CHANGE STATUS
+      ======================================================= */}
 
       <ChangeStatusDialog
         order={statusOrder}
@@ -1161,14 +1117,14 @@ export default function OrdersContent() {
         onClose={() =>
           setStatusOrder(null)
         }
-        onConfirm={
+        onStatusUpdate={
           handleStatusUpdate
         }
       />
 
-      {/* ===================================================
-          CANCEL ORDER DIALOG
-      =================================================== */}
+      {/* =======================================================
+          CANCEL ORDER
+      ======================================================= */}
 
       <CancelOrderDialog
         order={cancelOrder}
@@ -1176,14 +1132,48 @@ export default function OrdersContent() {
         onClose={() =>
           setCancelOrder(null)
         }
-        onConfirm={
-          confirmCancelOrder
+        onConfirm={(order) =>
+          handleConfirmCancel(order._id)
         }
       />
 
-      {/* ===================================================
+      {/* =======================================================
+          RETURN / REFUND REQUEST
+      ======================================================= */}
+
+      <ReturnRefundDialog
+        order={returnOrder}
+        open={!!returnOrder}
+        onClose={() =>
+          setReturnOrder(null)
+        }
+        onSubmit={
+          handleReturnRefundSubmit
+        }
+      />
+
+      {/* =======================================================
+          RETURN / REFUND REVIEW
+      ======================================================= */}
+
+      <ReturnRefundReviewDialog
+        order={
+          reviewReturnOrder
+        }
+        open={
+          !!reviewReturnOrder
+        }
+        onClose={() =>
+          setReviewReturnOrder(null)
+        }
+        onStatusUpdate={
+          handleReturnRefundStatusUpdate
+        }
+      />
+
+      {/* =======================================================
           INVOICE
-      =================================================== */}
+      ======================================================= */}
 
       {invoiceOrder && (
         <Invoice
@@ -1193,7 +1183,6 @@ export default function OrdersContent() {
           }
         />
       )}
-
-    </div>
+    </>
   );
 }
