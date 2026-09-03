@@ -1,3 +1,4 @@
+
 "use client";
 
 import { AlertTriangle, X } from "lucide-react";
@@ -11,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-import { Order } from "@/types/order";
+import type { Order } from "@/types/order";
 
 interface Props {
   order: Order | null;
@@ -46,7 +47,7 @@ export default function CancelOrderDialog({
       <DialogContent className="max-w-md rounded-xl p-0">
         <DialogHeader className="border-b border-slate-200 px-6 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
 
@@ -64,7 +65,7 @@ export default function CancelOrderDialog({
 
         <div className="px-6 py-5">
           <div className="rounded-lg border border-red-100 bg-red-50 p-4">
-            <p className="text-sm font-medium text-slate-900">
+            <p className="text-sm font-semibold text-slate-900">
               {order.orderNumber}
             </p>
 
@@ -74,13 +75,13 @@ export default function CancelOrderDialog({
 
             <p className="mt-1 text-sm text-slate-600">
               Amount: Rs.{" "}
-              {order.total.toLocaleString("en-IN")}
+              {Number(order.total || 0).toLocaleString("en-IN")}
             </p>
           </div>
 
           <p className="mt-4 text-sm leading-6 text-slate-500">
-            Once cancelled, this order will be marked as
-            cancelled and cannot be moved to another status.
+            Once cancelled, this order will be marked as cancelled
+            and cannot be moved to another status.
           </p>
         </div>
 
@@ -88,16 +89,7 @@ export default function CancelOrderDialog({
           <button
             type="button"
             onClick={onClose}
-            className="
-              flex h-10 items-center gap-2
-              rounded-lg
-              border border-slate-200
-              px-4
-              text-sm font-medium
-              text-slate-700
-              transition
-              hover:bg-slate-50
-            "
+            className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
             <X className="h-4 w-4" />
             Keep Order
@@ -106,16 +98,7 @@ export default function CancelOrderDialog({
           <button
             type="button"
             onClick={handleConfirm}
-            className="
-              flex h-10 items-center gap-2
-              rounded-lg
-              bg-red-600
-              px-4
-              text-sm font-semibold
-              text-white
-              transition
-              hover:bg-red-700
-            "
+            className="flex h-10 items-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700"
           >
             <AlertTriangle className="h-4 w-4" />
             Cancel Order
@@ -125,3 +108,4 @@ export default function CancelOrderDialog({
     </Dialog>
   );
 }
+

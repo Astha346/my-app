@@ -1,105 +1,161 @@
-import { Badge } from "@/components/ui/badge";
-import {
-  Clock,
-  CheckCircle2,
-  Loader2,
-  Truck,
-  PackageCheck,
-  XCircle,
-} from "lucide-react";
+"use client";
 
-import { OrderStatus } from "@/types/order";
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
+import type { Order, OrderStatus } from "@/types/order";
 
-type Props = {
-  status: OrderStatus | string;
+interface Props {
+  order: Order | null;
+  open: boolean;
+  onClose: () => void;
+  onStatusUpdate: (
+    orderId: string,
+    newStatus: OrderStatus
+  ) => void | Promise<void>;
+}
+
+const STATUS_OPTIONS: OrderStatus[] = [
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "delivered",
+  "cancelled",
+];
+
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  pending: "Pending",
+  confirmed: "Confirmed",
+  processing: "Processing",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
 };
 
-const STATUS_CONFIG: Record<
-  string,
-  {
-    label: string;
-    className: string;
-    icon: React.ReactNode;
-  }
-> = {
-  pending: {
-    label: "Pending",
-    className:
-      "bg-yellow-100 text-yellow-700 border-yellow-200",
-    icon: <Clock className="h-3.5 w-3.5" />,
-  },
-
-  confirmed: {
-    label: "Confirmed",
-    className:
-      "bg-blue-100 text-blue-700 border-blue-200",
-    icon: (
-      <CheckCircle2 className="h-3.5 w-3.5" />
-    ),
-  },
-
-  processing: {
-    label: "Processing",
-    className:
-      "bg-purple-100 text-purple-700 border-purple-200",
-    icon: (
-      <Loader2 className="h-3.5 w-3.5" />
-    ),
-  },
-
-  shipped: {
-    label: "Shipped",
-    className:
-      "bg-indigo-100 text-indigo-700 border-indigo-200",
-    icon: (
-      <Truck className="h-3.5 w-3.5" />
-    ),
-  },
-
-  delivered: {
-    label: "Delivered",
-    className:
-      "bg-green-100 text-green-700 border-green-200",
-    icon: (
-      <PackageCheck className="h-3.5 w-3.5" />
-    ),
-  },
-
-  cancelled: {
-    label: "Cancelled",
-    className:
-      "bg-red-100 text-red-700 border-red-200",
-    icon: (
-      <XCircle className="h-3.5 w-3.5" />
-    ),
-  },
-};
-
-export default function OrderStatusBadge({
-  status,
+export default function ChangeStatusDialog({
+  order,
+  open,
+  onClose,
+  onStatusUpdate,
 }: Props) {
-  /*
-   * Convert backend status to lowercase.
-   * This protects the UI if MongoDB contains
-   * "Pending", "PENDING", etc.
-   */
-  const normalizedStatus =
-    String(status || "")
-      .trim()
-      .toLowerCase();
+  const [status, setStatus] = useState<OrderStatus>("pending");
+  const [saving, setSaving] = useState(false);
 
-  const config =
-    STATUS_CONFIG[normalizedStatus] ??
-    STATUS_CONFIG.pending;
+  useEffect(() => {
+    if (order) {
+      setStatus(order.status);
+    }
+  }, [order]);
+
+  if (!open || !order) {
+    return null;
+  }
+
+  const handleSave = async () => {
+    if (status === order.status) {
+      onClose();
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      await onStatusUpdate(order._id, status);
+
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <Badge
-      variant="outline"
-      className={`inline-flex items-center gap-1.5 ${config.className}`}
-    >
-      {config.icon}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Change Order Status
+            </h2>
 
-      {config.label}
-    </Badge>
+            <p className="mt-1 text-sm text-slate-500">
+              Order #{order.orderNumber || order._id}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="space-y-5 px-6 py-5">
+          <div>
+            <label
+              htmlFor="order-status"
+              className="mb-2 block text-sm font-medium text-slate-700"
+            >
+              Order Status
+            </label>
+
+            <select
+              id="order-status"
+              value={status}
+              onChange={(e) =>
+                setStatus(e.target.value as OrderStatus)
+              }
+              disabled={saving}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {STATUS_LABELS[option]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {status !== order.status && (
+            <div className="rounded-lg bg-purple-50 p-3 text-sm text-purple-700">
+              Status will change from{" "}
+              <span className="font-semibold">
+                {STATUS_LABELS[order.status]}
+              </span>{" "}
+              to{" "}
+              <span className="font-semibold">
+                {STATUS_LABELS[status]}
+              </span>
+              .
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-3 border-t px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || status === order.status}
+            className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? "Updating..." : "Update Status"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
