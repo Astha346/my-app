@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -21,6 +22,14 @@ import Pagination from "./Pagination";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+/* =========================================================
+   PAYMENT TYPES
+========================================================= */
+
+type PaymentMethod = "cod" | "esewa" | "khalti";
+
+type PaymentStatus = "paid" | "pending" | "failed";
 
 /* =========================================================
    BACKEND TYPES
@@ -54,9 +63,6 @@ interface BackendOrder {
 
   status: OrderStatus;
 
-  paymentMethod?: "cod" | "esewa" | "khalti";
-  paymentStatus?: "paid" | "pending" | "failed";
-
   shippingAddress?: {
     address?: string;
     city?: string;
@@ -75,6 +81,9 @@ interface BackendOrder {
     | "khalti"
     | "bank"
     | "cash";
+
+  paymentMethod?: PaymentMethod;
+  paymentStatus?: PaymentStatus;
 
   refundAmount?: number;
   refundReviewNote?: string;
@@ -117,7 +126,7 @@ interface ReturnRefundRequestData {
 ========================================================= */
 
 const mapBackendOrderToFrontend = (
-  order: BackendOrder
+  order: BackendOrder,
 ): Order => {
   return {
     _id: order._id,
@@ -302,8 +311,8 @@ export default function OrdersContent() {
   const totalPages = Math.max(
     1,
     Math.ceil(
-      totalOrders / itemsPerPage
-    )
+      totalOrders / itemsPerPage,
+    ),
   );
 
   /* =========================================================
@@ -321,18 +330,18 @@ export default function OrdersContent() {
 
         params.set(
           "page",
-          String(currentPage)
+          String(currentPage),
         );
 
         params.set(
           "limit",
-          String(itemsPerPage)
+          String(itemsPerPage),
         );
 
         if (search.trim()) {
           params.set(
             "search",
-            search.trim()
+            search.trim(),
           );
         }
 
@@ -342,7 +351,7 @@ export default function OrdersContent() {
         ) {
           params.set(
             "status",
-            statusFilter
+            statusFilter,
           );
         }
 
@@ -352,7 +361,7 @@ export default function OrdersContent() {
         ) {
           params.set(
             "paymentMethod",
-            paymentFilter
+            paymentFilter,
           );
         }
 
@@ -362,7 +371,7 @@ export default function OrdersContent() {
         ) {
           params.set(
             "paymentStatus",
-            paymentStatusFilter
+            paymentStatusFilter,
           );
         }
 
@@ -378,21 +387,17 @@ export default function OrdersContent() {
               },
 
               cache: "no-store",
-            }
+            },
           );
 
         if (!response.ok) {
           throw new Error(
-            `Failed to fetch orders: ${response.status}`
+            `Failed to fetch orders: ${response.status}`,
           );
         }
 
         const result: OrdersResponse =
           await response.json();
-
-        /* =====================================================
-           GET ORDERS FROM BACKEND
-        ===================================================== */
 
         const backendOrders =
           result.orders ||
@@ -401,20 +406,10 @@ export default function OrdersContent() {
 
         const mappedOrders =
           backendOrders.map(
-            mapBackendOrderToFrontend
+            mapBackendOrderToFrontend,
           );
 
         setOrders(mappedOrders);
-
-        /* =====================================================
-           GET TOTAL ORDERS
-
-           Supports:
-           1. result.pagination.total
-           2. result.total
-           3. result.totalOrders
-           4. mappedOrders.length
-        ===================================================== */
 
         const backendTotal =
           result.pagination?.total ??
@@ -423,16 +418,16 @@ export default function OrdersContent() {
           mappedOrders.length;
 
         setTotalOrders(
-          Number(backendTotal)
+          Number(backendTotal),
         );
       } catch (err) {
         console.error(
           "Failed to fetch orders:",
-          err
+          err,
         );
 
         setError(
-          "Failed to load orders. Please check your backend server."
+          "Failed to load orders. Please check your backend server.",
         );
 
         setOrders([]);
@@ -448,7 +443,7 @@ export default function OrdersContent() {
       statusFilter,
       paymentFilter,
       paymentStatusFilter,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -460,7 +455,7 @@ export default function OrdersContent() {
   ========================================================= */
 
   const handleSearchChange = (
-    value: string
+    value: string,
   ) => {
     setSearch(value);
     setCurrentPage(1);
@@ -471,7 +466,7 @@ export default function OrdersContent() {
   ========================================================= */
 
   const handleStatusChange = (
-    value: string
+    value: string,
   ) => {
     setStatusFilter(value);
     setCurrentPage(1);
@@ -482,7 +477,7 @@ export default function OrdersContent() {
   ========================================================= */
 
   const handlePaymentChange = (
-    value: string
+    value: string,
   ) => {
     setPaymentFilter(value);
     setCurrentPage(1);
@@ -493,7 +488,7 @@ export default function OrdersContent() {
   ========================================================= */
 
   const handlePaymentStatusChange = (
-    value: string
+    value: string,
   ) => {
     setPaymentStatusFilter(value);
     setCurrentPage(1);
@@ -504,7 +499,7 @@ export default function OrdersContent() {
   ========================================================= */
 
   const handlePageChange = (
-    page: number
+    page: number,
   ) => {
     if (
       page < 1 ||
@@ -517,7 +512,7 @@ export default function OrdersContent() {
   };
 
   const handleItemsPerPageChange = (
-    value: number
+    value: number,
   ) => {
     setItemsPerPage(value);
     setCurrentPage(1);
@@ -528,7 +523,7 @@ export default function OrdersContent() {
   ========================================================= */
 
   const handleView = (
-    order: Order
+    order: Order,
   ) => {
     setSelectedOrder(order);
   };
@@ -538,7 +533,7 @@ export default function OrdersContent() {
   ========================================================= */
 
   const handlePrintInvoice = (
-    order: Order
+    order: Order,
   ) => {
     setInvoiceOrder(order);
 
@@ -552,14 +547,14 @@ export default function OrdersContent() {
   ========================================================= */
 
   const handleChangeStatus = (
-    order: Order
+    order: Order,
   ) => {
     setStatusOrder(order);
   };
 
   const handleStatusUpdate = async (
     orderId: string,
-    newStatus: OrderStatus
+    newStatus: OrderStatus,
   ) => {
     try {
       const response =
@@ -576,18 +571,18 @@ export default function OrdersContent() {
             body: JSON.stringify({
               status: newStatus,
             }),
-          }
+          },
         );
 
       const result =
         await response.json().catch(
-          () => null
+          () => null,
         );
 
       if (!response.ok) {
         throw new Error(
           result?.message ||
-            "Failed to update order status"
+            "Failed to update order status",
         );
       }
 
@@ -597,30 +592,139 @@ export default function OrdersContent() {
     } catch (err) {
       console.error(
         "Status update failed:",
-        err
+        err,
       );
 
       alert(
         err instanceof Error
           ? err.message
-          : "Failed to update order status."
+          : "Failed to update order status.",
       );
     }
   };
+
+  /* =========================================================
+     PAYMENT METHOD CHANGE
+  ========================================================= */
+
+  const handlePaymentMethodChange = async (
+    order: Order,
+    newPaymentMethod: PaymentMethod,
+  ) => {
+    try {
+      const response =
+        await fetch(
+          `${API_URL}/orders/${order._id}/payment`,
+          {
+            method: "PATCH",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              paymentMethod:
+                newPaymentMethod,
+            }),
+          },
+        );
+
+      const result =
+        await response.json().catch(
+          () => null,
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          result?.message ||
+            "Failed to update payment method",
+        );
+      }
+
+      await fetchOrders();
+    } catch (err) {
+      console.error(
+        "Payment method update failed:",
+        err,
+      );
+
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to update payment method.",
+      );
+    }
+  };
+
+  /* =========================================================
+     PAYMENT STATUS CHANGE
+  ========================================================= */
+
+  const handlePaymentStatusChangeForOrder =
+    async (
+      order: Order,
+      newPaymentStatus: PaymentStatus,
+    ) => {
+      try {
+        const response =
+          await fetch(
+            `${API_URL}/orders/${order._id}/payment`,
+            {
+              method: "PATCH",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+              },
+
+              body: JSON.stringify({
+                paymentStatus:
+                  newPaymentStatus,
+              }),
+            },
+          );
+
+        const result =
+          await response.json().catch(
+            () => null,
+          );
+
+        if (!response.ok) {
+          throw new Error(
+            result?.message ||
+              "Failed to update payment status",
+          );
+        }
+
+        await fetchOrders();
+      } catch (err) {
+        console.error(
+          "Payment status update failed:",
+          err,
+        );
+
+        alert(
+          err instanceof Error
+            ? err.message
+            : "Failed to update payment status.",
+        );
+      }
+    };
 
   /* =========================================================
      CANCEL ORDER
   ========================================================= */
 
   const handleCancelOrder = (
-    order: Order
+    order: Order,
   ) => {
     setCancelOrder(order);
   };
 
   const handleConfirmCancel = async (
     orderId: string,
-    reason?: string
+    reason?: string,
   ) => {
     try {
       const response =
@@ -639,18 +743,18 @@ export default function OrdersContent() {
                 reason ||
                 "Cancelled by admin",
             }),
-          }
+          },
         );
 
       const result =
         await response.json().catch(
-          () => null
+          () => null,
         );
 
       if (!response.ok) {
         throw new Error(
           result?.message ||
-            "Failed to cancel order"
+            "Failed to cancel order",
         );
       }
 
@@ -660,13 +764,13 @@ export default function OrdersContent() {
     } catch (err) {
       console.error(
         "Cancel order failed:",
-        err
+        err,
       );
 
       alert(
         err instanceof Error
           ? err.message
-          : "Failed to cancel order."
+          : "Failed to cancel order.",
       );
     }
   };
@@ -676,14 +780,14 @@ export default function OrdersContent() {
   ========================================================= */
 
   const handleReturnRefund = (
-    order: Order
+    order: Order,
   ) => {
     setReturnOrder(order);
   };
 
   const handleReturnRefundSubmit =
     async (
-      data: ReturnRefundRequestData
+      data: ReturnRefundRequestData,
     ) => {
       if (!returnOrder) {
         return;
@@ -718,7 +822,7 @@ export default function OrdersContent() {
                   data.refundAmount ??
                   returnOrder.total,
               }),
-            }
+            },
           );
 
         const result =
@@ -729,7 +833,7 @@ export default function OrdersContent() {
         if (!response.ok) {
           throw new Error(
             result?.message ||
-              "Failed to submit return/refund request"
+              "Failed to submit return/refund request",
           );
         }
 
@@ -738,18 +842,18 @@ export default function OrdersContent() {
         await fetchOrders();
 
         alert(
-          "Return/refund request submitted successfully."
+          "Return/refund request submitted successfully.",
         );
       } catch (err) {
         console.error(
           "Return/refund request failed:",
-          err
+          err,
         );
 
         alert(
           err instanceof Error
             ? err.message
-            : "Failed to submit return/refund request."
+            : "Failed to submit return/refund request.",
         );
       }
     };
@@ -759,7 +863,7 @@ export default function OrdersContent() {
   ========================================================= */
 
   const handleReviewReturnRefund = (
-    order: Order
+    order: Order,
   ) => {
     setReviewReturnOrder(order);
   };
@@ -771,31 +875,9 @@ export default function OrdersContent() {
   const handleReturnRefundStatusUpdate =
     async (
       orderId: string,
-      newStatus: ReturnRefundStatus
+      newStatus: ReturnRefundStatus,
     ) => {
-      /*
-       * Supported backend flow:
-       *
-       * requested -> approved
-       * requested -> rejected
-       * approved  -> refunded
-       *
-       * "processing" is NOT supported.
-       */
-
-      if (
-        newStatus === "none"
-      ) {
-        return;
-      }
-
-      if (
-        newStatus === "processing"
-      ) {
-        console.error(
-          "Processing is not supported by backend."
-        );
-
+      if (newStatus === "none") {
         return;
       }
 
@@ -803,23 +885,17 @@ export default function OrdersContent() {
         let reviewNote =
           "Return/refund request updated by admin.";
 
-        if (
-          newStatus === "approved"
-        ) {
+        if (newStatus === "approved") {
           reviewNote =
             "Return request approved by admin.";
         }
 
-        if (
-          newStatus === "rejected"
-        ) {
+        if (newStatus === "rejected") {
           reviewNote =
             "Return/refund request rejected by admin.";
         }
 
-        if (
-          newStatus === "refunded"
-        ) {
+        if (newStatus === "refunded") {
           reviewNote =
             "Refund completed successfully.";
         }
@@ -839,7 +915,7 @@ export default function OrdersContent() {
                 status: newStatus,
                 reviewNote,
               }),
-            }
+            },
           );
 
         const result =
@@ -850,7 +926,7 @@ export default function OrdersContent() {
         if (!response.ok) {
           throw new Error(
             result?.message ||
-              "Failed to update return/refund status"
+              "Failed to update return/refund status",
           );
         }
 
@@ -858,39 +934,37 @@ export default function OrdersContent() {
 
         await fetchOrders();
 
-        if (
-          newStatus === "approved"
-        ) {
+        if (newStatus === "approved") {
           alert(
-            "Return request approved."
+            "Return request approved.",
           );
         } else if (
           newStatus === "rejected"
         ) {
           alert(
-            "Return request rejected."
+            "Return request rejected.",
           );
         } else if (
           newStatus === "refunded"
         ) {
           alert(
-            "Refund completed successfully."
+            "Refund completed successfully.",
           );
         } else {
           alert(
-            "Return/refund updated."
+            "Return/refund updated.",
           );
         }
       } catch (err) {
         console.error(
           "Return/refund status update failed:",
-          err
+          err,
         );
 
         alert(
           err instanceof Error
             ? err.message
-            : "Failed to update return/refund status."
+            : "Failed to update return/refund status.",
         );
       }
     };
@@ -903,38 +977,38 @@ export default function OrdersContent() {
     const pending =
       orders.filter(
         (order) =>
-          order.status === "pending"
+          order.status === "pending",
       ).length;
 
     const processing =
       orders.filter(
         (order) =>
-          order.status === "processing"
+          order.status === "processing",
       ).length;
 
     const shipped =
       orders.filter(
         (order) =>
-          order.status === "shipped"
+          order.status === "shipped",
       ).length;
 
     const delivered =
       orders.filter(
         (order) =>
-          order.status === "delivered"
+          order.status === "delivered",
       ).length;
 
     const cancelled =
       orders.filter(
         (order) =>
-          order.status === "cancelled"
+          order.status === "cancelled",
       ).length;
 
     const requestedReturns =
       orders.filter(
         (order) =>
           order.returnRefundStatus ===
-          "requested"
+          "requested",
       ).length;
 
     return {
@@ -1062,6 +1136,12 @@ export default function OrdersContent() {
           onReviewReturnRefund={
             handleReviewReturnRefund
           }
+          onPaymentMethodChange={
+            handlePaymentMethodChange
+          }
+          onPaymentStatusChange={
+            handlePaymentStatusChangeForOrder
+          }
         />
 
         {/* =====================================================
@@ -1133,7 +1213,9 @@ export default function OrdersContent() {
           setCancelOrder(null)
         }
         onConfirm={(order) =>
-          handleConfirmCancel(order._id)
+          handleConfirmCancel(
+            order._id,
+          )
         }
       />
 
@@ -1164,7 +1246,9 @@ export default function OrdersContent() {
           !!reviewReturnOrder
         }
         onClose={() =>
-          setReviewReturnOrder(null)
+          setReviewReturnOrder(
+            null,
+          )
         }
         onStatusUpdate={
           handleReturnRefundStatusUpdate
@@ -1186,3 +1270,5 @@ export default function OrdersContent() {
     </>
   );
 }
+
+
