@@ -1,8 +1,10 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { jwtDecode } from "jwt-decode";
+
+import api from "@/lib/api";
 
 import Navbar from "@/components/ui/Navbar";
 import AuthForm from "@/components/ui/AuthForm";
@@ -40,19 +42,27 @@ export default function Home() {
 
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] =
+    useState("all");
 
-  // Restore Login
+  // =====================================================
+  // RESTORE LOGIN
+  // =====================================================
+
   useEffect(() => {
     const token = localStorage.getItem("token");
 
     if (!token) {
       setUser(null);
+      setLoading(false);
       return;
     }
 
     try {
-      const decoded: any = jwtDecode(token);
+      // Remove accidental quotes if they exist
+      const cleanToken = token.replace(/^['"]|['"]$/g, "");
+
+      const decoded: any = jwtDecode(cleanToken);
 
       setUser({
         id: decoded.id,
@@ -62,20 +72,46 @@ export default function Home() {
       });
     } catch (error) {
       console.error("Invalid token:", error);
+
       localStorage.removeItem("token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
+
       setUser(null);
+      setLoading(false);
     }
   }, []);
 
-  // Fetch Products
+  // =====================================================
+  // FETCH PRODUCTS
+  // =====================================================
+
   useEffect(() => {
     async function fetchProducts() {
       try {
-        const res = await axios.get("http://localhost:3001/products");
-         setProducts(res.data);
-        
+        setLoading(true);
+
+        // IMPORTANT:
+        // Use our api instance so the JWT token
+        // is automatically added to the request.
+        const res = await api.get("/products");
+
+        console.log("========== PRODUCTS ==========");
+        console.log(res.data);
+        console.log("==============================");
+
+        setProducts(
+          Array.isArray(res.data)
+            ? res.data
+            : []
+        );
       } catch (error) {
-        console.error("Failed to fetch products:", error);
+        console.error(
+          "Failed to fetch products:",
+          error
+        );
+
+        setProducts([]);
       } finally {
         setLoading(false);
       }
@@ -84,7 +120,10 @@ export default function Home() {
     fetchProducts();
   }, []);
 
-  // Search Suggestions
+  // =====================================================
+  // SEARCH SUGGESTIONS
+  // =====================================================
+
   useEffect(() => {
     if (!search.trim()) {
       setSuggestions([]);
@@ -93,7 +132,9 @@ export default function Home() {
 
     const result = products
       .filter((product) =>
-        product.name.toLowerCase().includes(search.toLowerCase())
+        product.name
+          .toLowerCase()
+          .includes(search.toLowerCase())
       )
       .slice(0, 6)
       .map((product) => product.name);
@@ -101,18 +142,27 @@ export default function Home() {
     setSuggestions(result);
   }, [search, products]);
 
-  // Filter Products
-  const filteredProducts = products.filter((product) => {
-    const searchMatch = product.name
-      .toLowerCase()
-      .includes(search.toLowerCase());
+  // =====================================================
+  // FILTER PRODUCTS
+  // =====================================================
 
-    const categoryMatch =
-      selectedCategory === "all" ||
-      product.category === selectedCategory;
+  const filteredProducts = products.filter(
+    (product) => {
+      const searchMatch = product.name
+        .toLowerCase()
+        .includes(search.toLowerCase());
 
-    return searchMatch && categoryMatch;
-  });
+      const categoryMatch =
+        selectedCategory === "all" ||
+        product.category === selectedCategory;
+
+      return searchMatch && categoryMatch;
+    }
+  );
+
+  // =====================================================
+  // NOT LOGGED IN
+  // =====================================================
 
   if (!user) {
     return (
@@ -124,6 +174,10 @@ export default function Home() {
     );
   }
 
+  // =====================================================
+  // LOADING
+  // =====================================================
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-lg font-semibold">
@@ -132,18 +186,33 @@ export default function Home() {
     );
   }
 
+  // =====================================================
+  // HOME PAGE
+  // =====================================================
+
   return (
     <div className="relative min-h-screen bg-gray-50">
+
+      {/* =================================================
+          NAVBAR
+      ================================================= */}
+
       <Navbar
         email={user.email}
         searchTerm={search}
         setSearchTerm={setSearch}
         onLogout={() => {
           localStorage.removeItem("token");
+          localStorage.removeItem("refresh_token");
           localStorage.removeItem("user");
+
           setUser(null);
         }}
       />
+
+      {/* =================================================
+          SEARCH SUGGESTIONS
+      ================================================= */}
 
       {search && suggestions.length > 0 && (
         <ul className="absolute left-6 top-20 z-50 w-64 rounded-md border bg-white shadow-lg">
@@ -162,9 +231,15 @@ export default function Home() {
         </ul>
       )}
 
+      {/* =================================================
+          DASHBOARD
+      ================================================= */}
+
       {page === "dashboard" && (
         <>
           <Hero />
+
+          {/* CATEGORY BAR */}
 
           <CategoryBar
             categories={categories}
@@ -172,21 +247,34 @@ export default function Home() {
             setSelectedCategory={setSelectedCategory}
           />
 
+          {/* DEALS */}
+
           <ProductSection
             title="Deals"
-            products={filteredProducts.slice(0, 8).map(toProductCard)}
+            products={filteredProducts
+              .slice(0, 8)
+              .map(toProductCard)}
           />
+
+          {/* PROMO */}
 
           <PromoBanner />
 
+          {/* MIDDLE BANNER */}
+
           <MiddleBanner />
+
+          {/* MORE PRODUCTS */}
 
           <ProductSection
             title="More Products"
-            products={filteredProducts.slice(8, 16).map(toProductCard)}
+            products={filteredProducts
+              .slice(8, 16)
+              .map(toProductCard)}
           />
         </>
       )}
     </div>
   );
 }
+

@@ -17,12 +17,14 @@ const api = axios.create({
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     if (typeof window !== "undefined") {
-      const token =
-        localStorage.getItem("token");
+      const token = localStorage.getItem("token");
 
       if (token) {
+        // Remove accidental quotes from the token
+        const cleanToken = token.replace(/^['"]|['"]$/g, "");
+
         config.headers.Authorization =
-          `Bearer ${token}`;
+          `Bearer ${cleanToken}`;
       }
     }
 
@@ -51,7 +53,10 @@ api.interceptors.response.use(
           })
         | undefined;
 
-    // Only handle 401
+    // =================================================
+    // ONLY HANDLE 401
+    // =================================================
+
     if (
       error.response?.status !== 401 ||
       !originalRequest ||
@@ -60,26 +65,21 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Don't refresh these requests
+    // =================================================
+    // DON'T REFRESH THESE REQUESTS
+    // =================================================
+
     if (
-      originalRequest.url?.includes(
-        "/auth/login"
-      ) ||
-      originalRequest.url?.includes(
-        "/auth/refresh"
-      ) ||
-      originalRequest.url?.includes(
-        "/auth/logout"
-      )
+      originalRequest.url?.includes("/auth/login") ||
+      originalRequest.url?.includes("/auth/refresh") ||
+      originalRequest.url?.includes("/auth/logout")
     ) {
       return Promise.reject(error);
     }
 
     originalRequest._retry = true;
 
-    if (
-      typeof window === "undefined"
-    ) {
+    if (typeof window === "undefined") {
       return Promise.reject(error);
     }
 
@@ -87,52 +87,33 @@ api.interceptors.response.use(
     // GET REFRESH TOKEN
     // =================================================
 
-    const refreshToken =
-      localStorage.getItem(
-        "refresh_token"
-      );
+    const storedRefreshToken =
+      localStorage.getItem("refresh_token");
 
-    if (!refreshToken) {
-      console.log(
-        "❌ NO REFRESH TOKEN FOUND"
-      );
-
-      console.log(
-        "Current access token =",
-        localStorage.getItem("token")
-      );
-
-      console.log(
-        "Current refresh token =",
-        localStorage.getItem(
-          "refresh_token"
-        )
-      );
+    if (!storedRefreshToken) {
+      console.log("❌ NO REFRESH TOKEN FOUND");
 
       return Promise.reject(error);
     }
 
-    try {
-      console.log(
-        "🔄 Access token expired"
-      );
+    // Remove accidental quotes from refresh token too
+    const refreshToken =
+      storedRefreshToken.replace(/^['"]|['"]$/g, "");
 
-      console.log(
-        "🔄 Getting new access token..."
-      );
+    try {
+      console.log("🔄 Access token expired");
+      console.log("🔄 Getting new access token...");
 
       // =================================================
       // REFRESH API
       // =================================================
 
-      const response =
-        await axios.post(
-          "http://localhost:3001/auth/refresh",
-          {
-            refresh_token:
-              refreshToken,
-          }
-        );
+      const response = await axios.post(
+        "http://localhost:3001/auth/refresh",
+        {
+          refresh_token: refreshToken,
+        }
+      );
 
       // =================================================
       // GET NEW TOKENS
@@ -156,13 +137,18 @@ api.interceptors.response.use(
         );
       }
 
-      console.log(
-        "✅ New access token received"
-      );
+      // =================================================
+      // CLEAN NEW TOKENS
+      // =================================================
 
-      console.log(
-        "✅ New refresh token received"
-      );
+      const cleanNewAccessToken =
+        newAccessToken.replace(/^['"]|['"]$/g, "");
+
+      const cleanNewRefreshToken =
+        newRefreshToken.replace(/^['"]|['"]$/g, "");
+
+      console.log("✅ New access token received");
+      console.log("✅ New refresh token received");
 
       // =================================================
       // SAVE NEW TOKENS
@@ -170,12 +156,12 @@ api.interceptors.response.use(
 
       localStorage.setItem(
         "token",
-        newAccessToken
+        cleanNewAccessToken
       );
 
       localStorage.setItem(
         "refresh_token",
-        newRefreshToken
+        cleanNewRefreshToken
       );
 
       // =================================================
@@ -183,20 +169,19 @@ api.interceptors.response.use(
       // =================================================
 
       originalRequest.headers.Authorization =
-        `Bearer ${newAccessToken}`;
+        `Bearer ${cleanNewAccessToken}`;
 
       console.log(
         "🔁 Retrying original request..."
       );
 
       // =================================================
-      // RETRY
+      // RETRY ORIGINAL REQUEST
       // =================================================
 
       return api(originalRequest);
 
     } catch (refreshError) {
-
       console.error(
         "❌ Refresh token failed",
         refreshError
@@ -206,28 +191,17 @@ api.interceptors.response.use(
       // CLEAR LOGIN DATA
       // =================================================
 
-      localStorage.removeItem(
-        "token"
-      );
-
-      localStorage.removeItem(
-        "refresh_token"
-      );
-
-      localStorage.removeItem(
-        "user"
-      );
+      localStorage.removeItem("token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
 
       // =================================================
       // GO TO LOGIN
       // =================================================
 
-      window.location.href =
-        "/login";
+      window.location.href = "/login";
 
-      return Promise.reject(
-        refreshError
-      );
+      return Promise.reject(refreshError);
     }
   }
 );
