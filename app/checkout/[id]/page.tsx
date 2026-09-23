@@ -1,180 +1,251 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import api from "@/lib/api";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import api from "@/lib/api";
 
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  useMapEvents,
-} from "react-leaflet";
-
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-
-/* =========================================================
-   FIX LEAFLET DEFAULT MARKER ICON
-========================================================= */
-
-const markerIcon = new L.Icon({
-  iconUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl:
-    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
+const MapPicker = dynamic(() => import("./MapPicker"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-100 w-full rounded-xl bg-gray-100 flex items-center justify-center">
+      <p className="text-gray-500">Loading map...</p>
+    </div>
+  ),
 });
 
-/* =========================================================
-   DEFAULT LOCATION
-   Kathmandu
-========================================================= */
+const DEFAULT_LOCATION: [number, number] = [27.7172, 85.324];
 
-const DEFAULT_LOCATION: [number, number] = [
-  27.7172,
-  85.3240,
-];
+type CartItem = {
+  _id: string;
+  productId?: string;
+  name?: string;
+  title?: string;
+  price: number;
+  quantity: number;
+  image?: string;
+};
 
-/* =========================================================
-   MAP CLICK HANDLER
-========================================================= */
-
-interface LocationMarkerProps {
-  position: [number, number] | null;
-  setPosition: (
-    position: [number, number]
-  ) => void;
-}
-
-function LocationMarker({
-  position,
-  setPosition,
-}: LocationMarkerProps) {
-  useMapEvents({
-    click(event) {
-      const newPosition: [number, number] = [
-        event.latlng.lat,
-        event.latlng.lng,
-      ];
-
-      setPosition(newPosition);
-    },
-  });
-
-  return position ? (
-    <Marker
-      position={position}
-      icon={markerIcon}
-      draggable={true}
-      eventHandlers={{
-        dragend: (event) => {
-          const marker = event.target;
-
-          const location = marker.getLatLng();
-
-          setPosition([
-            location.lat,
-            location.lng,
-          ]);
-        },
-      }}
-    />
-  ) : null;
-}
-
-/* =========================================================
-   CHECKOUT
-========================================================= */
+type PaymentMethod = "cod" | "esewa" | "khalti";
 
 export default function Checkout() {
   const router = useRouter();
 
-  const [cart, setCart] = useState<any[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [userId, setUserId] = useState("");
-
-  /* DELIVERY LOCATION */
-  const [deliveryAddress, setDeliveryAddress] =
-    useState("");
-
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   const [position, setPosition] =
-    useState<[number, number] | null>(
-      DEFAULT_LOCATION
-    );
+    useState<[number, number] | null>(DEFAULT_LOCATION);
+
+  const [paymentMethod, setPaymentMethod] =
+    useState<PaymentMethod>("cod");
 
   const [loading, setLoading] = useState(false);
 
-  /* =======================================================
-     GET USER + CART
-  ======================================================= */
+  // =====================================================
+  // GET USER + CART
+  // =====================================================
 
   useEffect(() => {
-    const user = JSON.parse(
-      localStorage.getItem("user") || "{}"
-    );
+    const storedUser = localStorage.getItem("user");
 
-    console.log("CHECKOUT USER =", user);
+    if (!storedUser) {
+      console.log("No user found");
+      return;
+    }
 
-    // Support both id and _id
-    const id = user._id || user.id;
+    try {
+      const user = JSON.parse(storedUser);
 
-    console.log("CHECKOUT ID =", id);
+      console.log("CHECKOUT USER =", user);
 
-    if (!id) return;
+      const id = user?._id || user?.id;
 
-    setUserId(id);
+      console.log("CHECKOUT USER ID =", id);
 
-    const fetchCart = async () => {
-      try {
-        const res = await api.get(
-          `/cart/${id}`
-        );
-
-        console.log("CART =", res.data);
-
-        setCart(res.data || []);
-      } catch (error) {
-        console.log(
-          "Failed to fetch cart:",
-          error
-        );
+      if (!id) {
+        console.log("User ID not found");
+        return;
       }
-    };
 
-    fetchCart();
+      setUserId(id);
+      fetchCart(id);
+    } catch (error) {
+      console.error("Failed to read user:", error);
+    }
   }, []);
 
-  /* =======================================================
-     TOTAL
-  ======================================================= */
+  // =====================================================
+  // FETCH CART
+  // =====================================================
 
-  const total = cart.reduce(
-    (sum, item) =>
+  const fetchCart = async (id: string) => {
+    try {
+      const response = await api.get(`/cart/${id}`);
+
+      console.log("CART RESPONSE =", response.data);
+
+      if (Array.isArray(response.data)) {
+        setCart(response.data);
+      } else {
+        setCart([]);
+      }
+    } catch (error) {
+      console.error("FAILED TO FETCH CART =", error);
+      setCart([]);
+    }
+  };
+
+  // =====================================================
+  // TOTAL
+  // =====================================================
+
+  const total = cart.reduce((sum, item) => {
+    return (
       sum +
-      item.price * item.quantity,
-    0
-  );
+      Number(item.price) * Number(item.quantity)
+    );
+  }, 0);
 
-  /* =======================================================
-     PLACE ORDER
-  ======================================================= */
+  // =====================================================
+  // CREATE ESEWA PAYMENT
+  // =====================================================
+
+  const payWithEsewa = async () => {
+    try {
+      const transactionUuid = `TXN-${Date.now()}`;
+
+      console.log("ESEWA AMOUNT =", total);
+      console.log(
+        "ESEWA TRANSACTION UUID =",
+        transactionUuid
+      );
+
+      const response = await api.post("/payment/esewa", {
+        amount: total,
+        transactionUuid,
+      });
+
+      console.log(
+        "ESEWA RESPONSE =",
+        response.data
+      );
+
+      const paymentUrl =
+        response.data?.paymentUrl;
+
+      const fields =
+        response.data?.fields;
+
+      if (!paymentUrl || !fields) {
+        throw new Error(
+          "Invalid eSewa payment response"
+        );
+      }
+
+      // =================================================
+      // CREATE FORM FOR ESEWA
+      // =================================================
+
+      const form = document.createElement("form");
+
+      form.method = "POST";
+      form.action = paymentUrl;
+
+      Object.entries(fields).forEach(
+        ([key, value]) => {
+          const input =
+            document.createElement("input");
+
+          input.type = "hidden";
+          input.name = key;
+          input.value = String(value);
+
+          form.appendChild(input);
+        }
+      );
+
+      document.body.appendChild(form);
+
+      // Redirect customer to eSewa
+      form.submit();
+    } catch (error: any) {
+      console.error(
+        "ESEWA PAYMENT ERROR =",
+        error
+      );
+
+      console.error(
+        "ESEWA ERROR RESPONSE =",
+        error?.response?.data
+      );
+
+      alert(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to start eSewa payment."
+      );
+
+      setLoading(false);
+    }
+  };
+
+  // =====================================================
+  // CREATE COD ORDER
+  // =====================================================
+
+  const createCodOrder = async () => {
+    const [latitude, longitude] = position!;
+
+    console.log("USER ID =", userId);
+    console.log(
+      "DELIVERY ADDRESS =",
+      deliveryAddress
+    );
+    console.log("LATITUDE =", latitude);
+    console.log("LONGITUDE =", longitude);
+    console.log(
+      "PAYMENT METHOD =",
+      paymentMethod
+    );
+
+    const response = await api.post(
+      `/orders/create-from-cart/${userId}`,
+      {
+        deliveryAddress: deliveryAddress.trim(),
+        latitude,
+        longitude,
+        paymentMethod: "cod",
+      }
+    );
+
+    console.log(
+      "COD ORDER CREATED =",
+      response.data
+    );
+
+    await api.delete(`/cart/clear/${userId}`);
+
+    router.push("/order-success");
+  };
+
+  // =====================================================
+  // PLACE ORDER
+  // =====================================================
 
   const placeOrder = async () => {
     if (!userId) {
-      alert("User not found.");
+      alert("User not found. Please login again.");
+      return;
+    }
+
+    if (cart.length === 0) {
+      alert("Your cart is empty.");
       return;
     }
 
     if (!deliveryAddress.trim()) {
-      alert(
-        "Please enter your delivery address."
-      );
+      alert("Please enter your delivery address.");
       return;
     }
 
@@ -188,77 +259,65 @@ export default function Checkout() {
     try {
       setLoading(true);
 
-      const [latitude, longitude] =
-        position;
+      // =================================================
+      // COD
+      // =================================================
 
-      console.log(
-        "USER ID =",
-        userId
-      );
+      if (paymentMethod === "cod") {
+        await createCodOrder();
+        return;
+      }
 
-      console.log(
-        "DELIVERY ADDRESS =",
-        deliveryAddress
-      );
+      // =================================================
+      // ESEWA
+      // =================================================
 
-      console.log(
-        "LATITUDE =",
-        latitude
-      );
+      if (paymentMethod === "esewa") {
+        await payWithEsewa();
+        return;
+      }
 
-      console.log(
-        "LONGITUDE =",
-        longitude
-      );
+      // =================================================
+      // KHALTI
+      // =================================================
 
-      const res = await api.post(
-        `/orders/create-from-cart/${userId}`,
-        {
-          deliveryAddress,
-          latitude,
-          longitude,
-        }
-      );
+      if (paymentMethod === "khalti") {
+        alert(
+          "Khalti payment will be added next."
+        );
 
-      console.log(
-        "ORDER CREATED =",
-        res.data
-      );
-
-      /* CLEAR CART */
-
-      await api.delete(
-        `/cart/clear/${userId}`
-      );
-
-      router.push(
-        "/order-success"
-      );
-    } catch (error) {
-      console.log(
+        setLoading(false);
+        return;
+      }
+    } catch (error: any) {
+      console.error(
         "ORDER CREATION ERROR =",
         error
       );
 
-      alert(
-        "Failed to place order. Please try again."
+      console.error(
+        "ORDER ERROR RESPONSE =",
+        error?.response?.data
       );
-    } finally {
+
+      alert(
+        error?.response?.data?.message ||
+          "Failed to place order. Please try again."
+      );
+
       setLoading(false);
     }
   };
 
-  /* =======================================================
-     UI
-  ======================================================= */
+  // =====================================================
+  // UI
+  // =====================================================
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-3xl mx-auto">
 
-        {/* =================================================
-            HEADER
-        ================================================= */}
+        {/* HEADER */}
 
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h1 className="text-2xl font-bold">
@@ -266,14 +325,12 @@ export default function Checkout() {
           </h1>
 
           <p className="text-gray-500 mt-1">
-            Enter your delivery details
-            and select your location.
+            Enter your delivery details and select your
+            location.
           </p>
         </div>
 
-        {/* =================================================
-            CART
-        ================================================= */}
+        {/* YOUR ORDER */}
 
         <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
           <h2 className="text-lg font-semibold mb-4">
@@ -293,20 +350,21 @@ export default function Checkout() {
                 >
                   <div>
                     <p className="font-medium">
-                      {item.name}
+                      {item.name ||
+                        item.title ||
+                        "Product"}
                     </p>
 
                     <p className="text-sm text-gray-500">
-                      Quantity:{" "}
-                      {item.quantity}
+                      Quantity: {item.quantity}
                     </p>
                   </div>
 
                   <span className="font-medium">
                     $
                     {(
-                      item.price *
-                      item.quantity
+                      Number(item.price) *
+                      Number(item.quantity)
                     ).toFixed(2)}
                   </span>
                 </div>
@@ -320,15 +378,12 @@ export default function Checkout() {
             <span>Total</span>
 
             <span>
-              $
-              {total.toFixed(2)}
+              ${total.toFixed(2)}
             </span>
           </div>
         </div>
 
-        {/* =================================================
-            DELIVERY ADDRESS
-        ================================================= */}
+        {/* DELIVERY ADDRESS */}
 
         <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
           <h2 className="text-lg font-semibold">
@@ -336,16 +391,14 @@ export default function Checkout() {
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Enter the address where you
-            want your order delivered.
+            Enter the address where you want your order
+            delivered.
           </p>
 
           <textarea
             value={deliveryAddress}
-            onChange={(e) =>
-              setDeliveryAddress(
-                e.target.value
-              )
+            onChange={(event) =>
+              setDeliveryAddress(event.target.value)
             }
             placeholder="Example: New Baneshwor, Kathmandu"
             rows={3}
@@ -353,9 +406,7 @@ export default function Checkout() {
           />
         </div>
 
-        {/* =================================================
-            MAP
-        ================================================= */}
+        {/* MAP */}
 
         <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
           <h2 className="text-lg font-semibold">
@@ -363,36 +414,16 @@ export default function Checkout() {
           </h2>
 
           <p className="text-sm text-gray-500 mt-1">
-            Click on the map to select your
-            delivery location. You can also
-            drag the marker.
+            Click on the map to select your delivery
+            location. You can also drag the marker.
           </p>
 
           <div className="mt-4 rounded-xl overflow-hidden border">
-            <MapContainer
-              center={DEFAULT_LOCATION}
-              zoom={13}
-              scrollWheelZoom={true}
-              style={{
-                height: "400px",
-                width: "100%",
-              }}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-
-              <LocationMarker
-                position={position}
-                setPosition={setPosition}
-              />
-            </MapContainer>
+            <MapPicker
+              position={position}
+              setPosition={setPosition}
+            />
           </div>
-
-          {/* =================================================
-              SELECTED LOCATION
-          ================================================= */}
 
           {position && (
             <div className="mt-4 bg-gray-50 border rounded-lg p-4">
@@ -401,6 +432,7 @@ export default function Checkout() {
               </p>
 
               <div className="grid grid-cols-2 gap-4 mt-3">
+
                 <div>
                   <p className="text-xs text-gray-500">
                     Latitude
@@ -420,26 +452,139 @@ export default function Checkout() {
                     {position[1].toFixed(6)}
                   </p>
                 </div>
+
               </div>
             </div>
           )}
         </div>
 
-        {/* =================================================
-            PLACE ORDER
-        ================================================= */}
+        {/* PAYMENT */}
+
+        <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
+          <h2 className="text-lg font-semibold">
+            Payment Method
+          </h2>
+
+          <p className="text-sm text-gray-500 mt-1">
+            Choose how you want to pay for your order.
+          </p>
+
+          <div className="mt-4 space-y-3">
+
+            {/* COD */}
+
+            <label
+              className={`block border rounded-lg p-4 cursor-pointer transition ${
+                paymentMethod === "cod"
+                  ? "border-black bg-gray-50"
+                  : "border-gray-200"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="cod"
+                  checked={paymentMethod === "cod"}
+                  onChange={() =>
+                    setPaymentMethod("cod")
+                  }
+                />
+
+                <div>
+                  <p className="font-medium">
+                    Cash on Delivery
+                  </p>
+
+                  <p className="text-sm text-gray-500">
+                    Pay when your order is delivered.
+                  </p>
+                </div>
+              </div>
+            </label>
+
+            {/* ESEWA */}
+
+            <label
+              className={`block border rounded-lg p-4 cursor-pointer transition ${
+                paymentMethod === "esewa"
+                  ? "border-black bg-gray-50"
+                  : "border-gray-200"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="esewa"
+                  checked={paymentMethod === "esewa"}
+                  onChange={() =>
+                    setPaymentMethod("esewa")
+                  }
+                />
+
+                <div>
+                  <p className="font-medium">
+                    eSewa
+                  </p>
+
+                  <p className="text-sm text-gray-500">
+                    Pay using eSewa.
+                  </p>
+                </div>
+              </div>
+            </label>
+
+            {/* KHALTI */}
+
+            <label
+              className={`block border rounded-lg p-4 cursor-pointer transition ${
+                paymentMethod === "khalti"
+                  ? "border-black bg-gray-50"
+                  : "border-gray-200"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="khalti"
+                  checked={paymentMethod === "khalti"}
+                  onChange={() =>
+                    setPaymentMethod("khalti")
+                  }
+                />
+
+                <div>
+                  <p className="font-medium">
+                    Khalti
+                  </p>
+
+                  <p className="text-sm text-gray-500">
+                    Pay using Khalti.
+                  </p>
+                </div>
+              </div>
+            </label>
+
+          </div>
+        </div>
+
+        {/* PLACE ORDER */}
 
         <button
+          type="button"
           onClick={placeOrder}
-          disabled={
-            loading ||
-            cart.length === 0
-          }
+          disabled={loading || cart.length === 0}
           className="w-full bg-black text-white py-3 rounded-lg mt-6 font-medium hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           {loading
-            ? "Placing Order..."
-            : "Place Order"}
+            ? "Processing..."
+            : paymentMethod === "cod"
+            ? "Place Order"
+            : paymentMethod === "esewa"
+            ? "Pay with eSewa"
+            : "Proceed to Payment"}
         </button>
 
       </div>

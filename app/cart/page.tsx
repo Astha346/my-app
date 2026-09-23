@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,6 +8,7 @@ import { useRouter } from "next/navigation";
 type CartItem = {
   _id: string;
   title: string;
+  name?: string;
   price: number;
   quantity: number;
 };
@@ -16,95 +18,71 @@ export default function CartPage() {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [method, setMethod] = useState("");
   const [userId, setUserId] = useState("");
 
   useEffect(() => {
-    const user = JSON.parse(
-      localStorage.getItem("user") || "{}"
-    );
+    const storedUser = localStorage.getItem("user");
 
-    console.log("USER =", user);
-
-    if (!user?.id) {
+    if (!storedUser) {
       setLoading(false);
       return;
     }
 
-    setUserId(user.id);
+    try {
+      const user = JSON.parse(storedUser);
 
-    const fetchCart = async () => {
-      try {
-        const res = await api.get(
-          `/cart/${user.id}`
-        );
+      console.log("USER =", user);
 
-        console.log("CART =", res.data);
+      // Support both id and _id
+      const id = user?.id || user?._id;
 
-        setCart(res.data || []);
-      } catch (err) {
-        console.log(err);
-      } finally {
+      if (!id) {
+        console.log("User ID not found");
         setLoading(false);
+        return;
       }
-    };
 
-    fetchCart();
+      setUserId(id);
+
+      const fetchCart = async () => {
+        try {
+          const res = await api.get(`/cart/${id}`);
+
+          console.log("CART =", res.data);
+
+          setCart(Array.isArray(res.data) ? res.data : []);
+        } catch (err) {
+          console.log("Failed to fetch cart:", err);
+          setCart([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchCart();
+    } catch (error) {
+      console.log("Invalid user data:", error);
+      setLoading(false);
+    }
   }, []);
 
   const total = cart.reduce(
-    (sum, item) =>
-      sum + item.price * item.quantity,
+    (sum, item) => sum + item.price * item.quantity,
     0
   );
 
-  const checkout = async () => {
-    if (!method) {
-      alert("Please select a payment method");
+  const goToCheckout = () => {
+    if (!userId) {
+      alert("User not found. Please login again.");
       return;
     }
 
-    try {
-      const res = await api.post(
-        "/orders/create-from-cart",
-        {
-          userId,
-          paymentMethod: method,
-        }
-      );
-       console.log("ORDER =", res.data);
-       
-      const order = res.data;
-
-      if (method === "cod") {
-        await api.delete(
-          `/cart/clear/${userId}`
-        );
-
-        router.push("/order-success");
-      } else {
-        if (!order?.paymentUrl) {
-          alert("Payment URL not found");
-          return;
-        }
-
-        window.location.href =
-          order.paymentUrl;
-      }
-    } catch (err) {
-      console.log(
-        "Checkout error:",
-        err
-      );
-    }
+    router.push(`/checkout/${userId}`);
   };
 
-  if (loading)
-    return (
-      <p className="p-6">
-        Loading cart...
-      </p>
-    );
+  if (loading) {
+    return <p className="p-6">Loading cart...</p>;
+  }
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -118,16 +96,15 @@ export default function CartPage() {
         <>
           {cart.map((item, index) => (
             <div
-              key={index}
+              key={item._id || index}
               className="flex justify-between mb-2"
             >
               <span>
-                {item.title} ×{" "}
-                {item.quantity}
+                {item.name || item.title} × {item.quantity}
               </span>
 
               <span>
-                Rs {item.price}
+                Rs {item.price * item.quantity}
               </span>
             </div>
           ))}
@@ -136,85 +113,18 @@ export default function CartPage() {
             Total: Rs {total}
           </h2>
 
-          <div className="mt-5 space-y-3">
-
-            <label className="flex items-center gap-3 border p-3 rounded cursor-pointer">
-              <input
-                type="radio"
-                value="esewa"
-                checked={
-                  method === "esewa"
-                }
-                onChange={(e) =>
-                  setMethod(
-                    e.target.value
-                  )
-                }
-              />
-
-              <img
-                src="/images/esewa.png"
-                className="h-6"
-              />
-
-              <span>eSewa</span>
-            </label>
-
-            <label className="flex items-center gap-3 border p-3 rounded cursor-pointer">
-              <input
-                type="radio"
-                value="khalti"
-                checked={
-                  method === "khalti"
-                }
-                onChange={(e) =>
-                  setMethod(
-                    e.target.value
-                  )
-                }
-              />
-
-              <img
-                src="/images/khalti.png"
-                className="h-6"
-              />
-
-              <span>Khalti</span>
-            </label>
-
-            <label className="flex items-center gap-3 border p-3 rounded cursor-pointer">
-              <input
-                type="radio"
-                value="cod"
-                checked={
-                  method === "cod"
-                }
-                onChange={(e) =>
-                  setMethod(
-                    e.target.value
-                  )
-                }
-              />
-
-              <span>
-                Cash on Delivery
-              </span>
-            </label>
-          </div>
-
           <div className="flex gap-3 mt-6">
             <button
-              onClick={() =>
-                router.push("/")
-              }
+              onClick={() => router.push("/")}
               className="bg-gray-300 px-4 py-2 rounded"
             >
               Add More Products
             </button>
 
             <button
-              onClick={checkout}
-              className="bg-black text-white px-4 py-2 rounded"
+              onClick={goToCheckout}
+              disabled={!userId}
+              className="bg-black text-white px-4 py-2 rounded disabled:bg-gray-400"
             >
               Checkout
             </button>
