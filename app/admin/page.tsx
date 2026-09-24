@@ -60,18 +60,18 @@ export default function AdminPage() {
     const loadDashboard = async () => {
       try {
         const [
-          statsResponse,
-          salesResponse,
-          statusResponse,
-          productsResponse,
-          ordersResponse,
-        ] = await Promise.all([
-          api.get("/dashboard/stats"),
-          api.get("/dashboard/sales-by-month"),
-          api.get("/dashboard/orders-by-status"),
-          api.get("/dashboard/top-products"),
-          api.get("/dashboard/recent-orders"),
-        ]);
+  statsResponse,
+  salesResponse,
+  statusResponse,
+  productsResponse,
+  ordersResponse,
+   ] = await Promise.all([
+   api.get("/dashboard/stats"),
+   api.get("/dashboard/sales-by-month"),
+   api.get("/dashboard/orders-by-status"),
+   api.get("/dashboard/top-products"),
+   api.get("/dashboard/recent-orders"),
+   ]);
 
         setStats(statsResponse.data);
         setSalesData(
