@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -22,6 +21,13 @@ interface Product {
   description?: string;
 }
 
+interface PaginationData {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 export default function ProductsContent() {
   const [open, setOpen] = useState(false);
   const [refresh, setRefresh] = useState(false);
@@ -35,7 +41,6 @@ export default function ProductsContent() {
   const [deleteProduct, setDeleteProduct] =
     useState<Product | null>(null);
 
-  // Products
   const [products, setProducts] = useState<Product[]>([]);
 
   // Filters
@@ -44,91 +49,170 @@ export default function ProductsContent() {
   const [brand, setBrand] = useState("all");
   const [status, setStatus] = useState("all");
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  const [pagination, setPagination] =
+    useState<PaginationData>({
+      page: 1,
+      limit: 10,
+      total: 0,
+      totalPages: 1,
+    });
+
+  // -----------------------------
+  // DELETE PRODUCT
+  // -----------------------------
   async function handleDelete() {
     if (!deleteProduct) return;
 
     try {
-      await api.delete(`/products/${deleteProduct._id}`);
-
-      // Remove deleted product from frontend state
-      setProducts((prev) =>
-      prev.filter(
-        (product) => product._id !== deleteProduct._id
-      )
-    );
+      await api.delete(
+        `/products/${deleteProduct._id}`
+      );
 
       setDeleteProduct(null);
 
+      // Refresh products
+      setRefresh((prev) => !prev);
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Failed to delete product:",
+        error
+      );
+
       alert("Failed to delete product.");
     }
   }
 
+  // -----------------------------
+  // RESET FILTERS
+  // -----------------------------
   function handleReset() {
     setSearch("");
     setCategory("all");
     setBrand("all");
     setStatus("all");
+
+    // Go back to first page
+    setPage(1);
   }
 
-  // Brand detection from product name
-  function matchesBrand(product: Product) {
-    if (brand === "all") return true;
+  // -----------------------------
+  // PRODUCTS LOADED FROM API
+  // -----------------------------
+  function handleProductsLoaded(
+    data:
+      | Product[]
+      | {
+          data?: Product[];
+          products?: Product[];
+          pagination?: PaginationData;
+        }
+  ) {
+    // If backend returns array directly
+    if (Array.isArray(data)) {
+      setProducts(data);
+      return;
+    }
 
-    return product.name
-      .toLowerCase()
-      .includes(brand.toLowerCase());
+    // Backend currently returns:
+    // {
+    //   products: [],
+    //   pagination: {}
+    // }
+
+    if (Array.isArray(data.products)) {
+      setProducts(data.products);
+    } else if (Array.isArray(data.data)) {
+      setProducts(data.data);
+    } else {
+      setProducts([]);
+    }
+
+    if (data.pagination) {
+      setPagination(data.pagination);
+    }
   }
 
-  // Filter products
-  const filteredProducts = products.filter((product) => {
+  // -----------------------------
+  // CHANGE PAGE
+  // -----------------------------
+  function handlePageChange(newPage: number) {
+    if (newPage < 1) return;
 
-    const searchMatch = product.name
-      .toLowerCase()
-      .includes(search.toLowerCase());
+    if (
+      pagination.totalPages > 0 &&
+      newPage > pagination.totalPages
+    ) {
+      return;
+    }
 
-    const categoryMatch =
-      category === "all" ||
-      product.category === category;
+    setPage(newPage);
+  }
 
-    const brandMatch = matchesBrand(product);
+  // -----------------------------
+  // CHANGE ITEMS PER PAGE
+  // -----------------------------
+  function handleItemsPerPageChange(
+    value: number
+  ) {
+    setLimit(value);
 
-    const statusMatch = status === "all";
-
-    return (
-      searchMatch &&
-      categoryMatch &&
-      brandMatch &&
-      statusMatch
-    );
-  });
+    // Always go back to page 1
+    setPage(1);
+  }
 
   return (
     <div className="space-y-6">
-
+      {/* HEADER */}
       <ProductHeader
         onAddProduct={() => setOpen(true)}
       />
 
+      {/* STATS */}
       <ProductStats />
 
+      {/* FILTERS */}
       <ProductFilters
         search={search}
         category={category}
         brand={brand}
         status={status}
-        onSearchChange={setSearch}
-        onCategoryChange={setCategory}
-        onBrandChange={setBrand}
-        onStatusChange={setStatus}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
+        onCategoryChange={(value) => {
+          setCategory(value);
+          setPage(1);
+        }}
+        onBrandChange={(value) => {
+          setBrand(value);
+          setPage(1);
+        }}
+        onStatusChange={(value) => {
+          setStatus(value);
+          setPage(1);
+        }}
         onReset={handleReset}
       />
 
+      {/* PRODUCT TABLE */}
       <ProductTable
         refresh={refresh}
-        products={filteredProducts}
-        onProductsLoaded={setProducts}
+        page={page}
+        limit={limit}
+        search={search}
+        category={category}
+        products={products}
+        onProductsLoaded={handleProductsLoaded}
+        onPageChange={handlePageChange}
+        onItemsPerPageChange={
+          handleItemsPerPageChange
+        }
+        pagination={pagination}
         onEdit={(product) => {
           setSelectedProduct(product);
           setEditOpen(true);
@@ -142,25 +226,34 @@ export default function ProductsContent() {
         }}
       />
 
+      {/* ADD PRODUCT */}
       <AddProductDialog
         open={open}
         onClose={() => setOpen(false)}
-        onSuccess={() => setRefresh((prev) => !prev)}
+        onSuccess={() => {
+          setPage(1);
+          setRefresh((prev) => !prev);
+        }}
       />
 
+      {/* EDIT PRODUCT */}
       <EditProductDialog
         open={editOpen}
         onClose={() => setEditOpen(false)}
         product={selectedProduct}
-        onSuccess={() => setRefresh((prev) => !prev)}
+        onSuccess={() => {
+          setRefresh((prev) => !prev);
+        }}
       />
 
+      {/* VIEW PRODUCT */}
       <ViewProductDialog
         open={viewOpen}
         onClose={() => setViewOpen(false)}
         product={selectedProduct}
       />
 
+      {/* DELETE PRODUCT */}
       {deleteProduct && (
         <DeleteProductModal
           product={deleteProduct}
@@ -168,7 +261,6 @@ export default function ProductsContent() {
           deleteHandler={handleDelete}
         />
       )}
-
     </div>
   );
 }

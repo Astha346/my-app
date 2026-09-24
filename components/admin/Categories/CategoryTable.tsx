@@ -41,6 +41,8 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 
+import Pagination from "@/components/admin/Orders/Pagination";
+
 import type { Category } from "@/types/category";
 
 interface Product {
@@ -53,26 +55,59 @@ interface Product {
   stock: string | number;
 }
 
+interface PaginationData {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 interface CategoryTableProps {
   categories?: Category[];
   products?: Product[];
-  onEdit?: (category: Category) => void;
-  onDelete?: (category: Category) => void;
+
+  pagination: PaginationData;
+
+  onPageChange: (
+    page: number
+  ) => void;
+
+  onItemsPerPageChange: (
+    value: number
+  ) => void;
+
+  onEdit?: (
+    category: Category
+  ) => void;
+
+  onDelete?: (
+    category: Category
+  ) => void;
 }
 
 export default function CategoryTable({
   categories = [],
   products = [],
+  pagination,
+  onPageChange,
+  onItemsPerPageChange,
   onEdit,
   onDelete,
 }: CategoryTableProps) {
   const [expanded, setExpanded] =
     useState<string[]>([]);
 
-  const normalize = (value: unknown) =>
-    String(value ?? "")
+  // =====================================================
+  // NORMALIZE
+  // =====================================================
+
+  const normalize = (
+    value: unknown
+  ) => {
+    return String(value ?? "")
       .trim()
       .toLowerCase();
+  };
 
   // =====================================================
   // MAIN CATEGORIES
@@ -80,7 +115,8 @@ export default function CategoryTable({
 
   const mainCategories =
     categories.filter(
-      (category) => !category.parentId
+      (category) =>
+        !category.parentId
     );
 
   // =====================================================
@@ -92,7 +128,9 @@ export default function CategoryTable({
   ) => {
     return categories.filter(
       (category) =>
-        normalize(category.parentId) ===
+        normalize(
+          category.parentId
+        ) ===
         normalize(parentId)
     );
   };
@@ -106,13 +144,15 @@ export default function CategoryTable({
   ) => {
     return products.filter(
       (product) =>
-        normalize(product.category) ===
+        normalize(
+          product.category
+        ) ===
         normalize(categoryName)
     );
   };
 
   // =====================================================
-  // EXPAND
+  // EXPAND / COLLAPSE
   // =====================================================
 
   const toggleExpand = (
@@ -120,10 +160,13 @@ export default function CategoryTable({
   ) => {
     setExpanded((previous) => {
       if (
-        previous.includes(categoryId)
+        previous.includes(
+          categoryId
+        )
       ) {
         return previous.filter(
-          (id) => id !== categoryId
+          (id) =>
+            id !== categoryId
         );
       }
 
@@ -160,9 +203,14 @@ export default function CategoryTable({
     );
   }
 
+  // =====================================================
+  // TABLE
+  // =====================================================
+
   return (
     <Card className="overflow-hidden">
 
+      {/* HEADER */}
       <CardHeader className="border-b bg-muted/20">
 
         <div className="flex items-center justify-between">
@@ -188,6 +236,10 @@ export default function CategoryTable({
       </CardHeader>
 
       <CardContent className="p-0">
+
+        {/* =================================================
+            TABLE
+        ================================================= */}
 
         <div className="overflow-x-auto">
 
@@ -250,29 +302,37 @@ export default function CategoryTable({
                       key={
                         category._id
                       }
+
                       category={
                         category
                       }
+
                       children={
                         children
                       }
+
                       products={
                         categoryProducts
                       }
+
                       expanded={
                         isExpanded
                       }
+
                       onToggle={() =>
                         toggleExpand(
                           category._id
                         )
                       }
+
                       onEdit={
                         onEdit
                       }
+
                       onDelete={
                         onDelete
                       }
+
                       getProductsByCategory={
                         getProductsByCategory
                       }
@@ -287,6 +347,41 @@ export default function CategoryTable({
 
         </div>
 
+        {/* =================================================
+            PAGINATION
+        ================================================= */}
+
+        <div className="px-5 pb-4">
+
+          <Pagination
+            currentPage={
+              pagination.page
+            }
+
+            totalPages={
+              pagination.totalPages
+            }
+
+            totalItems={
+              pagination.total
+            }
+
+            itemsPerPage={
+              pagination.limit
+            }
+
+            onPageChange={
+              onPageChange
+            }
+
+            onItemsPerPageChange={
+              onItemsPerPageChange
+            }
+
+          />
+
+        </div>
+
       </CardContent>
 
     </Card>
@@ -294,21 +389,28 @@ export default function CategoryTable({
 }
 
 // =======================================================
-// CATEGORY ROW
+// CATEGORY ROWS
 // =======================================================
 
 interface CategoryRowsProps {
   category: Category;
+
   children: Category[];
+
   products: Product[];
+
   expanded: boolean;
+
   onToggle: () => void;
+
   onEdit?: (
     category: Category
   ) => void;
+
   onDelete?: (
     category: Category
   ) => void;
+
   getProductsByCategory: (
     categoryName: string
   ) => Product[];
@@ -327,8 +429,9 @@ function CategoryRows({
 
   return (
     <>
+
       {/* =================================================
-          CATEGORY
+          MAIN CATEGORY
       ================================================= */}
 
       <TableRow className="hover:bg-muted/30">
@@ -337,25 +440,37 @@ function CategoryRows({
 
           <div className="flex items-center gap-3">
 
-            {(children.length > 0 ||
-              products.length > 0) ? (
+            {/* EXPAND BUTTON */}
+
+            {(
+              children.length > 0 ||
+              products.length > 0
+            ) ? (
 
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8"
-                onClick={onToggle}
+                onClick={
+                  onToggle
+                }
               >
+
                 {expanded ? (
                   <ChevronDown className="h-4 w-4" />
                 ) : (
                   <ChevronRight className="h-4 w-4" />
                 )}
+
               </Button>
 
             ) : (
+
               <div className="w-8" />
+
             )}
+
+            {/* FOLDER */}
 
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
 
@@ -367,6 +482,8 @@ function CategoryRows({
 
             </div>
 
+            {/* NAME */}
+
             <div>
 
               <p className="font-semibold">
@@ -375,9 +492,7 @@ function CategoryRows({
 
               {category.description && (
                 <p className="max-w-100 truncate text-xs text-muted-foreground">
-                  {
-                    category.description
-                  }
+                  {category.description}
                 </p>
               )}
 
@@ -387,6 +502,8 @@ function CategoryRows({
 
         </TableCell>
 
+        {/* TYPE */}
+
         <TableCell>
 
           <Badge variant="secondary">
@@ -395,9 +512,13 @@ function CategoryRows({
 
         </TableCell>
 
+        {/* PRICE */}
+
         <TableCell>
           -
         </TableCell>
+
+        {/* PRODUCTS */}
 
         <TableCell>
 
@@ -411,13 +532,19 @@ function CategoryRows({
 
         </TableCell>
 
+        {/* STATUS */}
+
         <TableCell>
+
           <StatusBadge
             status={
               category.status
             }
           />
+
         </TableCell>
+
+        {/* ACTIONS */}
 
         <TableCell className="text-right">
 
@@ -425,9 +552,11 @@ function CategoryRows({
             category={
               category
             }
+
             onEdit={
               onEdit
             }
+
             onDelete={
               onDelete
             }
@@ -451,6 +580,7 @@ function CategoryRows({
               );
 
             return (
+
               <TableRow
                 key={
                   child._id
@@ -467,9 +597,7 @@ function CategoryRows({
                     <div>
 
                       <p className="text-sm font-medium">
-                        {
-                          child.name
-                        }
+                        {child.name}
                       </p>
 
                     </div>
@@ -491,9 +619,7 @@ function CategoryRows({
                 </TableCell>
 
                 <TableCell>
-                  {
-                    childProducts.length
-                  }
+                  {childProducts.length}
                 </TableCell>
 
                 <TableCell>
@@ -512,9 +638,11 @@ function CategoryRows({
                     category={
                       child
                     }
+
                     onEdit={
                       onEdit
                     }
+
                     onDelete={
                       onDelete
                     }
@@ -523,6 +651,7 @@ function CategoryRows({
                 </TableCell>
 
               </TableRow>
+
             );
           }
         )}
@@ -546,6 +675,8 @@ function CategoryRows({
 
                 <div className="flex items-center gap-3 pl-20">
 
+                  {/* IMAGE */}
+
                   {product.image ? (
 
                     <img
@@ -568,18 +699,16 @@ function CategoryRows({
 
                   )}
 
+                  {/* PRODUCT NAME */}
+
                   <div>
 
                     <p className="text-sm font-medium">
-                      {
-                        product.name
-                      }
+                      {product.name}
                     </p>
 
                     <p className="text-xs text-muted-foreground">
-                      {
-                        product.category
-                      }
+                      {product.category}
                     </p>
 
                   </div>
@@ -587,6 +716,8 @@ function CategoryRows({
                 </div>
 
               </TableCell>
+
+              {/* TYPE */}
 
               <TableCell>
 
@@ -596,22 +727,24 @@ function CategoryRows({
 
               </TableCell>
 
+              {/* PRICE */}
+
               <TableCell>
 
                 <span className="font-medium">
                   Rs.{" "}
-                  {
-                    product.price
-                  }
+                  {product.price}
                 </span>
 
               </TableCell>
 
+              {/* STOCK */}
+
               <TableCell>
-                {
-                  product.stock
-                }
+                {product.stock}
               </TableCell>
+
+              {/* STOCK STATUS */}
 
               <TableCell>
 
@@ -624,14 +757,18 @@ function CategoryRows({
                       : "destructive"
                   }
                 >
+
                   {Number(
                     product.stock
                   ) > 0
                     ? "In Stock"
                     : "Out of Stock"}
+
                 </Badge>
 
               </TableCell>
+
+              {/* ACTIONS */}
 
               <TableCell />
 
@@ -666,15 +803,17 @@ function StatusBadge({
           : "secondary"
       }
     >
+
       {active
         ? "Active"
         : "Inactive"}
+
     </Badge>
   );
 }
 
 // =======================================================
-// ACTIONS
+// CATEGORY ACTIONS
 // =======================================================
 
 function CategoryActions({
@@ -683,9 +822,11 @@ function CategoryActions({
   onDelete,
 }: {
   category: Category;
+
   onEdit?: (
     category: Category
   ) => void;
+
   onDelete?: (
     category: Category
   ) => void;
@@ -716,6 +857,8 @@ function CategoryActions({
 
       <DropdownMenuContent align="end">
 
+        {/* EDIT */}
+
         <DropdownMenuItem
           onClick={() =>
             onEdit?.(
@@ -731,6 +874,8 @@ function CategoryActions({
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
+
+        {/* DELETE */}
 
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
