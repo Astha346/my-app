@@ -2,1273 +2,433 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
 
-import type {
-  Order,
-  OrderStatus,
-  ReturnRefundStatus,
-} from "@/types/order";
+import api from "@/lib/api";
 
-import OrderStats from "./OrderStats";
-import OrderFilters from "./OrderFilters";
-import OrderTable from "./OrderTable";
-import OrderDetailsDialog from "./OrderDetailsDialog";
-import ChangeStatusDialog from "./ChangeStatusDialog";
-import CancelOrderDialog from "./CancelOrderDialog";
-import Invoice from "./Invoice";
-import ReturnRefundDialog from "./ReturnRefundDialog";
-import ReturnRefundReviewDialog from "./ReturnRefundReviewDialog";
-import Pagination from "./Pagination";
+import OrderFilters from "@/components/admin/Orders/OrderFilters";
+import OrderTable from "@/components/admin/Orders/OrderTable";
+import Pagination from "@/components/admin/Orders/Pagination";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+import type { Order } from "@/types/order";
 
-/* =========================================================
-   PAYMENT TYPES
-========================================================= */
-
-type PaymentMethod = "cod" | "esewa" | "khalti";
-
-type PaymentStatus = "paid" | "pending" | "failed";
-
-/* =========================================================
-   BACKEND TYPES
-========================================================= */
-
-interface BackendOrderItem {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  image?: string;
+interface OrdersContentProps {
+  onViewOrder?: (order: Order) => void;
 }
 
-interface BackendOrder {
-  _id: string;
-  orderNumber?: string;
-  userId?: string;
-
-  customer?: {
-    name?: string;
-    email?: string;
-    phone?: string;
-  };
-
-  items: BackendOrderItem[];
-
-  subtotal?: number;
-  shipping?: number;
-  discount?: number;
-  total: number;
-
-  status: OrderStatus;
-
-  shippingAddress?: {
-    address?: string;
-    city?: string;
-    country?: string;
-  };
-
-  returnRefundStatus?: ReturnRefundStatus;
-  returnItemIds?: string[];
-  returnReason?: string;
-  customerNote?: string;
-
-  refundMethod?:
-    | ""
-    | "original"
-    | "esewa"
-    | "khalti"
-    | "bank"
-    | "cash";
-
-  paymentMethod?: PaymentMethod;
-  paymentStatus?: PaymentStatus;
-
-  refundAmount?: number;
-  refundReviewNote?: string;
-
-  returnRequestedAt?: string;
-  returnReviewedAt?: string;
-  refundedAt?: string;
-
-  createdAt: string;
-}
-
-interface OrdersResponse {
-  orders?: BackendOrder[];
-  data?: BackendOrder[];
-
-  pagination?: {
-    total?: number;
-    page?: number;
-    limit?: number;
-    totalPages?: number;
-  };
-
-  total?: number;
-  totalOrders?: number;
-  page?: number;
-  limit?: number;
-  totalPages?: number;
-}
-
-interface ReturnRefundRequestData {
-  itemIds: string[];
-  customerNote?: string;
-  reason?: string;
-  refundMethod?: string;
-  refundAmount?: number;
-}
-
-/* =========================================================
-   MAP BACKEND ORDER TO FRONTEND ORDER
-========================================================= */
-
-const mapBackendOrderToFrontend = (
-  order: BackendOrder,
-): Order => {
-  return {
-    _id: order._id,
-
-    orderNumber:
-      order.orderNumber ||
-      order._id.slice(-6).toUpperCase(),
-
-    customer: {
-      name:
-        order.customer?.name ||
-        "Unknown Customer",
-
-      email:
-        order.customer?.email ||
-        "-",
-
-      phone:
-        order.customer?.phone ||
-        "",
-    },
-
-    items: (order.items || []).map((item) => ({
-      productId: item.productId,
-      name: item.name,
-      price: Number(item.price || 0),
-      quantity: Number(item.quantity || 0),
-      image: item.image,
-    })),
-
-    subtotal: Number(order.subtotal || 0),
-
-    shipping: Number(order.shipping || 0),
-
-    discount: Number(order.discount || 0),
-
-    total: Number(order.total || 0),
-
-    status: order.status,
-
-    returnRefundStatus:
-      order.returnRefundStatus ||
-      "none",
-
-    returnItemIds:
-      order.returnItemIds ||
-      [],
-
-    returnReason:
-      order.returnReason ||
-      "",
-
-    customerNote:
-      order.customerNote ||
-      "",
-
-    refundMethod:
-      order.refundMethod ||
-      "",
-
-    refundAmount:
-      order.refundAmount !== undefined
-        ? Number(order.refundAmount)
-        : undefined,
-
-    refundReviewNote:
-      order.refundReviewNote ||
-      "",
-
-    returnRequestedAt:
-      order.returnRequestedAt,
-
-    returnReviewedAt:
-      order.returnReviewedAt,
-
-    refundedAt:
-      order.refundedAt,
-
-    paymentMethod:
-      order.paymentMethod ||
-      "cod",
-
-    paymentStatus:
-      order.paymentStatus ||
-      "pending",
-
-    shippingAddress: {
-      address:
-        order.shippingAddress?.address ||
-        "",
-
-      city:
-        order.shippingAddress?.city ||
-        "",
-
-      country:
-        order.shippingAddress?.country ||
-        "",
-    },
-
-    createdAt:
-      order.createdAt,
-  };
-};
-
-/* =========================================================
-   COMPONENT
-========================================================= */
-
-export default function OrdersContent() {
-  /* =========================================================
-     ORDERS STATE
-  ========================================================= */
-
-  const [orders, setOrders] =
-    useState<Order[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
-
-  /* =========================================================
-     DIALOG STATE
-  ========================================================= */
-
-  const [selectedOrder, setSelectedOrder] =
-    useState<Order | null>(null);
-
-  const [statusOrder, setStatusOrder] =
-    useState<Order | null>(null);
-
-  const [cancelOrder, setCancelOrder] =
-    useState<Order | null>(null);
-
-  const [returnOrder, setReturnOrder] =
-    useState<Order | null>(null);
-
-  const [reviewReturnOrder, setReviewReturnOrder] =
-    useState<Order | null>(null);
-
-  const [invoiceOrder, setInvoiceOrder] =
-    useState<Order | null>(null);
-
-  /* =========================================================
-     BULK SELECTION
-  ========================================================= */
-
-  const [selectedOrders, setSelectedOrders] =
-    useState<string[]>([]);
-
-  /* =========================================================
-     FILTERS
-  ========================================================= */
-
-  const [search, setSearch] =
-    useState("");
-
-  const [statusFilter, setStatusFilter] =
-    useState("all");
-
-  const [paymentFilter, setPaymentFilter] =
-    useState("all");
-
-  const [paymentStatusFilter, setPaymentStatusFilter] =
-    useState("all");
-
-  /* =========================================================
-     PAGINATION
-  ========================================================= */
-
-  const [currentPage, setCurrentPage] =
-    useState(1);
-
-  const [itemsPerPage, setItemsPerPage] =
-    useState(5);
-
-  const [totalOrders, setTotalOrders] =
-    useState(0);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(
-      totalOrders / itemsPerPage,
-    ),
-  );
-
-  /* =========================================================
-     FETCH ORDERS
-  ========================================================= */
-
-  const fetchOrders = useCallback(
-    async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const params =
-          new URLSearchParams();
-
-        params.set(
-          "page",
-          String(currentPage),
-        );
-
-        params.set(
-          "limit",
-          String(itemsPerPage),
-        );
-
-        if (search.trim()) {
-          params.set(
-            "search",
-            search.trim(),
-          );
-        }
-
-        if (
-          statusFilter &&
-          statusFilter !== "all"
-        ) {
-          params.set(
-            "status",
-            statusFilter,
-          );
-        }
-
-        if (
-          paymentFilter &&
-          paymentFilter !== "all"
-        ) {
-          params.set(
-            "paymentMethod",
-            paymentFilter,
-          );
-        }
-
-        if (
-          paymentStatusFilter &&
-          paymentStatusFilter !== "all"
-        ) {
-          params.set(
-            "paymentStatus",
-            paymentStatusFilter,
-          );
-        }
-
-        const response =
-          await fetch(
-            `${API_URL}/orders?${params.toString()}`,
-            {
-              method: "GET",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              cache: "no-store",
-            },
-          );
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch orders: ${response.status}`,
-          );
-        }
-
-        const result: OrdersResponse =
-          await response.json();
-
-        const backendOrders =
-          result.orders ||
-          result.data ||
-          [];
-
-        const mappedOrders =
-          backendOrders.map(
-            mapBackendOrderToFrontend,
-          );
-
-        setOrders(mappedOrders);
-
-        const backendTotal =
-          result.pagination?.total ??
-          result.total ??
-          result.totalOrders ??
-          mappedOrders.length;
-
-        setTotalOrders(
-          Number(backendTotal),
-        );
-      } catch (err) {
-        console.error(
-          "Failed to fetch orders:",
-          err,
-        );
-
-        setError(
-          "Failed to load orders. Please check your backend server.",
-        );
-
-        setOrders([]);
-        setTotalOrders(0);
-      } finally {
-        setLoading(false);
+export default function OrdersContent({
+  onViewOrder,
+}: OrdersContentProps) {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // =========================
+  // FILTERS
+  // =========================
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
+  const [payment, setPayment] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("");
+
+  // Selected dates in UI
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
+
+  // Dates actually applied to API
+  const [appliedDateFrom, setAppliedDateFrom] =
+    useState<Date | undefined>();
+
+  const [appliedDateTo, setAppliedDateTo] =
+    useState<Date | undefined>();
+
+  // =========================
+  // PAGINATION
+  // =========================
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [totalOrders, setTotalOrders] = useState(0);
+
+  // =========================
+  // SELECTED ORDERS
+  // =========================
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+
+  // =========================
+  // FETCH ORDERS
+  // =========================
+  const fetchOrders = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const params = new URLSearchParams();
+
+      params.set("page", String(currentPage));
+      params.set("limit", String(itemsPerPage));
+
+      if (search.trim()) {
+        params.set("search", search.trim());
       }
-    },
-    [
-      currentPage,
-      itemsPerPage,
-      search,
-      statusFilter,
-      paymentFilter,
-      paymentStatusFilter,
-    ],
-  );
+
+      if (status) {
+        params.set("status", status);
+      }
+
+      if (payment) {
+        params.set("paymentMethod", payment);
+      }
+
+      if (paymentStatus) {
+        params.set("paymentStatus", paymentStatus);
+      }
+
+      if (appliedDateFrom) {
+        params.set(
+          "startDate",
+          format(appliedDateFrom, "yyyy-MM-dd"),
+        );
+      }
+
+      if (appliedDateTo) {
+        params.set(
+          "endDate",
+          format(appliedDateTo, "yyyy-MM-dd"),
+        );
+      }
+
+      const response = await api.get(
+        `/orders?${params.toString()}`,
+      );
+
+      const data = response.data;
+
+      setOrders(data.orders || []);
+
+      setTotalOrders(
+        data.pagination?.total ||
+          data.pagination?.totalOrders ||
+          0,
+      );
+    } catch (error) {
+      console.error("Failed to fetch orders:", error);
+
+      setOrders([]);
+      setTotalOrders(0);
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    currentPage,
+    itemsPerPage,
+    search,
+    status,
+    payment,
+    paymentStatus,
+    appliedDateFrom,
+    appliedDateTo,
+  ]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  /* =========================================================
-     SEARCH
-  ========================================================= */
-
-  const handleSearchChange = (
-    value: string,
-  ) => {
+  // =========================
+  // FILTER HANDLERS
+  // =========================
+  const handleSearch = (value: string) => {
     setSearch(value);
     setCurrentPage(1);
   };
 
-  /* =========================================================
-     STATUS FILTER
-  ========================================================= */
-
-  const handleStatusChange = (
-    value: string,
-  ) => {
-    setStatusFilter(value);
+  const handleStatus = (value: string) => {
+    setStatus(value);
     setCurrentPage(1);
   };
 
-  /* =========================================================
-     PAYMENT FILTER
-  ========================================================= */
-
-  const handlePaymentChange = (
-    value: string,
-  ) => {
-    setPaymentFilter(value);
+  const handlePayment = (value: string) => {
+    setPayment(value);
     setCurrentPage(1);
   };
 
-  /* =========================================================
-     PAYMENT STATUS FILTER
-  ========================================================= */
-
-  const handlePaymentStatusChange = (
-    value: string,
-  ) => {
-    setPaymentStatusFilter(value);
+  const handlePaymentStatus = (value: string) => {
+    setPaymentStatus(value);
     setCurrentPage(1);
   };
 
-  /* =========================================================
-     PAGINATION
-  ========================================================= */
+  // =========================
+  // APPLY DATE FILTER
+  // =========================
+  const handleApplyFilters = () => {
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      alert("Date From cannot be after Date To.");
+      return;
+    }
 
-  const handlePageChange = (
-    page: number,
-  ) => {
-    if (
-      page < 1 ||
-      page > totalPages
-    ) {
+    setAppliedDateFrom(dateFrom);
+    setAppliedDateTo(dateTo);
+    setCurrentPage(1);
+  };
+
+  // =========================
+  // PAGINATION
+  // =========================
+  const totalPages = Math.max(
+    1,
+    Math.ceil(totalOrders / itemsPerPage),
+  );
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) {
       return;
     }
 
     setCurrentPage(page);
   };
 
-  const handleItemsPerPageChange = (
-    value: number,
-  ) => {
+  const handleItemsPerPageChange = (value: number) => {
     setItemsPerPage(value);
     setCurrentPage(1);
   };
 
-  /* =========================================================
-     VIEW ORDER
-  ========================================================= */
-
-  const handleView = (
-    order: Order,
-  ) => {
-    setSelectedOrder(order);
+  // =========================
+  // SELECT ORDERS
+  // =========================
+  const handleSelectionChange = (ids: string[]) => {
+    setSelectedOrders(ids);
   };
 
-  /* =========================================================
-     PRINT INVOICE
-  ========================================================= */
+  // =========================
+  // ORDER ACTIONS
+  // =========================
 
-  const handlePrintInvoice = (
-    order: Order,
-  ) => {
-    setInvoiceOrder(order);
-
-    setTimeout(() => {
-      window.print();
-    }, 300);
+  const handleView = (order: Order) => {
+    onViewOrder?.(order);
   };
 
-  /* =========================================================
-     CHANGE ORDER STATUS
-  ========================================================= */
-
-  const handleChangeStatus = (
-    order: Order,
-  ) => {
-    setStatusOrder(order);
+  const handlePrintInvoice = (order: Order) => {
+    console.log("Print invoice:", order);
   };
 
-  const handleStatusUpdate = async (
-    orderId: string,
-    newStatus: OrderStatus,
-  ) => {
-    try {
-      const response =
-        await fetch(
-          `${API_URL}/orders/${orderId}/status`,
-          {
-            method: "PATCH",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body: JSON.stringify({
-              status: newStatus,
-            }),
-          },
-        );
-
-      const result =
-        await response.json().catch(
-          () => null,
-        );
-
-      if (!response.ok) {
-        throw new Error(
-          result?.message ||
-            "Failed to update order status",
-        );
-      }
-
-      setStatusOrder(null);
-
-      await fetchOrders();
-    } catch (err) {
-      console.error(
-        "Status update failed:",
-        err,
-      );
-
-      alert(
-        err instanceof Error
-          ? err.message
-          : "Failed to update order status.",
-      );
-    }
+  const handleChangeStatus = (order: Order) => {
+    console.log("Change status:", order);
   };
 
-  /* =========================================================
-     PAYMENT METHOD CHANGE
-  ========================================================= */
+  const handleCancelOrder = async (order: Order) => {
+    console.log("Cancel order:", order);
+  };
 
+  const handleReturnRefund = (order: Order) => {
+    console.log("Return / Refund:", order);
+  };
+
+  const handleReviewReturnRefund = (order: Order) => {
+    console.log("Review Return / Refund:", order);
+  };
+
+  // =========================
+  // PAYMENT METHOD
+  // =========================
   const handlePaymentMethodChange = async (
     order: Order,
-    newPaymentMethod: PaymentMethod,
+    value: "cod" | "esewa" | "khalti",
   ) => {
     try {
-      const response =
-        await fetch(
-          `${API_URL}/orders/${order._id}/payment`,
-          {
-            method: "PATCH",
+      await api.patch(`/orders/${order._id}`, {
+        paymentMethod: value,
+      });
 
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body: JSON.stringify({
-              paymentMethod:
-                newPaymentMethod,
-            }),
-          },
-        );
-
-      const result =
-        await response.json().catch(
-          () => null,
-        );
-
-      if (!response.ok) {
-        throw new Error(
-          result?.message ||
-            "Failed to update payment method",
-        );
-      }
-
-      await fetchOrders();
-    } catch (err) {
+      setOrders((previousOrders) =>
+        previousOrders.map((item) =>
+          item._id === order._id
+            ? {
+                ...item,
+                paymentMethod: value,
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
       console.error(
-        "Payment method update failed:",
-        err,
+        "Failed to update payment method:",
+        error,
       );
 
-      alert(
-        err instanceof Error
-          ? err.message
-          : "Failed to update payment method.",
-      );
+      throw error;
     }
   };
 
-  /* =========================================================
-     PAYMENT STATUS CHANGE
-  ========================================================= */
-
-  const handlePaymentStatusChangeForOrder =
-    async (
-      order: Order,
-      newPaymentStatus: PaymentStatus,
-    ) => {
-      try {
-        const response =
-          await fetch(
-            `${API_URL}/orders/${order._id}/payment`,
-            {
-              method: "PATCH",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                paymentStatus:
-                  newPaymentStatus,
-              }),
-            },
-          );
-
-        const result =
-          await response.json().catch(
-            () => null,
-          );
-
-        if (!response.ok) {
-          throw new Error(
-            result?.message ||
-              "Failed to update payment status",
-          );
-        }
-
-        await fetchOrders();
-      } catch (err) {
-        console.error(
-          "Payment status update failed:",
-          err,
-        );
-
-        alert(
-          err instanceof Error
-            ? err.message
-            : "Failed to update payment status.",
-        );
-      }
-    };
-
-  /* =========================================================
-     CANCEL ORDER
-  ========================================================= */
-
-  const handleCancelOrder = (
+  // =========================
+  // PAYMENT STATUS
+  // =========================
+  const handlePaymentStatusChange = async (
     order: Order,
-  ) => {
-    setCancelOrder(order);
-  };
-
-  const handleConfirmCancel = async (
-    orderId: string,
-    reason?: string,
+    value: "paid" | "pending" | "failed",
   ) => {
     try {
-      const response =
-        await fetch(
-          `${API_URL}/orders/${orderId}/cancel`,
-          {
-            method: "PATCH",
+      await api.patch(`/orders/${order._id}`, {
+        paymentStatus: value,
+      });
 
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-
-            body: JSON.stringify({
-              reason:
-                reason ||
-                "Cancelled by admin",
-            }),
-          },
-        );
-
-      const result =
-        await response.json().catch(
-          () => null,
-        );
-
-      if (!response.ok) {
-        throw new Error(
-          result?.message ||
-            "Failed to cancel order",
-        );
-      }
-
-      setCancelOrder(null);
-
-      await fetchOrders();
-    } catch (err) {
+      setOrders((previousOrders) =>
+        previousOrders.map((item) =>
+          item._id === order._id
+            ? {
+                ...item,
+                paymentStatus: value,
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
       console.error(
-        "Cancel order failed:",
-        err,
+        "Failed to update payment status:",
+        error,
       );
 
-      alert(
-        err instanceof Error
-          ? err.message
-          : "Failed to cancel order.",
-      );
+      throw error;
     }
   };
 
-  /* =========================================================
-     RETURN / REFUND REQUEST
-  ========================================================= */
-
-  const handleReturnRefund = (
-    order: Order,
-  ) => {
-    setReturnOrder(order);
-  };
-
-  const handleReturnRefundSubmit =
-    async (
-      data: ReturnRefundRequestData,
-    ) => {
-      if (!returnOrder) {
-        return;
-      }
-
-      try {
-        const response =
-          await fetch(
-            `${API_URL}/orders/${returnOrder._id}/return-refund`,
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                itemIds:
-                  data.itemIds || [],
-
-                customerNote:
-                  data.customerNote || "",
-
-                reason:
-                  data.reason || "",
-
-                refundMethod:
-                  data.refundMethod || "",
-
-                refundAmount:
-                  data.refundAmount ??
-                  returnOrder.total,
-              }),
-            },
-          );
-
-        const result =
-          await response
-            .json()
-            .catch(() => null);
-
-        if (!response.ok) {
-          throw new Error(
-            result?.message ||
-              "Failed to submit return/refund request",
-          );
-        }
-
-        setReturnOrder(null);
-
-        await fetchOrders();
-
-        alert(
-          "Return/refund request submitted successfully.",
-        );
-      } catch (err) {
-        console.error(
-          "Return/refund request failed:",
-          err,
-        );
-
-        alert(
-          err instanceof Error
-            ? err.message
-            : "Failed to submit return/refund request.",
-        );
-      }
-    };
-
-  /* =========================================================
-     REVIEW RETURN / REFUND
-  ========================================================= */
-
-  const handleReviewReturnRefund = (
-    order: Order,
-  ) => {
-    setReviewReturnOrder(order);
-  };
-
-  /* =========================================================
-     RETURN / REFUND STATUS UPDATE
-  ========================================================= */
-
-  const handleReturnRefundStatusUpdate =
-    async (
-      orderId: string,
-      newStatus: ReturnRefundStatus,
-    ) => {
-      if (newStatus === "none") {
-        return;
-      }
-
-      try {
-        let reviewNote =
-          "Return/refund request updated by admin.";
-
-        if (newStatus === "approved") {
-          reviewNote =
-            "Return request approved by admin.";
-        }
-
-        if (newStatus === "rejected") {
-          reviewNote =
-            "Return/refund request rejected by admin.";
-        }
-
-        if (newStatus === "refunded") {
-          reviewNote =
-            "Refund completed successfully.";
-        }
-
-        const response =
-          await fetch(
-            `${API_URL}/orders/${orderId}/return-refund`,
-            {
-              method: "PATCH",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                status: newStatus,
-                reviewNote,
-              }),
-            },
-          );
-
-        const result =
-          await response
-            .json()
-            .catch(() => null);
-
-        if (!response.ok) {
-          throw new Error(
-            result?.message ||
-              "Failed to update return/refund status",
-          );
-        }
-
-        setReviewReturnOrder(null);
-
-        await fetchOrders();
-
-        if (newStatus === "approved") {
-          alert(
-            "Return request approved.",
-          );
-        } else if (
-          newStatus === "rejected"
-        ) {
-          alert(
-            "Return request rejected.",
-          );
-        } else if (
-          newStatus === "refunded"
-        ) {
-          alert(
-            "Refund completed successfully.",
-          );
-        } else {
-          alert(
-            "Return/refund updated.",
-          );
-        }
-      } catch (err) {
-        console.error(
-          "Return/refund status update failed:",
-          err,
-        );
-
-        alert(
-          err instanceof Error
-            ? err.message
-            : "Failed to update return/refund status.",
-        );
-      }
-    };
-
-  /* =========================================================
-     STATS
-  ========================================================= */
-
+  // =========================
+  // STATS
+  // =========================
   const stats = useMemo(() => {
-    const pending =
-      orders.filter(
-        (order) =>
-          order.status === "pending",
-      ).length;
+    const total = orders.length;
 
-    const processing =
-      orders.filter(
-        (order) =>
-          order.status === "processing",
-      ).length;
+    const pending = orders.filter(
+      (order) => order.status === "pending",
+    ).length;
 
-    const shipped =
-      orders.filter(
-        (order) =>
-          order.status === "shipped",
-      ).length;
+    const confirmed = orders.filter(
+      (order) => order.status === "confirmed",
+    ).length;
 
-    const delivered =
-      orders.filter(
-        (order) =>
-          order.status === "delivered",
-      ).length;
+    const processing = orders.filter(
+      (order) => order.status === "processing",
+    ).length;
 
-    const cancelled =
-      orders.filter(
-        (order) =>
-          order.status === "cancelled",
-      ).length;
+    const shipped = orders.filter(
+      (order) => order.status === "shipped",
+    ).length;
 
-    const requestedReturns =
-      orders.filter(
-        (order) =>
-          order.returnRefundStatus ===
-          "requested",
-      ).length;
+    const delivered = orders.filter(
+      (order) => order.status === "delivered",
+    ).length;
+
+    const cancelled = orders.filter(
+      (order) => order.status === "cancelled",
+    ).length;
 
     return {
+      total,
       pending,
+      confirmed,
       processing,
       shipped,
       delivered,
       cancelled,
-      requestedReturns,
     };
   }, [orders]);
 
-  /* =========================================================
-     LOADING
-  ========================================================= */
-
-  if (
-    loading &&
-    orders.length === 0
-  ) {
-    return (
-      <div className="space-y-6">
-        <div className="h-24 animate-pulse rounded-xl bg-slate-100" />
-
-        <div className="h-20 animate-pulse rounded-xl bg-slate-100" />
-
-        <div className="h-96 animate-pulse rounded-xl bg-slate-100" />
-      </div>
-    );
-  }
-
-  /* =========================================================
-     RENDER
-  ========================================================= */
-
   return (
-    <>
-      <div className="space-y-6">
+    <div className="space-y-6">
+      {/* =========================
+          FILTERS
+      ========================= */}
+      <OrderFilters
+        search={search}
+        status={status}
+        payment={payment}
+        paymentStatus={paymentStatus}
+        setSearch={handleSearch}
+        setStatus={handleStatus}
+        setPayment={handlePayment}
+        setPaymentStatus={handlePaymentStatus}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        setDateFrom={setDateFrom}
+        setDateTo={setDateTo}
+        onApplyFilters={handleApplyFilters}
+      />
 
-        {/* =====================================================
-            PAGE HEADER
-        ===================================================== */}
-
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Orders
-          </h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Manage customer orders,
-            payments, shipping, returns
-            and refunds.
-          </p>
+      {/* =========================
+          APPLIED DATE MESSAGE
+      ========================= */}
+      {(appliedDateFrom || appliedDateTo) && (
+        <div className="rounded-lg border bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          Showing orders from{" "}
+          <strong>
+            {appliedDateFrom
+              ? format(appliedDateFrom, "dd/MM/yyyy")
+              : "beginning"}
+          </strong>{" "}
+          to{" "}
+          <strong>
+            {appliedDateTo
+              ? format(appliedDateTo, "dd/MM/yyyy")
+              : "today"}
+          </strong>
         </div>
+      )}
 
-        {/* =====================================================
-            ERROR
-        ===================================================== */}
-
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+      {/* =========================
+          ORDER TABLE
+      ========================= */}
+      <div className="rounded-xl border bg-white shadow-sm">
+        {loading ? (
+          <div className="flex min-h-50 items-center justify-center">
+            <p className="text-sm text-slate-500">
+              Loading orders...
+            </p>
           </div>
+        ) : (
+          <OrderTable
+            orders={orders}
+            currentPage={currentPage}
+            onView={handleView}
+            selectedOrders={selectedOrders}
+            onSelectionChange={handleSelectionChange}
+            onPrintInvoice={handlePrintInvoice}
+            onChangeStatus={handleChangeStatus}
+            onCancelOrder={handleCancelOrder}
+            onReturnRefund={handleReturnRefund}
+            onReviewReturnRefund={handleReviewReturnRefund}
+            onPaymentMethodChange={
+              handlePaymentMethodChange
+            }
+            onPaymentStatusChange={
+              handlePaymentStatusChange
+            }
+          />
         )}
+      </div>
 
-        {/* =====================================================
-            STATS
-        ===================================================== */}
-
-        <OrderStats
-          orders={orders}
-        />
-
-        {/* =====================================================
-            FILTERS
-        ===================================================== */}
-
-        <OrderFilters
-          search={search}
-          status={statusFilter}
-          payment={paymentFilter}
-          paymentStatus={
-            paymentStatusFilter
-          }
-          setSearch={
-            handleSearchChange
-          }
-          setStatus={
-            handleStatusChange
-          }
-          setPayment={
-            handlePaymentChange
-          }
-          setPaymentStatus={
-            handlePaymentStatusChange
-          }
-        />
-
-        {/* =====================================================
-            ORDER TABLE
-        ===================================================== */}
-
-        <OrderTable
-          orders={orders}
-          currentPage={currentPage}
-          onView={handleView}
-          selectedOrders={
-            selectedOrders
-          }
-          onSelectionChange={
-            setSelectedOrders
-          }
-          onPrintInvoice={
-            handlePrintInvoice
-          }
-          onChangeStatus={
-            handleChangeStatus
-          }
-          onCancelOrder={
-            handleCancelOrder
-          }
-          onReturnRefund={
-            handleReturnRefund
-          }
-          onReviewReturnRefund={
-            handleReviewReturnRefund
-          }
-          onPaymentMethodChange={
-            handlePaymentMethodChange
-          }
-          onPaymentStatusChange={
-            handlePaymentStatusChangeForOrder
-          }
-        />
-
-        {/* =====================================================
-            PAGINATION
-        ===================================================== */}
-
+      {/* =========================
+          PAGINATION
+      ========================= */}
+      {totalOrders > 0 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          itemsPerPage={
-            itemsPerPage
-          }
-          totalItems={
-            totalOrders
-          }
-          onPageChange={
-            handlePageChange
-          }
+          totalItems={totalOrders}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
           onItemsPerPageChange={
             handleItemsPerPageChange
           }
         />
-      </div>
-
-      {/* =======================================================
-          ORDER DETAILS
-      ======================================================= */}
-
-      <OrderDetailsDialog
-        order={selectedOrder}
-        open={!!selectedOrder}
-        onClose={() =>
-          setSelectedOrder(null)
-        }
-        onStatusUpdate={
-          handleStatusUpdate
-        }
-        onPrintInvoice={
-          handlePrintInvoice
-        }
-        onReturnRefund={
-          handleReturnRefund
-        }
-      />
-
-      {/* =======================================================
-          CHANGE STATUS
-      ======================================================= */}
-
-      <ChangeStatusDialog
-        order={statusOrder}
-        open={!!statusOrder}
-        onClose={() =>
-          setStatusOrder(null)
-        }
-        onStatusUpdate={
-          handleStatusUpdate
-        }
-      />
-
-      {/* =======================================================
-          CANCEL ORDER
-      ======================================================= */}
-
-      <CancelOrderDialog
-        order={cancelOrder}
-        open={!!cancelOrder}
-        onClose={() =>
-          setCancelOrder(null)
-        }
-        onConfirm={(order) =>
-          handleConfirmCancel(
-            order._id,
-          )
-        }
-      />
-
-      {/* =======================================================
-          RETURN / REFUND REQUEST
-      ======================================================= */}
-
-      <ReturnRefundDialog
-        order={returnOrder}
-        open={!!returnOrder}
-        onClose={() =>
-          setReturnOrder(null)
-        }
-        onSubmit={
-          handleReturnRefundSubmit
-        }
-      />
-
-      {/* =======================================================
-          RETURN / REFUND REVIEW
-      ======================================================= */}
-
-      <ReturnRefundReviewDialog
-        order={
-          reviewReturnOrder
-        }
-        open={
-          !!reviewReturnOrder
-        }
-        onClose={() =>
-          setReviewReturnOrder(
-            null,
-          )
-        }
-        onStatusUpdate={
-          handleReturnRefundStatusUpdate
-        }
-      />
-
-      {/* =======================================================
-          INVOICE
-      ======================================================= */}
-
-      {invoiceOrder && (
-        <Invoice
-          order={invoiceOrder}
-          onClose={() =>
-            setInvoiceOrder(null)
-          }
-        />
       )}
-    </>
+
+      {/* =========================
+          NO ORDERS
+      ========================= */}
+      {!loading && orders.length === 0 && (
+        <div className="rounded-xl border bg-white py-12 text-center">
+          <p className="text-gray-500">
+            No orders found for the selected filters.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
-
 

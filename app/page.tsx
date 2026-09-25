@@ -82,43 +82,49 @@ export default function Home() {
     }
   }, []);
 
-  // =====================================================
-  // FETCH PRODUCTS
-  // =====================================================
+// =====================================================
+// FETCH PRODUCTS
+// =====================================================
 
-  useEffect(() => {
-    async function fetchProducts() {
-      try {
-        setLoading(true);
+useEffect(() => {
+  async function fetchProducts() {
+    try {
+      setLoading(true);
 
-        // IMPORTANT:
-        // Use our api instance so the JWT token
-        // is automatically added to the request.
-        const res = await api.get("/products");
+      // Load a large number of products for the customer home page.
+      // Admin product page can still use pagination separately.
+      const res = await api.get(
+        "/products?page=1&limit=100"
+      );
 
-        console.log("========== PRODUCTS ==========");
-        console.log(res.data);
-        console.log("==============================");
+      console.log("========== PRODUCTS ==========");
+      console.log("FULL RESPONSE:", res.data);
+      console.log("PRODUCTS:", res.data?.products);
+      console.log(
+        "PRODUCT COUNT:",
+        res.data?.products?.length
+      );
+      console.log("==============================");
 
-        setProducts(
-          Array.isArray(res.data)
-            ? res.data
-            : []
-        );
-      } catch (error) {
-        console.error(
-          "Failed to fetch products:",
-          error
-        );
+      setProducts(
+        Array.isArray(res.data?.products)
+          ? res.data.products
+          : []
+      );
+    } catch (error) {
+      console.error(
+        "Failed to fetch products:",
+        error
+      );
 
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    fetchProducts();
-  }, []);
+  fetchProducts();
+}, []);
 
   // =====================================================
   // SEARCH SUGGESTIONS
