@@ -42,8 +42,7 @@ export default function Home() {
 
   const [search, setSearch] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] =
-    useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   // =====================================================
   // RESTORE LOGIN
@@ -82,68 +81,71 @@ export default function Home() {
     }
   }, []);
 
-// =====================================================
-// FETCH PRODUCTS
-// =====================================================
+  // =====================================================
+  // FETCH PRODUCTS
+  // =====================================================
 
-useEffect(() => {
-  async function fetchProducts() {
-    try {
-      setLoading(true);
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        setLoading(true);
 
-      // Load a large number of products for the customer home page.
-      // Admin product page can still use pagination separately.
-      const res = await api.get(
-        "/products?page=1&limit=100"
-      );
+        // Load a large number of products for the customer home page.
+        // Admin product page can still use pagination separately.
+        const res = await api.get("/products?page=1&limit=100");
 
-      console.log("========== PRODUCTS ==========");
-      console.log("FULL RESPONSE:", res.data);
-      console.log("PRODUCTS:", res.data?.products);
-      console.log(
-        "PRODUCT COUNT:",
-        res.data?.products?.length
-      );
-      console.log("==============================");
+        console.log("========== PRODUCTS ==========");
+        console.log("FULL RESPONSE:", res.data);
+        console.log("PRODUCTS:", res.data?.products);
+        console.log(
+          "PRODUCT COUNT:",
+          res.data?.products?.length
+        );
+        console.log("==============================");
 
-      setProducts(
-        Array.isArray(res.data?.products)
-          ? res.data.products
-          : []
-      );
-    } catch (error) {
-      console.error(
-        "Failed to fetch products:",
-        error
-      );
+        setProducts(
+          Array.isArray(res.data?.products)
+            ? res.data.products
+            : []
+        );
+      } catch (error) {
+        console.error(
+          "Failed to fetch products:",
+          error
+        );
 
-      setProducts([]);
-    } finally {
-      setLoading(false);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
     }
-  }
 
-  fetchProducts();
-}, []);
+    fetchProducts();
+  }, []);
 
   // =====================================================
   // SEARCH SUGGESTIONS
   // =====================================================
 
   useEffect(() => {
-    if (!search.trim()) {
+    const searchText = search.trim().toLowerCase();
+
+    // Show suggestions when the user types at least 1 character
+    if (!searchText) {
       setSuggestions([]);
       return;
     }
 
     const result = products
       .filter((product) =>
-        product.name
-          .toLowerCase()
-          .includes(search.toLowerCase())
+        product.name.toLowerCase().includes(searchText)
       )
-      .slice(0, 6)
-      .map((product) => product.name);
+      .map((product) => product.name)
+      .filter(
+        (name, index, self) =>
+          self.indexOf(name) === index
+      )
+      .slice(0, 6);
 
     setSuggestions(result);
   }, [search, products]);
@@ -152,19 +154,17 @@ useEffect(() => {
   // FILTER PRODUCTS
   // =====================================================
 
-  const filteredProducts = products.filter(
-    (product) => {
-      const searchMatch = product.name
-        .toLowerCase()
-        .includes(search.toLowerCase());
+  const filteredProducts = products.filter((product) => {
+    const searchMatch = product.name
+      .toLowerCase()
+      .includes(search.toLowerCase());
 
-      const categoryMatch =
-        selectedCategory === "all" ||
-        product.category === selectedCategory;
+    const categoryMatch =
+      selectedCategory === "all" ||
+      product.category === selectedCategory;
 
-      return searchMatch && categoryMatch;
-    }
-  );
+    return searchMatch && categoryMatch;
+  });
 
   // =====================================================
   // NOT LOGGED IN
@@ -203,29 +203,37 @@ useEffect(() => {
           NAVBAR
       ================================================= */}
 
+      
       <Navbar
-        email={user.email}
-        searchTerm={search}
-        setSearchTerm={setSearch}
-        onLogout={() => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("refresh_token");
-          localStorage.removeItem("user");
+     email={user.email}
+     searchTerm={search}
+     setSearchTerm={setSearch}
+     suggestions={suggestions}
+    onLogout={() => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
 
-          setUser(null);
-        }}
-      />
+    setUser(null);
+    }}
+   />
+
 
       {/* =================================================
           SEARCH SUGGESTIONS
       ================================================= */}
 
       {search && suggestions.length > 0 && (
-        <ul className="absolute left-6 top-20 z-50 w-64 rounded-md border bg-white shadow-lg">
+        <ul className="absolute left-6 top-20 z-50 w-72 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
+
+          <li className="border-b px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Search Results
+          </li>
+
           {suggestions.map((item, index) => (
             <li
               key={index}
-              className="cursor-pointer p-2 hover:bg-gray-100"
+              className="cursor-pointer px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50"
               onClick={() => {
                 setSearch(item);
                 setSuggestions([]);
