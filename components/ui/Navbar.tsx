@@ -1,3 +1,4 @@
+
 "use client";
 
 import SearchBar from "./SearchBar";
@@ -11,210 +12,223 @@ import {
   Menu,
   X,
   LogOut,
+  MapPin,
+  HelpCircle,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { getCart } from "@/lib/cart";
+import { getWishlist } from "@/lib/wishlist";
 
 type NavbarProps = {
-  email: string;
-  onLogout: () => void;
-  searchTerm: string;
-  setSearchTerm: (val: string) => void;
-  suggestions: string[];
+  email?: string;
+  searchTerm?: string;
+  setSearchTerm?: (value: string) => void;
+  suggestions?: string[];
+  onLogout?: () => void;
 };
 
 export default function Navbar({
   email,
-  onLogout,
   searchTerm,
   setSearchTerm,
   suggestions,
+  onLogout,
 }: NavbarProps) {
   const [openProfile, setOpenProfile] = useState(false);
   const [openMobileMenu, setOpenMobileMenu] = useState(false);
 
+  const [cartCount, setCartCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
+
+  const searchValue = searchTerm ?? "";
+  const setSearchValue =
+    setSearchTerm ?? (() => {});
+
   const profileRef = useRef<HTMLDivElement>(null);
 
+  // ================================
+  // CART COUNT
+  // ================================
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        profileRef.current &&
-        !profileRef.current.contains(event.target as Node)
-      ) {
-        setOpenProfile(false);
-      }
-    }
+    const updateCartCount = () => {
+      const cart = getCart();
 
-    document.addEventListener("mousedown", handleClickOutside);
+      const totalItems = cart.reduce(
+        (total, item) => total + item.quantity,
+        0
+      );
+
+      setCartCount(totalItems);
+    };
+
+    updateCartCount();
+
+    window.addEventListener(
+      "cartUpdated",
+      updateCartCount
+    );
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener(
+        "cartUpdated",
+        updateCartCount
+      );
     };
   }, []);
 
-  const showSuggestions =
-    searchTerm.trim().length > 0 && suggestions.length > 0;
+  // ================================
+  // WISHLIST COUNT
+  // ================================
+  useEffect(() => {
+    const updateWishlistCount = () => {
+      const wishlist = getWishlist();
+
+      setWishlistCount(wishlist.length);
+    };
+
+    updateWishlistCount();
+
+    window.addEventListener(
+      "wishlistUpdated",
+      updateWishlistCount
+    );
+
+    return () => {
+      window.removeEventListener(
+        "wishlistUpdated",
+        updateWishlistCount
+      );
+    };
+  }, []);
+
+  // ================================
+  // CLOSE PROFILE DROPDOWN
+  // WHEN CLICKING OUTSIDE
+  // ================================
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(
+          event.target as Node
+        )
+      ) {
+        setOpenProfile(false);
+      }
+    };
+
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+    };
+  }, []);
+
+  // ================================
+  // LOGOUT
+  // ================================
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      localStorage.removeItem("token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user");
+
+      window.location.href = "/";
+    }
+
+    setOpenProfile(false);
+    setOpenMobileMenu(false);
+  };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white">
+    <header className="sticky top-0 z-50 border-b bg-white shadow-sm">
       {/* ================================
-          TOP NAVBAR
+          MAIN NAVBAR
       ================================= */}
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
 
-      <div className="flex h-18 w-full items-center gap-4 px-4 sm:px-6 lg:px-12">
-        {/* Mobile Menu */}
-
-        <button
-          type="button"
-          onClick={() => setOpenMobileMenu(!openMobileMenu)}
-          className="rounded-xl p-2 text-gray-700 transition hover:bg-gray-100 md:hidden"
+        {/* ================================
+            LOGO
+        ================================= */}
+        <Link
+          href="/"
+          className="flex shrink-0 items-center"
         >
-          {openMobileMenu ? <X size={22} /> : <Menu size={22} />}
-        </button>
+          <span className="text-2xl font-extrabold tracking-tight text-pink-600">
+            Shop
+          </span>
 
-        {/* Logo */}
-
-        <Link href="/" className="flex shrink-0 items-center">
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-600 text-lg font-bold text-white shadow-sm">
-              S
-            </div>
-
-            <div className="hidden sm:block">
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-                Shop<span className="text-pink-600">Ease</span>
-              </h1>
-
-              <p className="hidden text-[10px] font-medium uppercase tracking-widest text-gray-400 lg:block">
-                Shop Smart
-              </p>
-            </div>
-          </div>
+          <span className="text-2xl font-extrabold tracking-tight text-gray-900">
+            Ease
+          </span>
         </Link>
-
-        {/* Desktop Navigation */}
-
-        <nav className="hidden items-center gap-6 md:flex">
-          <Link
-            href="/"
-            className="text-base font-semibold text-gray-900 transition hover:text-pink-600"
-          >
-            Home
-          </Link>
-
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 text-base font-semibold text-gray-600 transition hover:text-pink-600"
-          >
-            Categories
-            <ChevronDown size={15} />
-          </Link>
-
-          <Link
-            href="/"
-            className="text-base font-semibold text-gray-600 transition hover:text-pink-600"
-          >
-            Deals
-          </Link>
-
-          <Link
-            href="/about"
-            className="text-base font-semibold text-gray-600 transition hover:text-pink-600"
-          >
-            About
-          </Link>
-        </nav>
 
         {/* ================================
             DESKTOP SEARCH
         ================================= */}
-
-        <div className="ml-auto hidden max-w-md flex-1 md:block lg:max-w-xl">
-          <div className="relative">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-            />
-
-            {showSuggestions && (
-              <div className="absolute left-0 right-0 top-full z-[100] mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
-                <div className="border-b border-gray-100 px-4 py-2.5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                    Search Results
-                  </p>
-                </div>
-
-                <div className="py-1">
-                  {suggestions.map((item, index) => (
-                    <button
-                      key={`${item}-${index}`}
-                      type="button"
-                      className="flex w-full items-center px-4 py-3 text-left text-sm text-gray-700 transition hover:bg-gray-50"
-                      onClick={() => {
-                        setSearchTerm(item);
-                      }}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="hidden flex-1 md:block">
+          <SearchBar
+            value={searchValue}
+            onChange={setSearchValue}
+          />
         </div>
 
         {/* ================================
-            RIGHT SIDE
+            DESKTOP ACTIONS
         ================================= */}
+        <div className="hidden items-center gap-2 md:flex">
 
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* Cart */}
-
+          {/* CART */}
           <Link
             href="/cart"
-            className="group flex h-10 items-center justify-center gap-2 rounded-xl px-2.5 text-gray-600 transition hover:bg-pink-50 hover:text-pink-600 sm:px-3"
-            title="Cart"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition hover:bg-pink-50 hover:text-pink-600"
           >
-            <ShoppingCart size={20} strokeWidth={1.8} />
+            <ShoppingCart size={21} />
 
-            <span className="hidden text-sm font-medium lg:block">
-              Cart
-            </span>
+            {cartCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-pink-600 px-1 text-[10px] font-bold text-white">
+                {cartCount}
+              </span>
+            )}
           </Link>
 
-          {/* Account */}
-
+          {/* ================================
+              PROFILE DROPDOWN
+          ================================= */}
           <div
-            className="relative"
             ref={profileRef}
+            className="relative"
           >
             <button
               type="button"
-              onClick={() => setOpenProfile(!openProfile)}
-              className={`flex h-10 items-center gap-2 rounded-xl px-2.5 transition sm:px-3 ${
-                openProfile
-                  ? "bg-pink-50 text-pink-600"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
+              onClick={() =>
+                setOpenProfile((prev) => !prev)
+              }
+              className="flex items-center gap-2 rounded-full px-3 py-2 text-gray-700 transition hover:bg-gray-100"
             >
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition ${
-                  openProfile
-                    ? "bg-pink-600 text-white"
-                    : "bg-pink-100 text-pink-600"
-                }`}
-              >
-                <User size={17} />
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-pink-100 text-pink-600">
+                <User size={19} />
               </div>
 
-              <span className="hidden max-w-30 truncate text-sm font-medium lg:block">
-                Account
+              <span className="hidden text-sm font-semibold lg:block">
+                My Account
               </span>
 
               <ChevronDown
-                size={15}
-                className={`hidden transition-transform duration-200 lg:block ${
-                  openProfile ? "rotate-180" : ""
+                size={16}
+                className={`transition-transform ${
+                  openProfile
+                    ? "rotate-180"
+                    : ""
                 }`}
               />
             </button>
@@ -222,232 +236,428 @@ export default function Navbar({
             {/* ================================
                 ACCOUNT DROPDOWN
             ================================= */}
-
             {openProfile && (
-              <div className="absolute right-0 top-full mt-3 w-72 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-2xl">
-                {/* Account Header */}
+              <div className="absolute right-0 mt-3 w-80 overflow-hidden rounded-2xl border bg-white p-2 shadow-xl">
 
-                <div className="bg-gradient-to-r from-pink-50 to-white px-5 py-5">
+                {/* ACCOUNT HEADER */}
+                <div className="mb-2 rounded-xl bg-gray-50 px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-pink-600 text-white shadow-sm">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-pink-100 text-pink-600">
                       <User size={21} />
                     </div>
 
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-gray-400">
-                        Welcome back
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">
+                        My Account
                       </p>
 
-                      <p className="mt-0.5 truncate text-sm font-semibold text-gray-900">
-                        {email}
+                      <p className="text-xs text-gray-500">
+                        {email || "Manage your account"}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Menu Items */}
+                {/* MY PROFILE */}
+                <Link
+                  href="/profile"
+                  onClick={() =>
+                    setOpenProfile(false)
+                  }
+                  className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-pink-100 group-hover:text-pink-600">
+                    <User size={17} />
+                  </div>
 
-                <div className="p-2">
-                  {/* Profile */}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      My Profile
+                    </p>
 
-                  <Link
-                    href="/users"
-                    onClick={() => setOpenProfile(false)}
-                    className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-pink-100 group-hover:text-pink-600">
-                      <User size={17} />
-                    </div>
+                    <p className="text-xs text-gray-400">
+                      View and edit your profile
+                    </p>
+                  </div>
+                </Link>
 
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">
-                        My Profile
-                      </p>
+                {/* MY ORDERS */}
+                <Link
+                  href="/orders"
+                  onClick={() =>
+                    setOpenProfile(false)
+                  }
+                  className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-blue-100 group-hover:text-blue-600">
+                    <Package size={17} />
+                  </div>
 
-                      <p className="text-xs text-gray-400">
-                        View your profile
-                      </p>
-                    </div>
-                  </Link>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      My Orders
+                    </p>
 
-                  {/* Wishlist */}
+                    <p className="text-xs text-gray-400">
+                      Track your orders
+                    </p>
+                  </div>
+                </Link>
 
-                  <Link
-                    href="#"
-                    onClick={() => setOpenProfile(false)}
-                    className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-pink-100 group-hover:text-pink-600">
-                      <Heart size={17} />
-                    </div>
+                {/* WISHLIST */}
+                <Link
+                  href="/wishlist"
+                  onClick={() =>
+                    setOpenProfile(false)
+                  }
+                  className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-pink-100 group-hover:text-pink-600">
+                    <Heart size={17} />
+                  </div>
 
-                    <div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-gray-800">
                         Wishlist
                       </p>
 
-                      <p className="text-xs text-gray-400">
-                        Your saved products
-                      </p>
-                    </div>
-                  </Link>
-
-                  {/* Orders */}
-
-                  <Link
-                    href="/orders"
-                    onClick={() => setOpenProfile(false)}
-                    className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-pink-100 group-hover:text-pink-600">
-                      <Package size={17} />
+                      {wishlistCount > 0 && (
+                        <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold text-pink-600">
+                          {wishlistCount}
+                        </span>
+                      )}
                     </div>
 
-                    <div>
+                    <p className="text-xs text-gray-400">
+                      Your saved products
+                    </p>
+                  </div>
+                </Link>
+
+                {/* MY CART */}
+                <Link
+                  href="/cart"
+                  onClick={() =>
+                    setOpenProfile(false)
+                  }
+                  className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-green-100 group-hover:text-green-600">
+                    <ShoppingCart size={17} />
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold text-gray-800">
-                        My Orders
+                        My Cart
                       </p>
 
-                      <p className="text-xs text-gray-400">
-                        Track your orders
-                      </p>
-                    </div>
-                  </Link>
-
-                  {/* Settings */}
-
-                  <Link
-                    href="#"
-                    onClick={() => setOpenProfile(false)}
-                    className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-pink-100 group-hover:text-pink-600">
-                      <Settings size={17} />
+                      {cartCount > 0 && (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-600">
+                          {cartCount}
+                        </span>
+                      )}
                     </div>
 
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">
-                        Settings
-                      </p>
+                    <p className="text-xs text-gray-400">
+                      View items in your cart
+                    </p>
+                  </div>
+                </Link>
 
-                      <p className="text-xs text-gray-400">
-                        Account preferences
-                      </p>
-                    </div>
-                  </Link>
-                </div>
+                {/* SAVED ADDRESSES */}
+                <Link
+                  href="/addresses"
+                  onClick={() =>
+                    setOpenProfile(false)
+                  }
+                  className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-orange-100 group-hover:text-orange-600">
+                    <MapPin size={17} />
+                  </div>
 
-                {/* Logout */}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      Saved Addresses
+                    </p>
 
-                <div className="border-t border-gray-100 p-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenProfile(false);
-                      onLogout();
-                    }}
-                    className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-red-50"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-500 transition group-hover:bg-red-100">
-                      <LogOut size={17} />
-                    </div>
+                    <p className="text-xs text-gray-400">
+                      Manage delivery addresses
+                    </p>
+                  </div>
+                </Link>
 
-                    <div>
-                      <p className="text-sm font-semibold text-red-600">
-                        Logout
-                      </p>
+                {/* SETTINGS */}
+                <Link
+                  href="/settings"
+                  onClick={() =>
+                    setOpenProfile(false)
+                  }
+                  className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-gray-200 group-hover:text-gray-800">
+                    <Settings size={17} />
+                  </div>
 
-                      <p className="text-xs text-red-400">
-                        Sign out of your account
-                      </p>
-                    </div>
-                  </button>
-                </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      Settings
+                    </p>
+
+                    <p className="text-xs text-gray-400">
+                      Manage account settings
+                    </p>
+                  </div>
+                </Link>
+
+                {/* HELP & SUPPORT */}
+                <Link
+                  href="/help"
+                  onClick={() =>
+                    setOpenProfile(false)
+                  }
+                  className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-blue-100 group-hover:text-blue-600">
+                    <HelpCircle size={17} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800">
+                      Help & Support
+                    </p>
+
+                    <p className="text-xs text-gray-400">
+                      Get help with your account
+                    </p>
+                  </div>
+                </Link>
+
+                {/* DIVIDER */}
+                <div className="my-2 border-t" />
+
+                {/* LOGOUT */}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-red-50"
+                >
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-red-100 group-hover:text-red-600">
+                    <LogOut size={17} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800 group-hover:text-red-600">
+                      Logout
+                    </p>
+
+                    <p className="text-xs text-gray-400">
+                      Sign out of your account
+                    </p>
+                  </div>
+                </button>
               </div>
             )}
           </div>
+        </div>
+
+        {/* ================================
+            MOBILE ACTIONS
+        ================================= */}
+        <div className="ml-auto flex items-center gap-2 md:hidden">
+
+          {/* MOBILE CART */}
+          <Link
+            href="/cart"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full text-gray-600 hover:bg-pink-50 hover:text-pink-600"
+          >
+            <ShoppingCart size={21} />
+
+            {cartCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-pink-600 px-1 text-[10px] font-bold text-white">
+                {cartCount}
+              </span>
+            )}
+          </Link>
+
+          {/* MOBILE MENU BUTTON */}
+          <button
+            type="button"
+            onClick={() =>
+              setOpenMobileMenu(
+                (prev) => !prev
+              )
+            }
+            className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 hover:bg-gray-100"
+          >
+            {openMobileMenu ? (
+              <X size={22} />
+            ) : (
+              <Menu size={22} />
+            )}
+          </button>
         </div>
       </div>
 
       {/* ================================
           MOBILE SEARCH
       ================================= */}
-
-      <div className="border-t border-gray-50 px-4 py-3 md:hidden">
-        <div className="relative">
-          <SearchBar
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
-
-          {showSuggestions && (
-            <div className="absolute left-0 right-0 top-full z-[100] mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
-              <div className="border-b border-gray-100 px-4 py-2.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Search Results
-                </p>
-              </div>
-
-              <div className="py-1">
-                {suggestions.map((item, index) => (
-                  <button
-                    key={`${item}-${index}`}
-                    type="button"
-                    className="flex w-full items-center px-4 py-3 text-left text-sm text-gray-700 transition hover:bg-gray-50"
-                    onClick={() => {
-                      setSearchTerm(item);
-                    }}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="border-t px-4 py-3 md:hidden">
+        <SearchBar
+          value={searchValue}
+          onChange={setSearchValue}
+        />
       </div>
 
       {/* ================================
           MOBILE MENU
       ================================= */}
-
       {openMobileMenu && (
-        <div className="border-t border-gray-100 bg-white px-4 py-4 shadow-sm md:hidden">
-          <nav className="flex flex-col gap-1">
+        <div className="border-t bg-white px-4 py-4 md:hidden">
+          <div className="space-y-1">
+
+            {/* PROFILE */}
             <Link
-              href="/"
-              onClick={() => setOpenMobileMenu(false)}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-gray-800 transition hover:bg-pink-50 hover:text-pink-600"
+              href="/profile"
+              onClick={() =>
+                setOpenMobileMenu(false)
+              }
+              className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-gray-50"
             >
-              Home
+              <User size={18} />
+
+              <span className="text-sm font-medium">
+                My Profile
+              </span>
             </Link>
 
+            {/* ORDERS */}
             <Link
-              href="/"
-              onClick={() => setOpenMobileMenu(false)}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-gray-800 transition hover:bg-pink-50 hover:text-pink-600"
+              href="/orders"
+              onClick={() =>
+                setOpenMobileMenu(false)
+              }
+              className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-gray-50"
             >
-              Categories
+              <Package size={18} />
+
+              <span className="text-sm font-medium">
+                My Orders
+              </span>
             </Link>
 
+            {/* WISHLIST */}
             <Link
-              href="/"
-              onClick={() => setOpenMobileMenu(false)}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-gray-800 transition hover:bg-pink-50 hover:text-pink-600"
+              href="/wishlist"
+              onClick={() =>
+                setOpenMobileMenu(false)
+              }
+              className="flex items-center justify-between rounded-xl px-3 py-3 hover:bg-gray-50"
             >
-              Deals
+              <div className="flex items-center gap-3">
+                <Heart size={18} />
+
+                <span className="text-sm font-medium">
+                  Wishlist
+                </span>
+              </div>
+
+              {wishlistCount > 0 && (
+                <span className="rounded-full bg-pink-100 px-2 py-1 text-xs font-bold text-pink-600">
+                  {wishlistCount}
+                </span>
+              )}
             </Link>
 
+            {/* CART */}
             <Link
-              href="/about"
-              onClick={() => setOpenMobileMenu(false)}
-              className="rounded-xl px-4 py-3 text-sm font-medium text-gray-800 transition hover:bg-pink-50 hover:text-pink-600"
+              href="/cart"
+              onClick={() =>
+                setOpenMobileMenu(false)
+              }
+              className="flex items-center justify-between rounded-xl px-3 py-3 hover:bg-gray-50"
             >
-              About
+              <div className="flex items-center gap-3">
+                <ShoppingCart size={18} />
+
+                <span className="text-sm font-medium">
+                  My Cart
+                </span>
+              </div>
+
+              {cartCount > 0 && (
+                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-600">
+                  {cartCount}
+                </span>
+              )}
             </Link>
-          </nav>
+
+            {/* ADDRESSES */}
+            <Link
+              href="/addresses"
+              onClick={() =>
+                setOpenMobileMenu(false)
+              }
+              className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-gray-50"
+            >
+              <MapPin size={18} />
+
+              <span className="text-sm font-medium">
+                Saved Addresses
+              </span>
+            </Link>
+
+            {/* SETTINGS */}
+            <Link
+              href="/settings"
+              onClick={() =>
+                setOpenMobileMenu(false)
+              }
+              className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-gray-50"
+            >
+              <Settings size={18} />
+
+              <span className="text-sm font-medium">
+                Settings
+              </span>
+            </Link>
+
+            {/* HELP */}
+            <Link
+              href="/help"
+              onClick={() =>
+                setOpenMobileMenu(false)
+              }
+              className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-gray-50"
+            >
+              <HelpCircle size={18} />
+
+              <span className="text-sm font-medium">
+                Help & Support
+              </span>
+            </Link>
+
+            {/* DIVIDER */}
+            <div className="my-2 border-t" />
+
+            {/* LOGOUT */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-red-600 hover:bg-red-50"
+            >
+              <LogOut size={18} />
+
+              <span className="text-sm font-medium">
+                Logout
+              </span>
+            </button>
+          </div>
         </div>
       )}
     </header>
   );
 }
+

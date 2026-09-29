@@ -3,8 +3,15 @@
 import { ProductCard } from "@/types/types";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
-import { Heart } from "lucide-react";
-import { useState } from "react";
+import { addToCart } from "@/lib/cart";
+import {
+  Heart,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  getWishlist,
+  toggleWishlist,
+} from "@/lib/wishlist";
 
 export default function ProductSection({
   title,
@@ -15,8 +22,34 @@ export default function ProductSection({
 }) {
   const router = useRouter();
 
-  // Wishlist UI state only for now
   const [wishlist, setWishlist] = useState<string[]>([]);
+
+  /*
+   * Load wishlist from localStorage
+   */
+  useEffect(() => {
+    const loadWishlist = () => {
+      const savedWishlist = getWishlist();
+
+      setWishlist(
+        savedWishlist.map((product) => product.id)
+      );
+    };
+
+    loadWishlist();
+
+    window.addEventListener(
+      "wishlistUpdated",
+      loadWishlist
+    );
+
+    return () => {
+      window.removeEventListener(
+        "wishlistUpdated",
+        loadWishlist
+      );
+    };
+  }, []);
 
   const trackClick = async (id: string) => {
     try {
@@ -28,16 +61,65 @@ export default function ProductSection({
     }
   };
 
-  const handleWishlist = (productId: string) => {
-    setWishlist((prev) => {
-      if (prev.includes(productId)) {
-        return prev.filter((id) => id !== productId);
-      }
+  /*
+   * Wishlist
+   */
+  const handleWishlist = (product: ProductCard) => {
+    const updatedWishlist = toggleWishlist(product);
 
-      return [...prev, productId];
-    });
+    setWishlist(
+      updatedWishlist.map((item) => item.id)
+    );
   };
 
+  /*
+   * Add to Cart
+   */
+  const handleAddToCart = async (p: ProductCard) => {
+    try {
+      const user = JSON.parse(
+        localStorage.getItem("user") || "{}"
+      );
+
+      const userId = user._id || user.id;
+
+      if (!userId) {
+        alert("Please login first");
+        router.push("/login");
+        return;
+      }
+
+      const price = Number(
+        p.price.replace(/[^0-9.]/g, "")
+      );
+
+      await api.post("/cart/add", {
+        userId: userId,
+        productId: p.id,
+        name: p.name,
+        price,
+        image: p.image,
+        quantity: 1,
+      });
+
+      addToCart({
+        ...p,
+        id: p.id,
+        quantity: 1,
+      });
+
+      await trackClick(p.id);
+
+      alert("Product added to cart");
+    } catch (err) {
+      console.log("Add to cart error:", err);
+      alert("Failed to add to cart");
+    }
+  };
+
+  /*
+   * Buy Now
+   */
   const handleBuyNow = async (p: ProductCard) => {
     try {
       const user = JSON.parse(
@@ -77,6 +159,7 @@ export default function ProductSection({
   return (
     <section className="bg-gray-50 px-4 py-8 md:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
+
         {/* Section Header */}
         <div className="mb-5 flex items-center justify-between">
           <div>
@@ -90,6 +173,7 @@ export default function ProductSection({
 
         {/* Products */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
+
           {products.map((p) => {
             const isWishlisted = wishlist.includes(p.id);
 
@@ -98,8 +182,10 @@ export default function ProductSection({
                 key={p.id}
                 className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
               >
+
                 {/* Product Image */}
                 <div className="relative">
+
                   <button
                     type="button"
                     onClick={async () => {
@@ -109,16 +195,17 @@ export default function ProductSection({
                     className="block w-full"
                   >
                     <div className="relative h-44 overflow-hidden bg-gray-50 sm:h-48 md:h-52">
+
                       <img
                         src={p.image}
                         alt={p.name}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
 
-                      {/* View badge */}
                       <div className="absolute right-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-gray-700 shadow-sm backdrop-blur">
                         View
                       </div>
+
                     </div>
                   </button>
 
@@ -132,7 +219,7 @@ export default function ProductSection({
                     }
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleWishlist(p.id);
+                      handleWishlist(p);
                     }}
                     className={`absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full shadow-md backdrop-blur transition-all duration-200 ${
                       isWishlisted
@@ -143,13 +230,19 @@ export default function ProductSection({
                     <Heart
                       size={18}
                       strokeWidth={2}
-                      fill={isWishlisted ? "currentColor" : "none"}
+                      fill={
+                        isWishlisted
+                          ? "currentColor"
+                          : "none"
+                      }
                     />
                   </button>
+
                 </div>
 
                 {/* Product Details */}
                 <div className="p-3.5 md:p-4">
+
                   <h3 className="min-h-10 line-clamp-2 text-sm font-semibold leading-5 text-gray-800 transition-colors group-hover:text-black">
                     {p.name}
                   </h3>
@@ -160,8 +253,9 @@ export default function ProductSection({
                     </p>
                   </div>
 
-                  {/* Actions */}
+                  {/* Buttons */}
                   <div className="mt-4 flex gap-2">
+
                     <button
                       type="button"
                       onClick={async () => {
@@ -175,16 +269,19 @@ export default function ProductSection({
 
                     <button
                       type="button"
-                      onClick={() => handleBuyNow(p)}
+                      onClick={() => handleAddToCart(p)}
                       className="flex-1 rounded-xl bg-black py-2.5 text-xs font-semibold text-white transition hover:bg-gray-800 active:scale-[0.98] sm:text-sm"
                     >
                       Add to Cart
                     </button>
+
                   </div>
                 </div>
+
               </div>
             );
           })}
+
         </div>
       </div>
     </section>

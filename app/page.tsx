@@ -220,32 +220,6 @@ export default function Home() {
 
 
       {/* =================================================
-          SEARCH SUGGESTIONS
-      ================================================= */}
-
-      {search && suggestions.length > 0 && (
-        <ul className="absolute left-6 top-20 z-50 w-72 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">
-
-          <li className="border-b px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Search Results
-          </li>
-
-          {suggestions.map((item, index) => (
-            <li
-              key={index}
-              className="cursor-pointer px-4 py-3 text-sm text-gray-700 transition hover:bg-gray-50"
-              onClick={() => {
-                setSearch(item);
-                setSuggestions([]);
-              }}
-            >
-              {item}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {/* =================================================
           DASHBOARD
       ================================================= */}
 
