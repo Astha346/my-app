@@ -38,6 +38,7 @@ export default function AuthForm({
   });
 
   const handleLogin = async (data: AuthFormData) => {
+    console.log("🔥 AUTHFORM LOGIN HANDLER CALLED", data);
     try {
       // ==========================================
       // LOGIN API
@@ -192,11 +193,14 @@ localStorage.setItem(
             </p>
           </div>
 
-          {/* Form */}
           <form
-            onSubmit={handleSubmit(handleLogin)}
-            className="space-y-5"
+         onSubmit={(e) => {
+         e.preventDefault();
+        handleSubmit(handleLogin)(e);
+         }}
+        className="space-y-5"
           >
+
             {/* Email */}
             <div>
               <Label>Email</Label>
@@ -243,8 +247,9 @@ localStorage.setItem(
 
             {/* Submit */}
             <Button
-              type="submit"
+              type="button"
               disabled={isSubmitting}
+              onClick={handleSubmit(handleLogin)}
               className="w-full rounded-xl bg-blue-600 py-2.5 hover:bg-blue-700"
             >
               {isSubmitting

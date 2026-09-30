@@ -260,7 +260,7 @@ export default function Navbar({
 
                 {/* MY PROFILE */}
                 <Link
-                  href="/profile"
+                  href="/account"
                   onClick={() =>
                     setOpenProfile(false)
                   }
@@ -520,7 +520,7 @@ export default function Navbar({
 
             {/* PROFILE */}
             <Link
-              href="/profile"
+              href="/account"
               onClick={() =>
                 setOpenMobileMenu(false)
               }
