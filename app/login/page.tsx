@@ -301,14 +301,13 @@ export default function LoginPage() {
             {/* Login Button */}
 
             <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl"
-            >
-              {isSubmitting
-                ? "Signing In..."
-                : "Sign In"}
-            </Button>
+            type="button"
+           disabled={isSubmitting}
+           onClick={handleSubmit(handleLogin)}
+           className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl"
+           >
+           {isSubmitting ? "Signing In..." : "Sign In"}
+          </Button>
 
             {/* Register */}
 
