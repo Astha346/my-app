@@ -1,4 +1,3 @@
-
 "use client";
 
 import SearchBar from "./SearchBar";
@@ -40,6 +39,10 @@ export default function Navbar({
 
   const [cartCount, setCartCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
+
+  // Logout confirmation
+  const [showLogoutConfirm, setShowLogoutConfirm] =
+    useState(false);
 
   const searchValue = searchTerm ?? "";
   const setSearchValue =
@@ -145,6 +148,7 @@ export default function Navbar({
       window.location.href = "/";
     }
 
+    setShowLogoutConfirm(false);
     setOpenProfile(false);
     setOpenMobileMenu(false);
   };
@@ -389,29 +393,6 @@ export default function Navbar({
                   </div>
                 </Link>
 
-                {/* SETTINGS */}
-                <Link
-                  href="/settings"
-                  onClick={() =>
-                    setOpenProfile(false)
-                  }
-                  className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
-                >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-gray-200 group-hover:text-gray-800">
-                    <Settings size={17} />
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">
-                      Settings
-                    </p>
-
-                    <p className="text-xs text-gray-400">
-                      Manage account settings
-                    </p>
-                  </div>
-                </Link>
-
                 {/* HELP & SUPPORT */}
                 <Link
                   href="/help"
@@ -441,7 +422,9 @@ export default function Navbar({
                 {/* LOGOUT */}
                 <button
                   type="button"
-                  onClick={handleLogout}
+                  onClick={() =>
+                    setShowLogoutConfirm(true)
+                  }
                   className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-red-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-red-100 group-hover:text-red-600">
@@ -645,7 +628,9 @@ export default function Navbar({
             {/* LOGOUT */}
             <button
               type="button"
-              onClick={handleLogout}
+              onClick={() =>
+                setShowLogoutConfirm(true)
+              }
               className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-red-600 hover:bg-red-50"
             >
               <LogOut size={18} />
@@ -657,7 +642,62 @@ export default function Navbar({
           </div>
         </div>
       )}
+
+      {/* ================================
+          LOGOUT CONFIRMATION MODAL
+      ================================= */}
+      {showLogoutConfirm && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4"
+          onClick={() =>
+            setShowLogoutConfirm(false)
+          }
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            {/* ICON */}
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
+              <LogOut size={24} />
+            </div>
+
+            {/* TEXT */}
+            <div className="mt-5 text-center">
+              <h2 className="text-lg font-bold text-gray-900">
+                Sign out?
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                Are you sure you want to sign out of your account?
+              </p>
+            </div>
+
+            {/* BUTTONS */}
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setShowLogoutConfirm(false)
+                }
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
-
