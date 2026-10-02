@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -7,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import Link from "next/link";
 import { ShoppingBag, Eye, EyeOff } from "lucide-react";
+import { toast } from "sonner";
 
 import api from "@/lib/api";
 
@@ -145,7 +147,7 @@ export default function LoginPage() {
       // LOGIN SUCCESS
       // ================================
 
-      alert("Login successful!");
+      toast.success("Login successful!");
 
       // ================================
       // ROLE BASED REDIRECT
@@ -174,7 +176,7 @@ export default function LoginPage() {
         error
       );
 
-      alert(
+      toast.error(
         error.response?.data?.message ||
           error.message ||
           "Invalid email or password"
@@ -301,13 +303,15 @@ export default function LoginPage() {
             {/* Login Button */}
 
             <Button
-            type="button"
-           disabled={isSubmitting}
-           onClick={handleSubmit(handleLogin)}
-           className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl"
-           >
-           {isSubmitting ? "Signing In..." : "Sign In"}
-          </Button>
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleSubmit(handleLogin)}
+              className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl"
+            >
+              {isSubmitting
+                ? "Signing In..."
+                : "Sign In"}
+            </Button>
 
             {/* Register */}
 
@@ -335,3 +339,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

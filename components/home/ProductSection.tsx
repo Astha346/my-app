@@ -1,17 +1,14 @@
+
 "use client";
 
 import { ProductCard } from "@/types/types";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { addToCart } from "@/lib/cart";
-import {
-  Heart,
-} from "lucide-react";
+import { Heart } from "lucide-react";
 import { useEffect, useState } from "react";
-import {
-  getWishlist,
-  toggleWishlist,
-} from "@/lib/wishlist";
+import { getWishlist, toggleWishlist } from "@/lib/wishlist";
+import { toast } from "sonner";
 
 export default function ProductSection({
   title,
@@ -31,23 +28,15 @@ export default function ProductSection({
     const loadWishlist = () => {
       const savedWishlist = getWishlist();
 
-      setWishlist(
-        savedWishlist.map((product) => product.id)
-      );
+      setWishlist(savedWishlist.map((product) => product.id));
     };
 
     loadWishlist();
 
-    window.addEventListener(
-      "wishlistUpdated",
-      loadWishlist
-    );
+    window.addEventListener("wishlistUpdated", loadWishlist);
 
     return () => {
-      window.removeEventListener(
-        "wishlistUpdated",
-        loadWishlist
-      );
+      window.removeEventListener("wishlistUpdated", loadWishlist);
     };
   }, []);
 
@@ -67,9 +56,21 @@ export default function ProductSection({
   const handleWishlist = (product: ProductCard) => {
     const updatedWishlist = toggleWishlist(product);
 
-    setWishlist(
-      updatedWishlist.map((item) => item.id)
+    setWishlist(updatedWishlist.map((item) => item.id));
+
+    const isNowWishlisted = updatedWishlist.some(
+      (item) => item.id === product.id
     );
+
+    if (isNowWishlisted) {
+      toast.success("Added to wishlist", {
+        description: `${product.name} was added to your wishlist.`,
+      });
+    } else {
+      toast.info("Removed from wishlist", {
+        description: `${product.name} was removed from your wishlist.`,
+      });
+    }
   };
 
   /*
@@ -84,7 +85,10 @@ export default function ProductSection({
       const userId = user._id || user.id;
 
       if (!userId) {
-        alert("Please login first");
+        toast.info("Login required", {
+          description: "Please login before adding products to your cart.",
+        });
+
         router.push("/login");
         return;
       }
@@ -110,10 +114,15 @@ export default function ProductSection({
 
       await trackClick(p.id);
 
-      alert("Product added to cart");
+      toast.success("Added to cart", {
+        description: `${p.name} has been added to your cart.`,
+      });
     } catch (err) {
       console.log("Add to cart error:", err);
-      alert("Failed to add to cart");
+
+      toast.error("Unable to add to cart", {
+        description: "Something went wrong. Please try again.",
+      });
     }
   };
 
@@ -129,7 +138,10 @@ export default function ProductSection({
       const userId = user._id || user.id;
 
       if (!userId) {
-        alert("Please login first");
+        toast.info("Login required", {
+          description: "Please login before continuing.",
+        });
+
         router.push("/login");
         return;
       }
@@ -149,10 +161,17 @@ export default function ProductSection({
 
       await trackClick(p.id);
 
+      toast.success("Added to cart", {
+        description: "Taking you to your cart...",
+      });
+
       router.push("/cart");
     } catch (err) {
       console.log("Buy error:", err);
-      alert("Failed to add to cart");
+
+      toast.error("Unable to continue", {
+        description: "Something went wrong. Please try again.",
+      });
     }
   };
 
@@ -287,3 +306,4 @@ export default function ProductSection({
     </section>
   );
 }
+
