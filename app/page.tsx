@@ -14,6 +14,7 @@ import ProductSection from "@/components/home/ProductSection";
 import CategoryBar from "@/components/ui/CategoryBar";
 import MiddleBanner from "@/components/MiddleBanner";
 
+
 import {
   User,
   Product,
@@ -251,6 +252,8 @@ export default function Home() {
           {/* MIDDLE BANNER */}
 
           <MiddleBanner />
+
+          
 
           {/* MORE PRODUCTS */}
 

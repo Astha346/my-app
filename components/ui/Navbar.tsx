@@ -1,3 +1,4 @@
+
 "use client";
 
 import SearchBar from "./SearchBar";
@@ -18,6 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getCart } from "@/lib/cart";
 import { getWishlist } from "@/lib/wishlist";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 type NavbarProps = {
   email?: string;
@@ -67,16 +69,10 @@ export default function Navbar({
 
     updateCartCount();
 
-    window.addEventListener(
-      "cartUpdated",
-      updateCartCount
-    );
+    window.addEventListener("cartUpdated", updateCartCount);
 
     return () => {
-      window.removeEventListener(
-        "cartUpdated",
-        updateCartCount
-      );
+      window.removeEventListener("cartUpdated", updateCartCount);
     };
   }, []);
 
@@ -92,10 +88,7 @@ export default function Navbar({
 
     updateWishlistCount();
 
-    window.addEventListener(
-      "wishlistUpdated",
-      updateWishlistCount
-    );
+    window.addEventListener("wishlistUpdated", updateWishlistCount);
 
     return () => {
       window.removeEventListener(
@@ -113,24 +106,16 @@ export default function Navbar({
     const handleClickOutside = (event: MouseEvent) => {
       if (
         profileRef.current &&
-        !profileRef.current.contains(
-          event.target as Node
-        )
+        !profileRef.current.contains(event.target as Node)
       ) {
         setOpenProfile(false);
       }
     };
 
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -159,7 +144,6 @@ export default function Navbar({
           MAIN NAVBAR
       ================================= */}
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
-
         {/* ================================
             LOGO
         ================================= */}
@@ -190,7 +174,6 @@ export default function Navbar({
             DESKTOP ACTIONS
         ================================= */}
         <div className="hidden items-center gap-2 md:flex">
-
           {/* CART */}
           <Link
             href="/cart"
@@ -204,6 +187,11 @@ export default function Navbar({
               </span>
             )}
           </Link>
+
+          {/* ================================
+              LIGHT / DARK MODE
+          ================================= */}
+          <ThemeToggle />
 
           {/* ================================
               PROFILE DROPDOWN
@@ -230,9 +218,7 @@ export default function Navbar({
               <ChevronDown
                 size={16}
                 className={`transition-transform ${
-                  openProfile
-                    ? "rotate-180"
-                    : ""
+                  openProfile ? "rotate-180" : ""
                 }`}
               />
             </button>
@@ -242,7 +228,6 @@ export default function Navbar({
             ================================= */}
             {openProfile && (
               <div className="absolute right-0 mt-3 w-80 overflow-hidden rounded-2xl border bg-white p-2 shadow-xl">
-
                 {/* ACCOUNT HEADER */}
                 <div className="mb-2 rounded-xl bg-gray-50 px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -265,9 +250,7 @@ export default function Navbar({
                 {/* MY PROFILE */}
                 <Link
                   href="/account"
-                  onClick={() =>
-                    setOpenProfile(false)
-                  }
+                  onClick={() => setOpenProfile(false)}
                   className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-pink-100 group-hover:text-pink-600">
@@ -288,9 +271,7 @@ export default function Navbar({
                 {/* MY ORDERS */}
                 <Link
                   href="/orders"
-                  onClick={() =>
-                    setOpenProfile(false)
-                  }
+                  onClick={() => setOpenProfile(false)}
                   className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-blue-100 group-hover:text-blue-600">
@@ -311,9 +292,7 @@ export default function Navbar({
                 {/* WISHLIST */}
                 <Link
                   href="/wishlist"
-                  onClick={() =>
-                    setOpenProfile(false)
-                  }
+                  onClick={() => setOpenProfile(false)}
                   className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-pink-100 group-hover:text-pink-600">
@@ -342,9 +321,7 @@ export default function Navbar({
                 {/* MY CART */}
                 <Link
                   href="/cart"
-                  onClick={() =>
-                    setOpenProfile(false)
-                  }
+                  onClick={() => setOpenProfile(false)}
                   className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-green-100 group-hover:text-green-600">
@@ -373,9 +350,7 @@ export default function Navbar({
                 {/* SAVED ADDRESSES */}
                 <Link
                   href="/addresses"
-                  onClick={() =>
-                    setOpenProfile(false)
-                  }
+                  onClick={() => setOpenProfile(false)}
                   className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-orange-100 group-hover:text-orange-600">
@@ -396,9 +371,7 @@ export default function Navbar({
                 {/* HELP & SUPPORT */}
                 <Link
                   href="/help"
-                  onClick={() =>
-                    setOpenProfile(false)
-                  }
+                  onClick={() => setOpenProfile(false)}
                   className="group flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-blue-100 group-hover:text-blue-600">
@@ -422,9 +395,7 @@ export default function Navbar({
                 {/* LOGOUT */}
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowLogoutConfirm(true)
-                  }
+                  onClick={() => setShowLogoutConfirm(true)}
                   className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-red-50"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition group-hover:bg-red-100 group-hover:text-red-600">
@@ -450,7 +421,6 @@ export default function Navbar({
             MOBILE ACTIONS
         ================================= */}
         <div className="ml-auto flex items-center gap-2 md:hidden">
-
           {/* MOBILE CART */}
           <Link
             href="/cart"
@@ -465,13 +435,14 @@ export default function Navbar({
             )}
           </Link>
 
+          {/* MOBILE THEME TOGGLE */}
+          <ThemeToggle />
+
           {/* MOBILE MENU BUTTON */}
           <button
             type="button"
             onClick={() =>
-              setOpenMobileMenu(
-                (prev) => !prev
-              )
+              setOpenMobileMenu((prev) => !prev)
             }
             className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 hover:bg-gray-100"
           >
@@ -500,13 +471,10 @@ export default function Navbar({
       {openMobileMenu && (
         <div className="border-t bg-white px-4 py-4 md:hidden">
           <div className="space-y-1">
-
             {/* PROFILE */}
             <Link
               href="/account"
-              onClick={() =>
-                setOpenMobileMenu(false)
-              }
+              onClick={() => setOpenMobileMenu(false)}
               className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-gray-50"
             >
               <User size={18} />
@@ -519,9 +487,7 @@ export default function Navbar({
             {/* ORDERS */}
             <Link
               href="/orders"
-              onClick={() =>
-                setOpenMobileMenu(false)
-              }
+              onClick={() => setOpenMobileMenu(false)}
               className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-gray-50"
             >
               <Package size={18} />
@@ -534,9 +500,7 @@ export default function Navbar({
             {/* WISHLIST */}
             <Link
               href="/wishlist"
-              onClick={() =>
-                setOpenMobileMenu(false)
-              }
+              onClick={() => setOpenMobileMenu(false)}
               className="flex items-center justify-between rounded-xl px-3 py-3 hover:bg-gray-50"
             >
               <div className="flex items-center gap-3">
@@ -557,9 +521,7 @@ export default function Navbar({
             {/* CART */}
             <Link
               href="/cart"
-              onClick={() =>
-                setOpenMobileMenu(false)
-              }
+              onClick={() => setOpenMobileMenu(false)}
               className="flex items-center justify-between rounded-xl px-3 py-3 hover:bg-gray-50"
             >
               <div className="flex items-center gap-3">
@@ -580,9 +542,7 @@ export default function Navbar({
             {/* ADDRESSES */}
             <Link
               href="/addresses"
-              onClick={() =>
-                setOpenMobileMenu(false)
-              }
+              onClick={() => setOpenMobileMenu(false)}
               className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-gray-50"
             >
               <MapPin size={18} />
@@ -595,9 +555,7 @@ export default function Navbar({
             {/* SETTINGS */}
             <Link
               href="/settings"
-              onClick={() =>
-                setOpenMobileMenu(false)
-              }
+              onClick={() => setOpenMobileMenu(false)}
               className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-gray-50"
             >
               <Settings size={18} />
@@ -610,9 +568,7 @@ export default function Navbar({
             {/* HELP */}
             <Link
               href="/help"
-              onClick={() =>
-                setOpenMobileMenu(false)
-              }
+              onClick={() => setOpenMobileMenu(false)}
               className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-gray-50"
             >
               <HelpCircle size={18} />
@@ -628,9 +584,7 @@ export default function Navbar({
             {/* LOGOUT */}
             <button
               type="button"
-              onClick={() =>
-                setShowLogoutConfirm(true)
-              }
+              onClick={() => setShowLogoutConfirm(true)}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-red-600 hover:bg-red-50"
             >
               <LogOut size={18} />
@@ -648,16 +602,12 @@ export default function Navbar({
       ================================= */}
       {showLogoutConfirm && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4"
-          onClick={() =>
-            setShowLogoutConfirm(false)
-          }
+          className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setShowLogoutConfirm(false)}
         >
           <div
             className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClick={(event) => event.stopPropagation()}
           >
             {/* ICON */}
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
@@ -679,9 +629,7 @@ export default function Navbar({
             <div className="mt-6 flex gap-3">
               <button
                 type="button"
-                onClick={() =>
-                  setShowLogoutConfirm(false)
-                }
+                onClick={() => setShowLogoutConfirm(false)}
                 className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >
                 Cancel
@@ -701,3 +649,4 @@ export default function Navbar({
     </header>
   );
 }
+

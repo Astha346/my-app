@@ -21,10 +21,11 @@ import PermissionMatrix from "@/components/admin/Permissions/PermissionMatrix";
 
 import CategoriesContent from "@/components/admin/Categories/CategoriesContent";
 import OrdersContent from "@/components/admin/Orders/OrdersContent";
+import Customers from "@/components/admin/Customers";
 
 export default function AdminPage() {
   const [activePage, setActivePage] = useState("Dashboard");
-
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [deleteOrder, setDeleteOrder] = useState<any>(null);
 
@@ -150,11 +151,15 @@ export default function AdminPage() {
       <Sidebar
         activePage={activePage}
         setActivePage={setActivePage}
+        sidebarOpen={sidebarOpen}
       />
 
       {/* MAIN AREA */}
       <div className="flex-1">
-        <Navbar />
+        <Navbar
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+      />
 
         <main className="p-8">
 
@@ -246,19 +251,11 @@ export default function AdminPage() {
              <OrdersContent />
             )}
             
-          {/* ================= CUSTOMERS ================= */}
+         {/* ================= CUSTOMERS ================= */}
 
-          {activePage === "Customers" && (
-            <div className="rounded-xl border bg-white p-8">
-              <h1 className="text-2xl font-bold">
-                Customers
-              </h1>
-
-              <p className="mt-2 text-gray-500">
-                Customer management will appear here.
-              </p>
-            </div>
-          )}
+             {activePage === "Customers" && (
+               <Customers />
+              )}
 
           {/* ================= ANALYTICS ================= */}
 

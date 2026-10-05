@@ -9,7 +9,6 @@ import {
   ShoppingCart,
   Users,
   ShieldCheck,
-  BarChart3,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -40,18 +39,10 @@ const menuItems = [
     icon: Users,
     roles: ["admin", "manager", "staff"],
   },
-
   {
-     title: "Permissions",
-     icon: ShieldCheck,
-     roles: ["admin"],
-},
-  
-
-  {
-    title: "Analytics",
-    icon: BarChart3,
-    roles: ["admin", "manager"],
+    title: "Permissions",
+    icon: ShieldCheck,
+    roles: ["admin"],
   },
   {
     title: "Settings",
@@ -63,11 +54,13 @@ const menuItems = [
 interface SidebarProps {
   activePage: string;
   setActivePage: (page: string) => void;
+  sidebarOpen: boolean;
 }
 
 export default function Sidebar({
   activePage,
   setActivePage,
+  sidebarOpen,
 }: SidebarProps) {
   const [role, setRole] = useState("");
 
@@ -80,16 +73,22 @@ export default function Sidebar({
   }, []);
 
   return (
-    <aside className="flex min-h-screen w-64 flex-col bg-gray-800 text-white">
-
+    <aside
+      className={`flex min-h-screen flex-col bg-gray-800 text-white transition-all duration-300 ${
+        sidebarOpen
+          ? "w-64"
+          : "w-0 overflow-hidden"
+      }`}
+    >
+      {/* Logo */}
       <div className="border-b border-blue-800 p-6">
-        <h1 className="text-2xl font-bold">
+        <h1 className="whitespace-nowrap text-2xl font-bold">
           ShopAdmin
         </h1>
       </div>
 
+      {/* Menu */}
       <div className="flex-1 px-3 py-5">
-
         {menuItems
           .filter((item) =>
             item.roles.includes(role)
@@ -101,29 +100,36 @@ export default function Sidebar({
               <button
                 key={item.title}
                 type="button"
-                onClick={() => setActivePage(item.title)}
-                className={`mb-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition
-                  ${
-                    activePage === item.title
-                      ? "bg-blue-800"
-                      : "hover:bg-blue-800"
-                  }`}
+                onClick={() =>
+                  setActivePage(item.title)
+                }
+                className={`mb-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left transition ${
+                  activePage === item.title
+                    ? "bg-blue-800"
+                    : "hover:bg-blue-800"
+                }`}
               >
                 <Icon size={20} />
-                <span>{item.title}</span>
+                <span className="whitespace-nowrap">
+                  {item.title}
+                </span>
               </button>
             );
           })}
-
       </div>
 
+      {/* Logout */}
       <div className="border-t border-blue-800 p-4">
-        <button className="flex w-full items-center gap-3 rounded-lg px-4 py-3 hover:bg-blue-800">
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 hover:bg-blue-800"
+        >
           <LogOut size={20} />
-          Logout
+          <span className="whitespace-nowrap">
+            Logout
+          </span>
         </button>
       </div>
-
     </aside>
   );
 }
