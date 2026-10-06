@@ -13,7 +13,7 @@ export default function StatsCards({ stats }: any) {
 
       <StatsCard
         title="Revenue"
-        value={`Rs ${stats.revenue}`}
+      value={`Rs ${Math.ceil(stats.revenue)}`}
         icon={
           <DollarSign
             size={40}
