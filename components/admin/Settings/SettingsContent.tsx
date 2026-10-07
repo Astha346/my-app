@@ -72,28 +72,26 @@ export default function SettingsContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
-      {/* Page Header */}
-      <div className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-r from-pink-600 via-fuchsia-600 to-indigo-600 p-6 text-white shadow-lg">
-        {/* Decorative circles */}
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
-        <div className="absolute -bottom-16 right-32 h-32 w-32 rounded-full bg-white/10" />
+    {/* Page Header */}
+   <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+  <div className="flex items-center gap-3">
+    <Settings
+      size={22}
+      className="text-slate-600"
+    />
 
-        <div className="relative">
-          <div className="mb-3 flex items-center gap-2 text-white/80">
-            <Settings size={18} />
-            <span className="text-sm font-medium">Admin Settings</span>
-          </div>
+    <div>
+      <h1 className="text-2xl font-bold text-slate-900">
+        Settings
+      </h1>
 
-          <h1 className="text-2xl font-bold md:text-3xl">
-            Settings & Preferences
-          </h1>
-
-          <p className="mt-2 max-w-2xl text-sm text-white/80">
-            Manage your ShopEase account, security, appearance, notifications,
-            and system preferences.
-          </p>
-        </div>
-      </div>
+      <p className="mt-1 text-sm text-slate-500">
+        Manage your account, security, notifications,
+        appearance, and system preferences.
+      </p>
+    </div>
+  </div>
+  </div>
 
       {/* Settings Layout */}
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">

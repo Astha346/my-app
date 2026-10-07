@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -9,7 +8,7 @@ import api from "@/lib/api";
 import OrderFilters from "@/components/admin/Orders/OrderFilters";
 import OrderTable from "@/components/admin/Orders/OrderTable";
 import Pagination from "@/components/admin/Orders/Pagination";
-
+import OrderDetailsDialog from "@/components/admin/Orders/OrderDetailsDialog";
 import type { Order } from "@/types/order";
 
 interface OrdersContentProps {
@@ -21,6 +20,9 @@ export default function OrdersContent({
 }: OrdersContentProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [viewOrderOpen, setViewOrderOpen] = useState(false);
 
   // =========================
   // FILTERS
@@ -201,19 +203,302 @@ export default function OrdersContent({
   // =========================
 
   const handleView = (order: Order) => {
-    onViewOrder?.(order);
-  };
+  setSelectedOrder(order);
+  setViewOrderOpen(true);
 
+  onViewOrder?.(order);
+};
   const handlePrintInvoice = (order: Order) => {
-    console.log("Print invoice:", order);
+  const invoiceWindow = window.open(
+    "",
+    "_blank",
+    "width=900,height=700",
+  );
+
+  if (!invoiceWindow) {
+    alert("Please allow pop-ups to print the invoice.");
+    return;
+  }
+
+  const invoiceOrder = order as Order & {
+    deliveryAddress?: string;
+    createdAt?: string;
+    total?: number;
   };
 
-  const handleChangeStatus = (order: Order) => {
-    console.log("Change status:", order);
+  invoiceWindow.document.write(`
+    <html>
+      <head>
+        <title>ShopEase Invoice</title>
+
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            color: #222;
+          }
+
+          .invoice {
+            max-width: 800px;
+            margin: auto;
+          }
+
+          .header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 2px solid #222;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+          }
+
+          h1 {
+            margin: 0;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+          }
+
+          th,
+          td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+          }
+
+          th {
+            background: #f5f5f5;
+          }
+
+          .total {
+            text-align: right;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 20px;
+          }
+
+          .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #777;
+          }
+        </style>
+      </head>
+
+      <body>
+        <div class="invoice">
+
+          <div class="header">
+            <div>
+              <h1>ShopEase</h1>
+              <p>Order Invoice</p>
+            </div>
+
+            <div>
+              <strong>Order ID:</strong> ${invoiceOrder._id}
+              <br />
+
+              <strong>Date:</strong>
+              ${
+                invoiceOrder.createdAt
+                  ? new Date(
+                      invoiceOrder.createdAt,
+                    ).toLocaleDateString()
+                  : "-"
+              }
+            </div>
+          </div>
+
+          <p>
+            <strong>Delivery Address:</strong>
+            ${invoiceOrder.deliveryAddress || "-"}
+          </p>
+
+          <p>
+            <strong>Payment Method:</strong>
+            ${invoiceOrder.paymentMethod || "-"}
+            <br />
+
+            <strong>Payment Status:</strong>
+            ${invoiceOrder.paymentStatus || "-"}
+            <br />
+
+            <strong>Order Status:</strong>
+            ${invoiceOrder.status || "-"}
+          </p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${
+                order.items?.length
+                  ? order.items
+                      .map(
+                        (item) => `
+                          <tr>
+                            <td>
+                              ${item.name || item.productId || "-"}
+                            </td>
+
+                            <td>
+                              ${item.quantity || 0}
+                            </td>
+
+                            <td>
+                              Rs. ${item.price || 0}
+                            </td>
+
+                            <td>
+                              Rs. ${
+                                (item.price || 0) *
+                                (item.quantity || 0)
+                              }
+                            </td>
+                          </tr>
+                        `,
+                      )
+                      .join("")
+                  : `
+                    <tr>
+                      <td colspan="4">
+                        No product information available
+                      </td>
+                    </tr>
+                  `
+              }
+            </tbody>
+          </table>
+
+          <div class="total">
+            Total: Rs. ${invoiceOrder.total || 0}
+          </div>
+
+          <div class="footer">
+            Thank you for shopping with ShopEase.
+          </div>
+
+        </div>
+
+        <script>
+          window.onload = function () {
+            window.print();
+          };
+        </script>
+      </body>
+    </html>
+  `);
+
+  invoiceWindow.document.close();
+};
+
+  // =========================
+  // CHANGE ORDER STATUS
+  // =========================
+  const handleChangeStatus = async (order: Order) => {
+    const newStatus = window.prompt(
+      "Enter status: pending, confirmed, processing, shipped, delivered, cancelled",
+      order.status,
+    );
+
+    if (!newStatus) {
+      return;
+    }
+
+    const allowedStatuses = [
+      "pending",
+      "confirmed",
+      "processing",
+      "shipped",
+      "delivered",
+      "cancelled",
+    ];
+
+    const normalizedStatus = newStatus
+      .trim()
+      .toLowerCase();
+
+    if (!allowedStatuses.includes(normalizedStatus)) {
+      alert("Invalid order status.");
+      return;
+    }
+
+    try {
+      const response = await api.patch(
+        `/orders/${order._id}/status`,
+        {
+          status: normalizedStatus,
+        },
+      );
+
+      const updatedOrder = response.data;
+
+      setOrders((previousOrders) =>
+        previousOrders.map((item) =>
+          item._id === order._id
+            ? {
+                ...item,
+                status:
+                  updatedOrder.status ||
+                  normalizedStatus,
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      console.error(
+        "Failed to update order status:",
+        error,
+      );
+
+      alert("Failed to update order status.");
+    }
   };
 
+  // =========================
+  // CANCEL ORDER
+  // =========================
   const handleCancelOrder = async (order: Order) => {
-    console.log("Cancel order:", order);
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel this order?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await api.patch(
+        `/orders/${order._id}/cancel`,
+      );
+
+      setOrders((previousOrders) =>
+        previousOrders.map((item) =>
+          item._id === order._id
+            ? {
+                ...item,
+                status: "cancelled",
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      console.error(
+        "Failed to cancel order:",
+        error,
+      );
+
+      alert("Failed to cancel order.");
+    }
   };
 
   const handleReturnRefund = (order: Order) => {
@@ -232,9 +517,12 @@ export default function OrdersContent({
     value: "cod" | "esewa" | "khalti",
   ) => {
     try {
-      await api.patch(`/orders/${order._id}`, {
-        paymentMethod: value,
-      });
+      await api.patch(
+        `/orders/${order._id}/payment`,
+        {
+          paymentMethod: value,
+        },
+      );
 
       setOrders((previousOrders) =>
         previousOrders.map((item) =>
@@ -264,9 +552,12 @@ export default function OrdersContent({
     value: "paid" | "pending" | "failed",
   ) => {
     try {
-      await api.patch(`/orders/${order._id}`, {
-        paymentStatus: value,
-      });
+      await api.patch(
+        `/orders/${order._id}/payment`,
+        {
+          paymentStatus: value,
+        },
+      );
 
       setOrders((previousOrders) =>
         previousOrders.map((item) =>
@@ -358,13 +649,19 @@ export default function OrdersContent({
           Showing orders from{" "}
           <strong>
             {appliedDateFrom
-              ? format(appliedDateFrom, "dd/MM/yyyy")
+              ? format(
+                  appliedDateFrom,
+                  "dd/MM/yyyy",
+                )
               : "beginning"}
           </strong>{" "}
           to{" "}
           <strong>
             {appliedDateTo
-              ? format(appliedDateTo, "dd/MM/yyyy")
+              ? format(
+                  appliedDateTo,
+                  "dd/MM/yyyy",
+                )
               : "today"}
           </strong>
         </div>
@@ -386,12 +683,16 @@ export default function OrdersContent({
             currentPage={currentPage}
             onView={handleView}
             selectedOrders={selectedOrders}
-            onSelectionChange={handleSelectionChange}
+            onSelectionChange={
+              handleSelectionChange
+            }
             onPrintInvoice={handlePrintInvoice}
             onChangeStatus={handleChangeStatus}
             onCancelOrder={handleCancelOrder}
             onReturnRefund={handleReturnRefund}
-            onReviewReturnRefund={handleReviewReturnRefund}
+            onReviewReturnRefund={
+              handleReviewReturnRefund
+            }
             onPaymentMethodChange={
               handlePaymentMethodChange
             }
@@ -428,7 +729,47 @@ export default function OrdersContent({
           </p>
         </div>
       )}
+      <OrderDetailsDialog
+  order={selectedOrder}
+  open={viewOrderOpen}
+  onClose={() => {
+    setViewOrderOpen(false);
+    setSelectedOrder(null);
+  }}
+  onStatusUpdate={async (orderId, newStatus) => {
+    try {
+      await api.patch(`/orders/${orderId}/status`, {
+        status: newStatus,
+      });
+
+      setOrders((previousOrders) =>
+        previousOrders.map((item) =>
+          item._id === orderId
+            ? {
+                ...item,
+                status: newStatus,
+              }
+            : item,
+        ),
+      );
+
+      setSelectedOrder((previousOrder) =>
+        previousOrder && previousOrder._id === orderId
+          ? {
+              ...previousOrder,
+              status: newStatus,
+            }
+          : previousOrder,
+      );
+    } catch (error) {
+      console.error("Failed to update order status:", error);
+      alert("Failed to update order status.");
+      throw error;
+    }
+  }}
+  onPrintInvoice={handlePrintInvoice}
+  onReturnRefund={handleReturnRefund}
+   />
     </div>
   );
 }
-
