@@ -22,6 +22,7 @@ import PermissionMatrix from "@/components/admin/Permissions/PermissionMatrix";
 import CategoriesContent from "@/components/admin/Categories/CategoriesContent";
 import OrdersContent from "@/components/admin/Orders/OrdersContent";
 import Customers from "@/components/admin/Customers";
+import SettingsContent from "@/components/admin/Settings/SettingsContent";
 
 export default function AdminPage() {
   const [activePage, setActivePage] = useState("Dashboard");
@@ -257,33 +258,11 @@ export default function AdminPage() {
                <Customers />
               )}
 
-          {/* ================= ANALYTICS ================= */}
+         {/* =======settings ======== */} 
 
-          {activePage === "Analytics" && (
-            <div className="rounded-xl border bg-white p-8">
-              <h1 className="text-2xl font-bold">
-                Analytics
-              </h1>
-
-              <p className="mt-2 text-gray-500">
-                Analytics will appear here.
-              </p>
-            </div>
-          )}
-
-          {/* ================= SETTINGS ================= */}
-
-          {activePage === "Settings" && (
-            <div className="rounded-xl border bg-white p-8">
-              <h1 className="text-2xl font-bold">
-                Settings
-              </h1>
-
-              <p className="mt-2 text-gray-500">
-                Settings will appear here.
-              </p>
-            </div>
-          )}
+         {activePage === "Settings" && (
+         <SettingsContent />
+         )}
 
         </main>
       </div>

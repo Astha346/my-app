@@ -1,4 +1,12 @@
+"use client";
+
 import axios from "axios";
+import {
+  Eye,
+  Pencil,
+  Trash2,
+  ArrowUpRight,
+} from "lucide-react";
 
 interface RecentOrdersProps {
   orders: any[];
@@ -12,176 +20,204 @@ export default function RecentOrders({
   setSelectedOrder,
   setDeleteOrder,
 }: RecentOrdersProps) {
-
   return (
-    <div className="lg:col-span-2 bg-white rounded-3xl p-6 shadow">
+    <div className="lg:col-span-2 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
 
-      <div className="flex justify-between mb-6">
-        <h2 className="font-bold text-xl">
-          Recent Orders
-        </h2>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
 
-        <button className="text-indigo-600">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">
+            Recent Orders
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Latest orders from your customers
+          </p>
+        </div>
+
+        <button className="group flex items-center gap-1 rounded-xl bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-100">
           View All
+          <ArrowUpRight
+            size={16}
+            className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+          />
         </button>
+
       </div>
 
+      {/* Table */}
+      <div className="overflow-x-auto">
 
-      <table className="w-full">
+        <table className="w-full min-w-[750px]">
 
-        <thead>
-          <tr className="text-gray-500 border-b">
+          <thead>
+            <tr className="border-b border-slate-100 bg-slate-50/70">
 
-            <th className="pb-4 text-left">
-              Order
-            </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Order
+              </th>
 
-            <th className="pb-4 text-left">
-              Customer
-            </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Customer
+              </th>
 
-            <th className="pb-4 text-left">
-              Amount
-            </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Amount
+              </th>
 
-            <th className="pb-4 text-left">
-              Status
-            </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Status
+              </th>
 
-            <th className="pb-4 text-left">
-              Actions
-            </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Actions
+              </th>
 
-          </tr>
-        </thead>
+            </tr>
+          </thead>
 
+          <tbody>
 
-        <tbody>
+            {orders.map((order: any) => (
 
-        {orders.map((order:any)=>(
-
-          <tr
-            key={order._id}
-            className="border-b"
-          >
-
-            <td className="py-5">
-              #{order._id.slice(-6)}
-            </td>
-
-
-            <td>
-              {order.customerName}
-            </td>
-
-
-            <td>
-              Rs {order.total.toFixed(2)}
-            </td>
-
-
-            <td>
-
-              <span
-                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm
-                ${
-                  order.status==="Pending"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : order.status==="Processing"
-                  ? "bg-blue-100 text-blue-700"
-                  : order.status==="Completed"
-                  ? "bg-green-100 text-green-700"
-                  : order.status==="Cancelled"
-                  ? "bg-red-100 text-red-700"
-                  : "bg-gray-100 text-gray-700"
-                }`}
+              <tr
+                key={order._id}
+                className="border-b border-slate-100 transition-colors duration-200 hover:bg-slate-50/70"
               >
 
-                <span
-                  className={`w-2.5 h-2.5 rounded-full
-                  ${
-                    order.status==="Pending"
-                    ? "bg-yellow-500"
-                    : order.status==="Processing"
-                    ? "bg-blue-500"
-                    : order.status==="Completed"
-                    ? "bg-green-500"
-                    : order.status==="Cancelled"
-                    ? "bg-red-500"
-                    : "bg-gray-500"
-                  }`}
-                />
+                {/* Order */}
+                <td className="px-6 py-5">
 
-                {order.status}
+                  <span className="font-semibold text-slate-800">
+                    #{order._id.slice(-6)}
+                  </span>
 
-              </span>
+                </td>
 
-            </td>
+                {/* Customer */}
+                <td className="px-6 py-5">
 
+                  <span className="font-medium text-slate-700">
+                    {order.customerName}
+                  </span>
 
-            <td className="space-x-3">
+                </td>
 
+                {/* Amount */}
+                <td className="px-6 py-5">
 
-              <button
-                className="text-blue-600"
-                onClick={() =>
-                  setSelectedOrder(order)
-                }
-              >
-                View
-              </button>
+                  <span className="font-semibold text-slate-900">
+                    Rs {order.total.toFixed(2)}
+                  </span>
 
+                </td>
 
+                {/* Status */}
+                <td className="px-6 py-5">
 
-              <button
-                className="text-green-600"
-                onClick={async()=>{
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold
+                    ${
+                      order.status === "Pending"
+                        ? "bg-yellow-50 text-yellow-700"
+                        : order.status === "Processing"
+                        ? "bg-blue-50 text-blue-700"
+                        : order.status === "Completed"
+                        ? "bg-green-50 text-green-700"
+                        : order.status === "Cancelled"
+                        ? "bg-red-50 text-red-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
 
-                  const status = prompt(
-                    "Enter status:\nPending\nProcessing\nCompleted\nCancelled"
-                  );
+                    <span
+                      className={`h-2 w-2 rounded-full
+                      ${
+                        order.status === "Pending"
+                          ? "bg-yellow-500"
+                          : order.status === "Processing"
+                          ? "bg-blue-500"
+                          : order.status === "Completed"
+                          ? "bg-green-500"
+                          : order.status === "Cancelled"
+                          ? "bg-red-500"
+                          : "bg-slate-400"
+                      }`}
+                    />
 
+                    {order.status}
 
-                  if(!status) return;
+                  </span>
 
+                </td>
 
-                  await axios.patch(
-                    `http://localhost:3001/orders/${order._id}/status`,
-                    {
-                      status
-                    }
-                  );
+                {/* Actions */}
+                <td className="px-6 py-5">
 
+                  <div className="flex items-center gap-2">
 
-                  window.location.reload();
+                    {/* View */}
+                    <button
+                      title="View order"
+                      className="rounded-lg p-2 text-blue-600 transition hover:bg-blue-50"
+                      onClick={() =>
+                        setSelectedOrder(order)
+                      }
+                    >
+                      <Eye size={17} />
+                    </button>
 
-                }}
-              >
-                Edit
-              </button>
+                    {/* Edit */}
+                    <button
+                      title="Edit order"
+                      className="rounded-lg p-2 text-green-600 transition hover:bg-green-50"
+                      onClick={async () => {
 
+                        const status = prompt(
+                          "Enter status:\nPending\nProcessing\nCompleted\nCancelled"
+                        );
 
+                        if (!status) return;
 
-              <button
-                className="text-red-600"
-                onClick={() =>
-                  setDeleteOrder(order)
-                }
-              >
-                Delete
-              </button>
+                        await axios.patch(
+                          `http://localhost:3001/orders/${order._id}/status`,
+                          {
+                            status,
+                          }
+                        );
 
+                        window.location.reload();
 
-            </td>
+                      }}
+                    >
+                      <Pencil size={17} />
+                    </button>
 
+                    {/* Delete */}
+                    <button
+                      title="Delete order"
+                      className="rounded-lg p-2 text-red-600 transition hover:bg-red-50"
+                      onClick={() =>
+                        setDeleteOrder(order)
+                      }
+                    >
+                      <Trash2 size={17} />
+                    </button>
 
-          </tr>
+                  </div>
 
-        ))}
+                </td>
 
-        </tbody>
+              </tr>
 
-      </table>
+            ))}
+
+          </tbody>
+
+        </table>
+
+      </div>
 
     </div>
   );
