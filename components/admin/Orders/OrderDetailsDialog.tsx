@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from "react";
@@ -204,8 +203,8 @@ export default function OrderDetailsDialog({
   /*
    * Format price.
    */
-  const formatPrice = (value: number) => {
-    return `Rs. ${value.toLocaleString("en-IN")}`;
+  const formatPrice = (value?: number | null) => {
+  return `Rs. ${(value ?? 0).toLocaleString("en-IN")}`;
   };
 
   /*
@@ -530,12 +529,18 @@ export default function OrderDetailsDialog({
 
                   <div className="mt-5 rounded-lg bg-slate-50 p-4">
                     <p className="text-sm font-medium leading-6 text-slate-900">
-                      {order.shippingAddress.address}
+                      {order.shippingAddress?.address ||
+                        "Address not available"}
                     </p>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      {order.shippingAddress.city},{" "}
-                      {order.shippingAddress.country}
+                      {[
+                        order.shippingAddress?.city,
+                        order.shippingAddress?.country,
+                      ]
+                        .filter(Boolean)
+                        .join(", ") ||
+                        "Location not available"}
                     </p>
                   </div>
                 </div>
