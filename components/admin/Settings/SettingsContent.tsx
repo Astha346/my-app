@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -10,6 +9,7 @@ import {
   Settings,
   Save,
   Monitor,
+  CheckCircle2,
 } from "lucide-react";
 
 import SecuritySettings from "./SecuritySettings";
@@ -18,87 +18,200 @@ import SystemSettings from "./SystemSettings";
 
 const settingsMenu = [
   {
-    title: "General",
-    icon: Settings,
+    name: "General",
+    description: "Account and basic preferences",
+    icon: User,
+    color: "from-pink-500 to-rose-500",
+    bg: "bg-pink-50",
+    text: "text-pink-600",
   },
   {
-    title: "Notifications",
+    name: "Notifications",
+    description: "Manage alerts and updates",
     icon: Bell,
+    color: "from-amber-400 to-orange-500",
+    bg: "bg-amber-50",
+    text: "text-amber-600",
   },
   {
-    title: "Security",
+    name: "Security",
+    description: "Password and login protection",
     icon: Shield,
+    color: "from-red-500 to-pink-500",
+    bg: "bg-red-50",
+    text: "text-red-600",
   },
   {
-    title: "Appearance",
+    name: "Appearance",
+    description: "Customize dashboard appearance",
     icon: Palette,
+    color: "from-purple-500 to-indigo-500",
+    bg: "bg-purple-50",
+    text: "text-purple-600",
   },
   {
-    title: "System",
+    name: "System",
+    description: "Store and system preferences",
     icon: Monitor,
+    color: "from-cyan-500 to-blue-500",
+    bg: "bg-cyan-50",
+    text: "text-cyan-600",
   },
 ];
 
 export default function SettingsContent() {
   const [activeSetting, setActiveSetting] = useState("General");
 
-  // Notification states
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [newOrderNotifications, setNewOrderNotifications] = useState(true);
   const [lowStockNotifications, setLowStockNotifications] = useState(true);
 
-  return (
-    <div className="min-h-full bg-slate-50 p-6">
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">
-          Settings
-        </h1>
+  const activeMenu = settingsMenu.find(
+    (item) => item.name === activeSetting
+  );
 
-        <p className="mt-1 text-sm text-slate-500">
-          Manage your account and dashboard preferences
-        </p>
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 md:p-6">
+      {/* Page Header */}
+      <div className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-r from-pink-600 via-fuchsia-600 to-indigo-600 p-6 text-white shadow-lg">
+        {/* Decorative circles */}
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10" />
+        <div className="absolute -bottom-16 right-32 h-32 w-32 rounded-full bg-white/10" />
+
+        <div className="relative">
+          <div className="mb-3 flex items-center gap-2 text-white/80">
+            <Settings size={18} />
+            <span className="text-sm font-medium">Admin Settings</span>
+          </div>
+
+          <h1 className="text-2xl font-bold md:text-3xl">
+            Settings & Preferences
+          </h1>
+
+          <p className="mt-2 max-w-2xl text-sm text-white/80">
+            Manage your ShopEase account, security, appearance, notifications,
+            and system preferences.
+          </p>
+        </div>
       </div>
 
       {/* Settings Layout */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
-        {/* Settings Navigation */}
-        <div className="h-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-          {settingsMenu.map((item) => {
-            const Icon = item.icon;
-            const active = activeSetting === item.title;
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        {/* Settings Menu */}
+        <div className="h-fit rounded-3xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="px-3 pb-3 pt-2">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Settings Menu
+            </p>
+          </div>
 
-            return (
-              <button
-                key={item.title}
-                type="button"
-                onClick={() => setActiveSetting(item.title)}
-                className={`mb-1 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium transition ${
-                  active
-                    ? "bg-indigo-50 text-indigo-600"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <Icon size={19} />
-                <span>{item.title}</span>
-              </button>
-            );
-          })}
+          <div className="space-y-2">
+            {settingsMenu.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeSetting === item.name;
+
+              return (
+                <button
+                  key={item.name}
+                  type="button"
+                  onClick={() => setActiveSetting(item.name)}
+                  className={`group relative flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-all ${
+                    isActive
+                      ? "bg-slate-900 text-white shadow-md"
+                      : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {/* Active color indicator */}
+                  {isActive && (
+                    <span
+                      className={`absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b ${item.color}`}
+                    />
+                  )}
+
+                  <div
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition ${
+                      isActive
+                        ? `bg-gradient-to-br ${item.color} text-white shadow-sm`
+                        : `${item.bg} ${item.text}`
+                    }`}
+                  >
+                    <Icon size={20} />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`text-sm font-bold ${
+                        isActive ? "text-white" : "text-slate-800"
+                      }`}
+                    >
+                      {item.name}
+                    </p>
+
+                    <p
+                      className={`mt-0.5 truncate text-xs ${
+                        isActive ? "text-white/60" : "text-slate-400"
+                      }`}
+                    >
+                      {item.description}
+                    </p>
+                  </div>
+
+                  {isActive && (
+                    <CheckCircle2
+                      size={17}
+                      className="shrink-0 text-white/70"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Bottom Info */}
+          <div className="mt-4 rounded-2xl bg-gradient-to-br from-pink-50 to-purple-50 p-4">
+            <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-white text-pink-600 shadow-sm">
+              <Settings size={17} />
+            </div>
+
+            <p className="text-xs font-semibold text-slate-700">
+              ShopEase Admin
+            </p>
+
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Customize your administration experience from one place.
+            </p>
+          </div>
         </div>
 
         {/* Settings Content */}
-        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          {/* ====================================================== */}
-          {/* GENERAL SETTINGS */}
-          {/* ====================================================== */}
+        <div className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          {/* Active Section Indicator */}
+          {activeMenu && (
+            <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/70 px-6 py-3">
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-lg ${activeMenu.bg} ${activeMenu.text}`}
+              >
+                <activeMenu.icon size={16} />
+              </div>
 
+              <div>
+                <p className="text-xs font-medium text-slate-400">
+                  Current Section
+                </p>
+                <p className="text-sm font-bold text-slate-800">
+                  {activeSetting}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* GENERAL SETTINGS */}
           {activeSetting === "General" && (
             <div>
-              {/* Section Header */}
-              <div className="border-b border-slate-100 px-6 py-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                    <Settings size={22} />
+              <div className="border-b border-slate-100 bg-gradient-to-r from-pink-50 to-white px-6 py-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-md">
+                    <User size={23} />
                   </div>
 
                   <div>
@@ -107,38 +220,25 @@ export default function SettingsContent() {
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Manage your admin profile and basic preferences.
+                      Manage your basic admin account information.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Form */}
-              <div className="p-6">
-                <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-6 p-6">
+                <div className="grid gap-5 md:grid-cols-2">
                   {/* Admin Name */}
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
                       Admin Name
                     </label>
 
-                    <div className="relative">
-                      <User
-                        size={18}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                      />
-
-                      <input
-                        type="text"
-                        defaultValue="Admin"
-                        placeholder="Enter admin name"
-                        className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                      />
-                    </div>
-
-                    <p className="mt-1.5 text-xs text-slate-400">
-                      The name displayed in the admin dashboard.
-                    </p>
+                    <input
+                      type="text"
+                      defaultValue="Admin"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
+                    />
                   </div>
 
                   {/* Admin Email */}
@@ -150,13 +250,8 @@ export default function SettingsContent() {
                     <input
                       type="email"
                       defaultValue="admin@shopease.com"
-                      placeholder="Enter admin email"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
                     />
-
-                    <p className="mt-1.5 text-xs text-slate-400">
-                      Used for admin account and notification emails.
-                    </p>
                   </div>
 
                   {/* Language */}
@@ -165,17 +260,10 @@ export default function SettingsContent() {
                       Language
                     </label>
 
-                    <select
-                      defaultValue="English"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                    >
-                      <option value="English">English</option>
-                      <option value="Nepali">Nepali</option>
+                    <select className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100">
+                      <option>English</option>
+                      <option>Nepali</option>
                     </select>
-
-                    <p className="mt-1.5 text-xs text-slate-400">
-                      Select the language used in your dashboard.
-                    </p>
                   </div>
 
                   {/* Time Zone */}
@@ -184,58 +272,34 @@ export default function SettingsContent() {
                       Time Zone
                     </label>
 
-                    <select
-                      defaultValue="Asia/Kathmandu"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                    >
-                      <option value="Asia/Kathmandu">
-                        Kathmandu (GMT +5:45)
-                      </option>
-
-                      <option value="Asia/Kolkata">
-                        India (GMT +5:30)
-                      </option>
-
-                      <option value="UTC">
-                        UTC (GMT +0:00)
-                      </option>
+                    <select className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100">
+                      <option>Asia/Kathmandu</option>
+                      <option>Asia/Kolkata</option>
+                      <option>UTC</option>
                     </select>
-
-                    <p className="mt-1.5 text-xs text-slate-400">
-                      Used for orders, reports, and dashboard timestamps.
-                    </p>
                   </div>
                 </div>
-              </div>
 
-              {/* Footer */}
-              <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-slate-400">
-                  Update your general dashboard preferences.
-                </p>
-
-                <button
-                  type="button"
-                  className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md"
-                >
-                  <Save size={17} />
-                  Save Changes
-                </button>
+                <div className="flex justify-end border-t border-slate-100 pt-5">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-600 to-rose-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:scale-[1.01] hover:shadow-lg"
+                  >
+                    <Save size={17} />
+                    Save Changes
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* ====================================================== */}
-          {/* NOTIFICATIONS SETTINGS */}
-          {/* ====================================================== */}
-
+          {/* NOTIFICATION SETTINGS */}
           {activeSetting === "Notifications" && (
             <div>
-              {/* Section Header */}
-              <div className="border-b border-slate-100 px-6 py-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                    <Bell size={22} />
+              <div className="border-b border-slate-100 bg-gradient-to-r from-amber-50 to-white px-6 py-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
+                    <Bell size={23} />
                   </div>
 
                   <div>
@@ -244,41 +308,38 @@ export default function SettingsContent() {
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Manage how you receive important store notifications.
+                      Choose which notifications you want to receive.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Notification Options */}
               <div className="divide-y divide-slate-100">
                 {/* Email Notifications */}
-                <div className="flex items-center justify-between gap-6 px-6 py-5">
+                <div className="flex items-center justify-between gap-5 px-6 py-6">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900">
                       Email Notifications
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Receive important store updates and notifications by
-                      email.
+                      Receive important system notifications by email.
                     </p>
                   </div>
 
                   <button
                     type="button"
-                    aria-label="Toggle email notifications"
                     onClick={() =>
                       setEmailNotifications(!emailNotifications)
                     }
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${
                       emailNotifications
-                        ? "bg-indigo-600"
+                        ? "bg-gradient-to-r from-amber-400 to-orange-500"
                         : "bg-slate-300"
                     }`}
                   >
                     <span
-                      className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${
+                      className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
                         emailNotifications ? "left-6" : "left-1"
                       }`}
                     />
@@ -286,7 +347,7 @@ export default function SettingsContent() {
                 </div>
 
                 {/* New Order Notifications */}
-                <div className="flex items-center justify-between gap-6 px-6 py-5">
+                <div className="flex items-center justify-between gap-5 px-6 py-6">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900">
                       New Order Notifications
@@ -299,18 +360,17 @@ export default function SettingsContent() {
 
                   <button
                     type="button"
-                    aria-label="Toggle new order notifications"
                     onClick={() =>
                       setNewOrderNotifications(!newOrderNotifications)
                     }
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${
                       newOrderNotifications
-                        ? "bg-indigo-600"
+                        ? "bg-gradient-to-r from-amber-400 to-orange-500"
                         : "bg-slate-300"
                     }`}
                   >
                     <span
-                      className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${
+                      className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
                         newOrderNotifications ? "left-6" : "left-1"
                       }`}
                     />
@@ -318,31 +378,30 @@ export default function SettingsContent() {
                 </div>
 
                 {/* Low Stock Notifications */}
-                <div className="flex items-center justify-between gap-6 px-6 py-5">
+                <div className="flex items-center justify-between gap-5 px-6 py-6">
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900">
                       Low Stock Notifications
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Get notified when a product has low stock.
+                      Receive alerts when product stock is running low.
                     </p>
                   </div>
 
                   <button
                     type="button"
-                    aria-label="Toggle low stock notifications"
                     onClick={() =>
                       setLowStockNotifications(!lowStockNotifications)
                     }
-                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+                    className={`relative h-7 w-12 shrink-0 rounded-full transition ${
                       lowStockNotifications
-                        ? "bg-indigo-600"
+                        ? "bg-gradient-to-r from-amber-400 to-orange-500"
                         : "bg-slate-300"
                     }`}
                   >
                     <span
-                      className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${
+                      className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
                         lowStockNotifications ? "left-6" : "left-1"
                       }`}
                     />
@@ -350,42 +409,28 @@ export default function SettingsContent() {
                 </div>
               </div>
 
-              {/* Footer */}
-              <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-slate-400">
-                  Update your notification preferences.
-                </p>
-
+              <div className="flex justify-end border-t border-slate-100 bg-slate-50/50 px-6 py-4">
                 <button
                   type="button"
-                  className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md"
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:shadow-lg"
                 >
                   <Save size={17} />
-                  Save Changes
+                  Save Notifications
                 </button>
               </div>
             </div>
           )}
 
-          {/* ====================================================== */}
-                  {/* SECURITY SETTINGS */}
-     {/* ====================================================== */}
+          {/* SECURITY */}
+          {activeSetting === "Security" && <SecuritySettings />}
 
-      {activeSetting === "Security" && <SecuritySettings />}
+          {/* APPEARANCE */}
+          {activeSetting === "Appearance" && <AppearanceSettings />}
 
-      {/* ====================================================== */}
-        {/* APPEARANCE SETTINGS */} 
-      {/* ====================================================== */}
-
-   {activeSetting === "Appearance" && <AppearanceSettings />}
-    {/* ====================================================== */}
-        {/* SYSTEM SETTINGS */}
-    {/* ====================================================== */}
-
-    {activeSetting === "System" && <SystemSettings />}
+          {/* SYSTEM */}
+          {activeSetting === "System" && <SystemSettings />}
         </div>
       </div>
     </div>
   );
 }
-
