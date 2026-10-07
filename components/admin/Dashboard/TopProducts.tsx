@@ -5,51 +5,63 @@ interface TopProductsProps {
 export default function TopProducts({
   products,
 }: TopProductsProps) {
-
   return (
-    <div className="bg-white rounded-3xl p-6 shadow">
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:shadow-md">
 
-      <div className="flex justify-between mb-5">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
 
-        <h2 className="font-bold text-xl">
-          Top Selling Products
-        </h2>
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">
+            Top Selling Products
+          </h2>
 
-        <button className="text-indigo-600">
+          <p className="mt-1 text-sm text-slate-500">
+            Best performing products
+          </p>
+        </div>
+
+        <button className="rounded-xl bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-600 transition hover:bg-indigo-100">
           View All
         </button>
 
       </div>
 
+      {/* Products */}
+      <div className="space-y-3">
 
-      <div className="space-y-5">
-
-        {products.map((product: any) => (
+        {products.map((product: any, index: number) => (
 
           <div
             key={product._id}
-            className="flex items-center justify-between"
+            className="group flex items-center justify-between rounded-2xl border border-transparent p-3 transition-all duration-200 hover:border-slate-200 hover:bg-slate-50"
           >
 
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 items-center gap-4">
 
+              {/* Ranking */}
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-500">
+                {index + 1}
+              </div>
+
+              {/* Product Image */}
               <img
                 src={
                   product.image ||
                   "/placeholder.png"
                 }
-                className="w-14 h-14 rounded-xl object-cover"
+                alt={product.name}
+                className="h-14 w-14 shrink-0 rounded-xl object-cover ring-1 ring-slate-200 transition-transform duration-200 group-hover:scale-105"
               />
 
+              {/* Product Information */}
+              <div className="min-w-0">
 
-              <div>
-
-                <p className="font-medium">
+                <p className="truncate font-semibold text-slate-800">
                   {product.name}
                 </p>
 
-
-                <p className="text-sm text-gray-500">
+                <p className="mt-1 text-sm text-slate-500">
                   {product.sold} sold
                 </p>
 
