@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   User,
   Bell,
@@ -11,6 +11,9 @@ import {
   Monitor,
   CheckCircle2,
 } from "lucide-react";
+
+import { toast } from "sonner";
+import api from "@/lib/api";
 
 import SecuritySettings from "./SecuritySettings";
 import AppearanceSettings from "./AppearanceSettings";
@@ -62,9 +65,95 @@ const settingsMenu = [
 export default function SettingsContent() {
   const [activeSetting, setActiveSetting] = useState("General");
 
+  // =========================
+  // GENERAL SETTINGS
+  // =========================
+
+  const [storeName, setStoreName] = useState("");
+  const [storeEmail, setStoreEmail] = useState("");
+  const [storePhone, setStorePhone] = useState("");
+  const [storeAddress, setStoreAddress] = useState("");
+  const [language, setLanguage] = useState("English");
+  const [timeZone, setTimeZone] = useState("Asia/Kathmandu");
+
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [savingGeneral, setSavingGeneral] = useState(false);
+
+  // =========================
+  // NOTIFICATIONS
+  // =========================
+
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [newOrderNotifications, setNewOrderNotifications] = useState(true);
   const [lowStockNotifications, setLowStockNotifications] = useState(true);
+
+  // =========================
+  // LOAD SETTINGS
+  // =========================
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const response = await api.get("/settings");
+
+        const settings = response.data;
+
+        setStoreName(settings.storeName || "");
+        setStoreEmail(settings.storeEmail || "");
+        setStorePhone(settings.storePhone || "");
+        setStoreAddress(settings.storeAddress || "");
+        setLanguage(settings.language || "English");
+        setTimeZone(settings.timeZone || "Asia/Kathmandu");
+
+        setEmailNotifications(
+          settings.emailNotifications ?? true
+        );
+
+        setNewOrderNotifications(
+          settings.newOrderNotifications ?? true
+        );
+
+        setLowStockNotifications(
+          settings.lowStockNotifications ?? true
+        );
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+
+        toast.error("Failed to load settings");
+      } finally {
+        setLoadingSettings(false);
+      }
+    };
+
+    loadSettings();
+  }, []);
+
+  // =========================
+  // SAVE GENERAL SETTINGS
+  // =========================
+
+  const handleSaveGeneral = async () => {
+    try {
+      setSavingGeneral(true);
+
+      await api.patch("/settings", {
+        storeName,
+        storeEmail,
+        storePhone,
+        storeAddress,
+        language,
+        timeZone,
+      });
+
+      toast.success("General settings saved successfully");
+    } catch (error) {
+      console.error("Failed to save general settings:", error);
+
+      toast.error("Failed to save general settings");
+    } finally {
+      setSavingGeneral(false);
+    }
+  };
 
   const activeMenu = settingsMenu.find(
     (item) => item.name === activeSetting
@@ -72,26 +161,23 @@ export default function SettingsContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
-    {/* Page Header */}
-   <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
-  <div className="flex items-center gap-3">
-    <Settings
-      size={22}
-      className="text-slate-600"
-    />
+      {/* Page Header */}
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+        <div className="flex items-center gap-3">
+          <Settings size={22} className="text-slate-600" />
 
-    <div>
-      <h1 className="text-2xl font-bold text-slate-900">
-        Settings
-      </h1>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Settings
+            </h1>
 
-      <p className="mt-1 text-sm text-slate-500">
-        Manage your account, security, notifications,
-        appearance, and system preferences.
-      </p>
-    </div>
-  </div>
-  </div>
+            <p className="mt-1 text-sm text-slate-500">
+              Manage your account, security, notifications,
+              appearance, and system preferences.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Settings Layout */}
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
@@ -119,7 +205,6 @@ export default function SettingsContent() {
                       : "text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  {/* Active color indicator */}
                   {isActive && (
                     <span
                       className={`absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b ${item.color}`}
@@ -139,7 +224,9 @@ export default function SettingsContent() {
                   <div className="min-w-0 flex-1">
                     <p
                       className={`text-sm font-bold ${
-                        isActive ? "text-white" : "text-slate-800"
+                        isActive
+                          ? "text-white"
+                          : "text-slate-800"
                       }`}
                     >
                       {item.name}
@@ -147,7 +234,9 @@ export default function SettingsContent() {
 
                     <p
                       className={`mt-0.5 truncate text-xs ${
-                        isActive ? "text-white/60" : "text-slate-400"
+                        isActive
+                          ? "text-white/60"
+                          : "text-slate-400"
                       }`}
                     >
                       {item.description}
@@ -165,7 +254,6 @@ export default function SettingsContent() {
             })}
           </div>
 
-          {/* Bottom Info */}
           <div className="mt-4 rounded-2xl bg-gradient-to-br from-pink-50 to-purple-50 p-4">
             <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-white text-pink-600 shadow-sm">
               <Settings size={17} />
@@ -176,14 +264,13 @@ export default function SettingsContent() {
             </p>
 
             <p className="mt-1 text-xs leading-5 text-slate-500">
-              Customize your administration experience from one place.
+              Customize your administration experience from one
+              place.
             </p>
           </div>
         </div>
 
-        {/* Settings Content */}
         <div className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          {/* Active Section Indicator */}
           {activeMenu && (
             <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/70 px-6 py-3">
               <div
@@ -196,6 +283,7 @@ export default function SettingsContent() {
                 <p className="text-xs font-medium text-slate-400">
                   Current Section
                 </p>
+
                 <p className="text-sm font-bold text-slate-800">
                   {activeSetting}
                 </p>
@@ -203,7 +291,10 @@ export default function SettingsContent() {
             </div>
           )}
 
-          {/* GENERAL SETTINGS */}
+          {/* =========================
+              GENERAL
+          ========================= */}
+
           {activeSetting === "General" && (
             <div>
               <div className="border-b border-slate-100 bg-gradient-to-r from-pink-50 to-white px-6 py-6">
@@ -218,80 +309,153 @@ export default function SettingsContent() {
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Manage your basic admin account information.
+                      Manage your basic store and account
+                      information.
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-6 p-6">
-                <div className="grid gap-5 md:grid-cols-2">
-                  {/* Admin Name */}
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Admin Name
-                    </label>
-
-                    <input
-                      type="text"
-                      defaultValue="Admin"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
-                    />
+                {loadingSettings ? (
+                  <div className="py-10 text-center text-sm text-slate-500">
+                    Loading settings...
                   </div>
+                ) : (
+                  <>
+                    <div className="grid gap-5 md:grid-cols-2">
+                      {/* Store Name */}
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">
+                          Store Name
+                        </label>
 
-                  {/* Admin Email */}
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Admin Email
-                    </label>
+                        <input
+                          type="text"
+                          value={storeName}
+                          onChange={(e) =>
+                            setStoreName(e.target.value)
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
+                        />
+                      </div>
 
-                    <input
-                      type="email"
-                      defaultValue="admin@shopease.com"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
-                    />
-                  </div>
+                      {/* Store Email */}
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">
+                          Store Email
+                        </label>
 
-                  {/* Language */}
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Language
-                    </label>
+                        <input
+                          type="email"
+                          value={storeEmail}
+                          onChange={(e) =>
+                            setStoreEmail(e.target.value)
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
+                        />
+                      </div>
 
-                    <select className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100">
-                      <option>English</option>
-                      <option>Nepali</option>
-                    </select>
-                  </div>
+                      {/* Store Phone */}
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">
+                          Store Phone
+                        </label>
 
-                  {/* Time Zone */}
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-slate-700">
-                      Time Zone
-                    </label>
+                        <input
+                          type="text"
+                          value={storePhone}
+                          onChange={(e) =>
+                            setStorePhone(e.target.value)
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
+                        />
+                      </div>
 
-                    <select className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100">
-                      <option>Asia/Kathmandu</option>
-                      <option>Asia/Kolkata</option>
-                      <option>UTC</option>
-                    </select>
-                  </div>
-                </div>
+                      {/* Store Address */}
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">
+                          Store Address
+                        </label>
 
-                <div className="flex justify-end border-t border-slate-100 pt-5">
-                  <button
-                    type="button"
-                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-600 to-rose-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:scale-[1.01] hover:shadow-lg"
-                  >
-                    <Save size={17} />
-                    Save Changes
-                  </button>
-                </div>
+                        <input
+                          type="text"
+                          value={storeAddress}
+                          onChange={(e) =>
+                            setStoreAddress(e.target.value)
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
+                        />
+                      </div>
+
+                      {/* Language */}
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">
+                          Language
+                        </label>
+
+                        <select
+                          value={language}
+                          onChange={(e) =>
+                            setLanguage(e.target.value)
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
+                        >
+                          <option>English</option>
+                          <option>Nepali</option>
+                        </select>
+                      </div>
+
+                      {/* Time Zone */}
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">
+                          Time Zone
+                        </label>
+
+                        <select
+                          value={timeZone}
+                          onChange={(e) =>
+                            setTimeZone(e.target.value)
+                          }
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-100"
+                        >
+                          <option value="Asia/Kathmandu">
+                            Asia/Kathmandu
+                          </option>
+
+                          <option value="Asia/Kolkata">
+                            Asia/Kolkata
+                          </option>
+
+                          <option value="UTC">UTC</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end border-t border-slate-100 pt-5">
+                      <button
+                        type="button"
+                        onClick={handleSaveGeneral}
+                        disabled={savingGeneral}
+                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-pink-600 to-rose-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:scale-[1.01] hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Save size={17} />
+
+                        {savingGeneral
+                          ? "Saving..."
+                          : "Save Changes"}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
 
-          {/* NOTIFICATION SETTINGS */}
+          {/* =========================
+              NOTIFICATIONS
+          ========================= */}
+
           {activeSetting === "Notifications" && (
             <div>
               <div className="border-b border-slate-100 bg-gradient-to-r from-amber-50 to-white px-6 py-6">
@@ -306,7 +470,8 @@ export default function SettingsContent() {
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Choose which notifications you want to receive.
+                      Choose which notifications you want to
+                      receive.
                     </p>
                   </div>
                 </div>
@@ -321,14 +486,17 @@ export default function SettingsContent() {
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Receive important system notifications by email.
+                      Receive important system notifications by
+                      email.
                     </p>
                   </div>
 
                   <button
                     type="button"
                     onClick={() =>
-                      setEmailNotifications(!emailNotifications)
+                      setEmailNotifications(
+                        !emailNotifications
+                      )
                     }
                     className={`relative h-7 w-12 shrink-0 rounded-full transition ${
                       emailNotifications
@@ -338,7 +506,9 @@ export default function SettingsContent() {
                   >
                     <span
                       className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
-                        emailNotifications ? "left-6" : "left-1"
+                        emailNotifications
+                          ? "left-6"
+                          : "left-1"
                       }`}
                     />
                   </button>
@@ -352,14 +522,17 @@ export default function SettingsContent() {
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Get notified whenever a new order is placed.
+                      Get notified whenever a new order is
+                      placed.
                     </p>
                   </div>
 
                   <button
                     type="button"
                     onClick={() =>
-                      setNewOrderNotifications(!newOrderNotifications)
+                      setNewOrderNotifications(
+                        !newOrderNotifications
+                      )
                     }
                     className={`relative h-7 w-12 shrink-0 rounded-full transition ${
                       newOrderNotifications
@@ -369,7 +542,9 @@ export default function SettingsContent() {
                   >
                     <span
                       className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
-                        newOrderNotifications ? "left-6" : "left-1"
+                        newOrderNotifications
+                          ? "left-6"
+                          : "left-1"
                       }`}
                     />
                   </button>
@@ -383,14 +558,17 @@ export default function SettingsContent() {
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Receive alerts when product stock is running low.
+                      Receive alerts when product stock is
+                      running low.
                     </p>
                   </div>
 
                   <button
                     type="button"
                     onClick={() =>
-                      setLowStockNotifications(!lowStockNotifications)
+                      setLowStockNotifications(
+                        !lowStockNotifications
+                      )
                     }
                     className={`relative h-7 w-12 shrink-0 rounded-full transition ${
                       lowStockNotifications
@@ -400,7 +578,9 @@ export default function SettingsContent() {
                   >
                     <span
                       className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${
-                        lowStockNotifications ? "left-6" : "left-1"
+                        lowStockNotifications
+                          ? "left-6"
+                          : "left-1"
                       }`}
                     />
                   </button>
@@ -423,7 +603,9 @@ export default function SettingsContent() {
           {activeSetting === "Security" && <SecuritySettings />}
 
           {/* APPEARANCE */}
-          {activeSetting === "Appearance" && <AppearanceSettings />}
+          {activeSetting === "Appearance" && (
+            <AppearanceSettings />
+          )}
 
           {/* SYSTEM */}
           {activeSetting === "System" && <SystemSettings />}
