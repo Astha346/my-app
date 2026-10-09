@@ -61,6 +61,10 @@ const settingsMenu = [
     text: "text-cyan-600",
   },
 ];
+ type SettingsContentProps = {
+  theme: "light" | "dark";
+  setTheme: React.Dispatch<React.SetStateAction<"light" | "dark">>;
+};
 
 export default function SettingsContent() {
   const [activeSetting, setActiveSetting] = useState("General");

@@ -27,7 +27,6 @@ export default function ProductSection({
   useEffect(() => {
     const loadWishlist = () => {
       const savedWishlist = getWishlist();
-
       setWishlist(savedWishlist.map((product) => product.id));
     };
 
@@ -78,10 +77,7 @@ export default function ProductSection({
    */
   const handleAddToCart = async (p: ProductCard) => {
     try {
-      const user = JSON.parse(
-        localStorage.getItem("user") || "{}"
-      );
-
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
       const userId = user._id || user.id;
 
       if (!userId) {
@@ -93,9 +89,7 @@ export default function ProductSection({
         return;
       }
 
-      const price = Number(
-        p.price.replace(/[^0-9.]/g, "")
-      );
+      const price = Number(p.price.replace(/[^0-9.]/g, ""));
 
       await api.post("/cart/add", {
         userId: userId,
@@ -131,10 +125,7 @@ export default function ProductSection({
    */
   const handleBuyNow = async (p: ProductCard) => {
     try {
-      const user = JSON.parse(
-        localStorage.getItem("user") || "{}"
-      );
-
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
       const userId = user._id || user.id;
 
       if (!userId) {
@@ -146,9 +137,7 @@ export default function ProductSection({
         return;
       }
 
-      const price = Number(
-        p.price.replace(/[^0-9.]/g, "")
-      );
+      const price = Number(p.price.replace(/[^0-9.]/g, ""));
 
       await api.post("/cart/add", {
         userId: userId,
@@ -176,35 +165,31 @@ export default function ProductSection({
   };
 
   return (
-    <section className="bg-gray-50 px-4 py-8 md:px-6 lg:px-8">
+    <section className="bg-background px-4 py-8 text-foreground transition-colors duration-200 md:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-
         {/* Section Header */}
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-gray-900 md:text-2xl">
+            <h2 className="text-xl font-bold tracking-tight text-foreground md:text-2xl">
               {title}
             </h2>
 
-            <div className="mt-2 h-1 w-10 rounded-full bg-black" />
+            <div className="mt-2 h-1 w-10 rounded-full bg-pink-600" />
           </div>
         </div>
 
         {/* Products */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
-
           {products.map((p) => {
             const isWishlisted = wishlist.includes(p.id);
 
             return (
               <div
                 key={p.id}
-                className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
+                className="group overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg"
               >
-
                 {/* Product Image */}
                 <div className="relative">
-
                   <button
                     type="button"
                     onClick={async () => {
@@ -213,18 +198,16 @@ export default function ProductSection({
                     }}
                     className="block w-full"
                   >
-                    <div className="relative h-44 overflow-hidden bg-gray-50 sm:h-48 md:h-52">
-
+                    <div className="relative h-44 overflow-hidden bg-muted sm:h-48 md:h-52">
                       <img
                         src={p.image}
                         alt={p.name}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
 
-                      <div className="absolute right-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-gray-700 shadow-sm backdrop-blur">
+                      <div className="absolute right-2 top-2 rounded-full border border-border bg-background/90 px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
                         View
                       </div>
-
                     </div>
                   </button>
 
@@ -243,45 +226,38 @@ export default function ProductSection({
                     className={`absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full shadow-md backdrop-blur transition-all duration-200 ${
                       isWishlisted
                         ? "bg-pink-600 text-white"
-                        : "bg-white/95 text-gray-600 hover:bg-white hover:text-pink-600"
+                        : "border border-border bg-background/95 text-muted-foreground hover:bg-accent hover:text-pink-600"
                     }`}
                   >
                     <Heart
                       size={18}
                       strokeWidth={2}
-                      fill={
-                        isWishlisted
-                          ? "currentColor"
-                          : "none"
-                      }
+                      fill={isWishlisted ? "currentColor" : "none"}
                     />
                   </button>
-
                 </div>
 
                 {/* Product Details */}
                 <div className="p-3.5 md:p-4">
-
-                  <h3 className="min-h-10 line-clamp-2 text-sm font-semibold leading-5 text-gray-800 transition-colors group-hover:text-black">
+                  <h3 className="min-h-10 line-clamp-2 text-sm font-semibold leading-5 text-card-foreground transition-colors group-hover:text-primary">
                     {p.name}
                   </h3>
 
                   <div className="mt-2">
-                    <p className="text-base font-bold text-gray-900 md:text-lg">
+                    <p className="text-base font-bold text-foreground md:text-lg">
                       {p.price}
                     </p>
                   </div>
 
                   {/* Buttons */}
                   <div className="mt-4 flex gap-2">
-
                     <button
                       type="button"
                       onClick={async () => {
                         await trackClick(p.id);
                         router.push(`/product/${p.id}`);
                       }}
-                      className="flex-1 rounded-xl border border-gray-200 bg-white py-2.5 text-xs font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 sm:text-sm"
+                      className="flex-1 rounded-xl border border-border bg-background py-2.5 text-xs font-semibold text-foreground transition hover:bg-accent sm:text-sm"
                     >
                       View
                     </button>
@@ -289,21 +265,17 @@ export default function ProductSection({
                     <button
                       type="button"
                       onClick={() => handleAddToCart(p)}
-                      className="flex-1 rounded-xl bg-black py-2.5 text-xs font-semibold text-white transition hover:bg-gray-800 active:scale-[0.98] sm:text-sm"
+                      className="flex-1 rounded-xl bg-pink-600 py-2.5 text-xs font-semibold text-white transition hover:bg-pink-700 active:scale-[0.98] sm:text-sm"
                     >
                       Add to Cart
                     </button>
-
                   </div>
                 </div>
-
               </div>
             );
           })}
-
         </div>
       </div>
     </section>
   );
 }
-

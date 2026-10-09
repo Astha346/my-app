@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -14,258 +13,233 @@ import ProductSection from "@/components/home/ProductSection";
 import CategoryBar from "@/components/ui/CategoryBar";
 import MiddleBanner from "@/components/MiddleBanner";
 
-
 import {
-  User,
-  Product,
-  Category,
-  toProductCard,
+User,
+Product,
+Category,
+toProductCard,
 } from "@/types/types";
 
 type Page = "dashboard" | "users";
 
 const categories: Category[] = [
-  { label: "All", value: "all" },
-  { label: "Beauty", value: "Beauty" },
-  { label: "Fragrances", value: "Fragrances" },
-  { label: "Furniture", value: "Furniture" },
-  { label: "Groceries", value: "Groceries" },
-  { label: "Laptops", value: "Laptops" },
-  { label: "Mens Shirts", value: "Mens Shirts" },
+{ label: "All", value: "all" },
+{ label: "Beauty", value: "Beauty" },
+{ label: "Fragrances", value: "Fragrances" },
+{ label: "Furniture", value: "Furniture" },
+{ label: "Groceries", value: "Groceries" },
+{ label: "Laptops", value: "Laptops" },
+{ label: "Mens Shirts", value: "Mens Shirts" },
+
 ];
 
 export default function Home() {
-  const [user, setUser] = useState<User | null>(null);
-  const [page] = useState<Page>("dashboard");
+const [user, setUser] = useState<User | null>(null);
+const [page] = useState<Page>("dashboard");
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+const [products, setProducts] = useState<Product[]>([]);
+const [loading, setLoading] = useState(true);
+const [authChecking, setAuthChecking] = useState(true);
 
-  const [search, setSearch] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("all");
+const [search, setSearch] = useState("");
+const [suggestions, setSuggestions] = useState<string[]>([]);
+const [selectedCategory, setSelectedCategory] = useState("all");
 
-  // =====================================================
-  // RESTORE LOGIN
-  // =====================================================
+// RESTORE LOGIN
+useEffect(() => {
+const token = localStorage.getItem("token");
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
 
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
+if (!token) {
+  setUser(null);
+  setAuthChecking(false);
+  setLoading(false);
+  return;
+}
 
-    try {
-      // Remove accidental quotes if they exist
-      const cleanToken = token.replace(/^['"]|['"]$/g, "");
+try {
+  const cleanToken = token.replace(/^['"]|['"]$/g, "");
+  const decoded: any = jwtDecode(cleanToken);
 
-      const decoded: any = jwtDecode(cleanToken);
-
-      setUser({
-        id: decoded.id,
-        username: decoded.username,
-        email: decoded.email,
-        role: decoded.role,
-      });
-    } catch (error) {
-      console.error("Invalid token:", error);
-
-      localStorage.removeItem("token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
-
-      setUser(null);
-      setLoading(false);
-    }
-  }, []);
-
-  // =====================================================
-  // FETCH PRODUCTS
-  // =====================================================
-
-  useEffect(() => {
-    async function fetchProducts() {
-      try {
-        setLoading(true);
-
-        // Load a large number of products for the customer home page.
-        // Admin product page can still use pagination separately.
-        const res = await api.get("/products?page=1&limit=100");
-
-        console.log("========== PRODUCTS ==========");
-        console.log("FULL RESPONSE:", res.data);
-        console.log("PRODUCTS:", res.data?.products);
-        console.log(
-          "PRODUCT COUNT:",
-          res.data?.products?.length
-        );
-        console.log("==============================");
-
-        setProducts(
-          Array.isArray(res.data?.products)
-            ? res.data.products
-            : []
-        );
-      } catch (error) {
-        console.error(
-          "Failed to fetch products:",
-          error
-        );
-
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchProducts();
-  }, []);
-
-  // =====================================================
-  // SEARCH SUGGESTIONS
-  // =====================================================
-
-  useEffect(() => {
-    const searchText = search.trim().toLowerCase();
-
-    // Show suggestions when the user types at least 1 character
-    if (!searchText) {
-      setSuggestions([]);
-      return;
-    }
-
-    const result = products
-      .filter((product) =>
-        product.name.toLowerCase().includes(searchText)
-      )
-      .map((product) => product.name)
-      .filter(
-        (name, index, self) =>
-          self.indexOf(name) === index
-      )
-      .slice(0, 6);
-
-    setSuggestions(result);
-  }, [search, products]);
-
-  // =====================================================
-  // FILTER PRODUCTS
-  // =====================================================
-
-  const filteredProducts = products.filter((product) => {
-    const searchMatch = product.name
-      .toLowerCase()
-      .includes(search.toLowerCase());
-
-    const categoryMatch =
-      selectedCategory === "all" ||
-      product.category === selectedCategory;
-
-    return searchMatch && categoryMatch;
-  });
-
-  // =====================================================
-  // NOT LOGGED IN
-  // =====================================================
-
-  if (!user) {
-    return (
-      <AuthForm
-        onLogin={(loggedUser) => {
-          setUser(loggedUser);
-        }}
-      />
-    );
-  }
-
-  // =====================================================
-  // LOADING
-  // =====================================================
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-lg font-semibold">
-        Loading...
-      </div>
-    );
-  }
-
-  // =====================================================
-  // HOME PAGE
-  // =====================================================
-
-  return (
-    <div className="relative min-h-screen bg-gray-50">
-
-      {/* =================================================
-          NAVBAR
-      ================================================= */}
-
-      
-      <Navbar
-     email={user.email}
-     searchTerm={search}
-     setSearchTerm={setSearch}
-     suggestions={suggestions}
-    onLogout={() => {
+  // Check whether the saved token has expired.
+  if (decoded.exp && decoded.exp * 1000 <= Date.now()) {
     localStorage.removeItem("token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("user");
 
     setUser(null);
-    }}
-   />
+    setLoading(false);
+    return;
+  }
 
+  setUser({
+    id: decoded.id,
+    username: decoded.username,
+    email: decoded.email,
+    role: decoded.role,
+  });
+} catch (error) {
+  console.error("Invalid token:", error);
 
-      {/* =================================================
-          DASHBOARD
-      ================================================= */}
+  localStorage.removeItem("token");
+  localStorage.removeItem("refresh_token");
+  localStorage.removeItem("user");
 
-      {page === "dashboard" && (
-        <>
-          <Hero />
-
-          {/* CATEGORY BAR */}
-
-          <CategoryBar
-            categories={categories}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
-          />
-
-          {/* DEALS */}
-
-          <ProductSection
-            title="Deals"
-            products={filteredProducts
-              .slice(0, 8)
-              .map(toProductCard)}
-          />
-
-          {/* PROMO */}
-
-          <PromoBanner />
-
-          {/* MIDDLE BANNER */}
-
-          <MiddleBanner />
-
-          
-
-          {/* MORE PRODUCTS */}
-
-          <ProductSection
-            title="More Products"
-            products={filteredProducts
-              .slice(8, 16)
-              .map(toProductCard)}
-          />
-        </>
-      )}
-    </div>
-  );
+  setUser(null);
+  setLoading(false);
+} finally {
+  setAuthChecking(false);
 }
 
+
+}, []);
+
+// FETCH PRODUCTS
+useEffect(() => {
+async function fetchProducts() {
+try {
+setLoading(true);
+
+
+    const res = await api.get("/products?page=1&limit=100");
+
+    console.log("========== PRODUCTS ==========");
+    console.log("FULL RESPONSE:", res.data);
+    console.log("PRODUCTS:", res.data?.products);
+    console.log("PRODUCT COUNT:", res.data?.products?.length);
+    console.log("==============================");
+
+    setProducts(
+      Array.isArray(res.data?.products)
+        ? res.data.products
+        : []
+    );
+  } catch (error) {
+    console.error("Failed to fetch products:", error);
+    setProducts([]);
+  } finally {
+    setLoading(false);
+  }
+}
+
+fetchProducts();
+
+
+}, []);
+
+// SEARCH SUGGESTIONS
+useEffect(() => {
+const searchText = search.trim().toLowerCase();
+
+
+if (!searchText) {
+  setSuggestions([]);
+  return;
+}
+
+const result = products
+  .filter((product) =>
+    product.name.toLowerCase().includes(searchText)
+  )
+  .map((product) => product.name)
+  .filter(
+    (name, index, self) =>
+      self.indexOf(name) === index
+  )
+  .slice(0, 6);
+
+setSuggestions(result);
+
+
+}, [search, products]);
+
+// FILTER PRODUCTS
+const filteredProducts = products.filter((product) => {
+const searchMatch = product.name
+.toLowerCase()
+.includes(search.toLowerCase());
+
+const categoryMatch =
+  selectedCategory === "all" ||
+  product.category === selectedCategory;
+
+return searchMatch && categoryMatch;
+
+
+});
+
+// WAIT UNTIL LOGIN STATUS IS CHECKED
+if (authChecking) {
+return ( <div className="flex min-h-screen items-center justify-center bg-background text-lg font-semibold text-foreground">
+Checking login... </div>
+);
+}
+
+// NOT LOGGED IN
+if (!user) {
+return (
+<AuthForm
+onLogin={(loggedUser) => {
+setUser(loggedUser);
+}}
+/>
+);
+}
+
+// LOADING
+if (loading) {
+return ( <div className="flex min-h-screen items-center justify-center bg-background text-lg font-semibold text-foreground">
+Loading... </div>
+);
+}
+
+// HOME PAGE
+return ( <div className="relative min-h-screen bg-background text-foreground transition-colors duration-200">
+<Navbar
+email={user.email}
+searchTerm={search}
+setSearchTerm={setSearch}
+suggestions={suggestions}
+onLogout={() => {
+localStorage.removeItem("token");
+localStorage.removeItem("refresh_token");
+localStorage.removeItem("user");
+
+      setUser(null);
+    }}
+  />
+
+  {page === "dashboard" && (
+    <>
+      <Hero />
+
+      <CategoryBar
+        categories={categories}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+      />
+
+      <ProductSection
+        title="Deals"
+        products={filteredProducts
+          .slice(0, 8)
+          .map(toProductCard)}
+      />
+
+      <PromoBanner />
+
+      <MiddleBanner />
+
+      <ProductSection
+        title="More Products"
+        products={filteredProducts
+          .slice(8, 16)
+          .map(toProductCard)}
+      />
+    </>
+  )}
+</div>
+
+
+);
+}

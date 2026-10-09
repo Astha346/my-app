@@ -1,3 +1,4 @@
+
 type PromoItem = {
   title: string;
   desc: string;
@@ -6,56 +7,56 @@ type PromoItem = {
 
 const promoData: PromoItem[] = [
   {
-    title: "Immersive Sound",
-    desc: "Crystal-clear audio headphones.",
-    img: "/images/person1.jpg",
+    title: "Good Food, Great Prices",
+    desc: "Fresh picks for every kitchen.",
+    img: "/images/food.jpg",
   },
   {
-    title: "Stay Connected",
-    desc: "Compact and stylish for every occasion.",
-    img: "/images/person2.jpg",
+    title: "Your Beauty, Your Glow",
+    desc: "Explore beauty essentials for every day.",
+    img: "/images/skin.jpg",
   },
   {
-    title: "Power in Every Pixel",
-    desc: "Shop the latest laptops for work, gaming, and more.",
-    img: "/images/person3.jpg",
+    title: "Comfort Meets Style",
+    desc: "Upgrade your space with furniture you love.",
+    img: "/images/table.jpg",
   },
 ];
 
 export default function MiddleBanner() {
   return (
-    <section className="bg-gray-50 px-4 py-10 sm:px-6 lg:px-8">
+    <section className="bg-gray-50 px-4 py-10 transition-colors duration-300 dark:bg-slate-950 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         {/* Section Header */}
         <div className="mb-7 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400 dark:text-slate-400">
             Shop Our Picks
           </p>
 
-          <h2 className="mt-2 text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">
+          <h2 className="mt-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-white md:text-3xl">
             Featured Products
           </h2>
 
-          <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-black" />
+          <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-pink-600" />
         </div>
 
         {/* Promo Cards */}
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          {promoData.map((item, index) => (
+          {promoData.map((item) => (
             <div
-              key={index}
-              className="group relative overflow-hidden rounded-2xl bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+              key={item.title}
+              className="group relative overflow-hidden rounded-2xl bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-slate-900 dark:shadow-black/20"
             >
               {/* Image */}
               <div className="relative h-72 overflow-hidden sm:h-80">
                 <img
                   src={item.img}
                   alt={item.title}
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="h-full w-full object-contain transition-transform duration-700 group-hover:scale-105"
                 />
 
                 {/* Gradient */}
-                <div className="absolute inset-0 bg-linear-to-t from-black/75 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                 {/* Content */}
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
@@ -69,7 +70,7 @@ export default function MiddleBanner() {
 
                   <button
                     type="button"
-                    className="mt-4 inline-flex items-center rounded-lg bg-white px-4 py-2 text-xs font-semibold text-gray-900 transition hover:bg-gray-100"
+                    className="mt-4 inline-flex items-center rounded-lg bg-white px-4 py-2 text-xs font-semibold text-gray-900 transition hover:bg-pink-50 hover:text-pink-700"
                   >
                     Buy Now
                   </button>
@@ -82,3 +83,4 @@ export default function MiddleBanner() {
     </section>
   );
 }
+
