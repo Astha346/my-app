@@ -25,10 +25,24 @@ import Customers from "@/components/admin/Customers";
 import SettingsContent from "@/components/admin/Settings/SettingsContent";
 
 export default function AdminPage() {
-  const [activePage, setActivePage] = useState("Dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [deleteOrder, setDeleteOrder] = useState<any>(null);
+  const [activePage, setActivePage] =
+    useState("Dashboard");
+
+  const [sidebarOpen, setSidebarOpen] =
+    useState(true);
+
+  const [selectedOrder, setSelectedOrder] =
+    useState<any>(null);
+
+  const [deleteOrder, setDeleteOrder] =
+    useState<any>(null);
+
+  // =========================================================
+  // ORDER ID FROM NOTIFICATION
+  // =========================================================
+
+  const [notificationOrderId, setNotificationOrderId] =
+    useState<string | null>(null);
 
   const [stats, setStats] = useState({
     revenue: 0,
@@ -37,10 +51,17 @@ export default function AdminPage() {
     totalProducts: 0,
   });
 
-  const [salesData, setSalesData] = useState<any[]>([]);
-  const [statusData, setStatusData] = useState<any[]>([]);
-  const [topProducts, setTopProducts] = useState<any[]>([]);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [salesData, setSalesData] =
+    useState<any[]>([]);
+
+  const [statusData, setStatusData] =
+    useState<any[]>([]);
+
+  const [topProducts, setTopProducts] =
+    useState<any[]>([]);
+
+  const [recentOrders, setRecentOrders] =
+    useState<any[]>([]);
 
   const months = [
     "",
@@ -58,51 +79,104 @@ export default function AdminPage() {
     "Dec",
   ];
 
+  // =========================================================
+  // HANDLE ORDER NOTIFICATION
+  // =========================================================
+
+  useEffect(() => {
+    const handleNotificationOrder = (
+      event: Event,
+    ) => {
+      const customEvent =
+        event as CustomEvent<{
+          orderId: string;
+        }>;
+
+      const orderId =
+        customEvent.detail?.orderId;
+
+      if (!orderId) {
+        return;
+      }
+
+      // Save the order ID first
+      setNotificationOrderId(orderId);
+
+      // Open Orders page
+      setActivePage("Orders");
+    };
+
+    window.addEventListener(
+      "open-admin-order",
+      handleNotificationOrder,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "open-admin-order",
+        handleNotificationOrder,
+      );
+    };
+  }, []);
+
+  // =========================================================
+  // LOAD DASHBOARD
+  // =========================================================
+
   useEffect(() => {
     const loadDashboard = async () => {
       try {
         const [
-  statsResponse,
-  salesResponse,
-  statusResponse,
-  productsResponse,
-  ordersResponse,
-   ] = await Promise.all([
-   api.get("/dashboard/stats"),
-   api.get("/dashboard/sales-by-month"),
-   api.get("/dashboard/orders-by-status"),
-   api.get("/dashboard/top-products"),
-   api.get("/dashboard/recent-orders"),
-   ]);
+          statsResponse,
+          salesResponse,
+          statusResponse,
+          productsResponse,
+          ordersResponse,
+        ] = await Promise.all([
+          api.get("/dashboard/stats"),
+          api.get("/dashboard/sales-by-month"),
+          api.get("/dashboard/orders-by-status"),
+          api.get("/dashboard/top-products"),
+          api.get("/dashboard/recent-orders"),
+        ]);
 
         setStats(statsResponse.data);
+
         setSalesData(
-          Array.isArray(salesResponse.data)
+          Array.isArray(
+            salesResponse.data,
+          )
             ? salesResponse.data
-            : []
+            : [],
         );
 
         setStatusData(
-          Array.isArray(statusResponse.data)
+          Array.isArray(
+            statusResponse.data,
+          )
             ? statusResponse.data
-            : []
+            : [],
         );
 
         setTopProducts(
-          Array.isArray(productsResponse.data)
+          Array.isArray(
+            productsResponse.data,
+          )
             ? productsResponse.data
-            : []
+            : [],
         );
 
         setRecentOrders(
-          Array.isArray(ordersResponse.data)
+          Array.isArray(
+            ordersResponse.data,
+          )
             ? ordersResponse.data
-            : []
+            : [],
         );
       } catch (error) {
         console.error(
           "Failed to load dashboard:",
-          error
+          error,
         );
       }
     };
@@ -110,45 +184,57 @@ export default function AdminPage() {
     loadDashboard();
   }, []);
 
+  // =========================================================
+  // DELETE ORDER
+  // =========================================================
+
   const handleDelete = async () => {
     if (!deleteOrder) return;
 
     try {
       await api.delete(
-        `/orders/${deleteOrder._id}`
+        `/orders/${deleteOrder._id}`,
       );
 
       setRecentOrders((prev) =>
         prev.filter(
           (order) =>
-            order._id !== deleteOrder._id
-        )
+            order._id !==
+            deleteOrder._id,
+        ),
       );
 
       setDeleteOrder(null);
     } catch (error) {
       console.error(
         "Failed to delete order:",
-        error
+        error,
       );
 
       alert("Failed to delete order");
     }
   };
 
-  const salesChartData = salesData.map(
-    (item) => ({
-      month:
-        months[item?._id?.month] ||
-        "Unknown",
+  // =========================================================
+  // SALES CHART DATA
+  // =========================================================
 
-      sales: item?.sales || 0,
-    })
-  );
+  const salesChartData =
+    salesData.map(
+      (item) => ({
+        month:
+          months[item?._id?.month] ||
+          "Unknown",
+
+        sales:
+          item?.sales || 0,
+      }),
+    );
 
   return (
     <div className="flex min-h-screen bg-slate-100">
       {/* SIDEBAR */}
+
       <Sidebar
         activePage={activePage}
         setActivePage={setActivePage}
@@ -156,17 +242,21 @@ export default function AdminPage() {
       />
 
       {/* MAIN AREA */}
+
       <div className="flex-1">
         <Navbar
-        sidebarOpen={sidebarOpen}
-        setSidebarOpen={setSidebarOpen}
-      />
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={
+            setSidebarOpen
+          }
+        />
 
         <main className="p-8">
 
           {/* ================= DASHBOARD ================= */}
 
-          {activePage === "Dashboard" && (
+          {activePage ===
+            "Dashboard" && (
             <>
               <div className="mb-8">
                 <h1 className="text-4xl font-bold">
@@ -178,18 +268,26 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              <StatsCards stats={stats} />
+              <StatsCards
+                stats={stats}
+              />
 
               <SalesOverview
-                salesData={salesChartData}
+                salesData={
+                  salesChartData
+                }
               />
 
               <TopProducts
-                products={topProducts}
+                products={
+                  topProducts
+                }
               />
 
               <RecentOrders
-                orders={recentOrders}
+                orders={
+                  recentOrders
+                }
                 setSelectedOrder={
                   setSelectedOrder
                 }
@@ -202,12 +300,16 @@ export default function AdminPage() {
               />
 
               <OrderStatus
-                statusData={statusData}
+                statusData={
+                  statusData
+                }
               />
 
               {deleteOrder && (
                 <DeleteOrderModal
-                  order={deleteOrder}
+                  order={
+                    deleteOrder
+                  }
                   setDeleteOrder={
                     setDeleteOrder
                   }
@@ -219,7 +321,9 @@ export default function AdminPage() {
 
               {selectedOrder && (
                 <ViewOrderModal
-                  order={selectedOrder}
+                  order={
+                    selectedOrder
+                  }
                   setSelectedOrder={
                     setSelectedOrder
                   }
@@ -230,40 +334,54 @@ export default function AdminPage() {
 
           {/* ================= PRODUCTS ================= */}
 
-          {activePage === "Products" && (
+          {activePage ===
+            "Products" && (
             <ProductsContent />
           )}
 
           {/* ================= CATEGORIES ================= */}
 
-          {activePage === "Categories" && (
+          {activePage ===
+            "Categories" && (
             <CategoriesContent />
           )}
 
           {/* ================= PERMISSIONS ================= */}
 
-          {activePage === "Permissions" && (
+          {activePage ===
+            "Permissions" && (
             <PermissionMatrix />
           )}
 
-         {/* ================= ORDERS ================= */}
+          {/* ================= ORDERS ================= */}
 
-            {activePage === "Orders" && (
-             <OrdersContent />
-            )}
-            
-         {/* ================= CUSTOMERS ================= */}
+          {activePage ===
+            "Orders" && (
+            <OrdersContent
+              notificationOrderId={
+                notificationOrderId
+              }
+              onNotificationOrderHandled={() =>
+                setNotificationOrderId(
+                  null,
+                )
+              }
+            />
+          )}
 
-             {activePage === "Customers" && (
-               <Customers />
-              )}
+          {/* ================= CUSTOMERS ================= */}
 
-         {/* =======settings ======== */} 
+          {activePage ===
+            "Customers" && (
+            <Customers />
+          )}
 
-         {activePage === "Settings" && (
-         <SettingsContent />
-         )}
+          {/* ================= SETTINGS ================= */}
 
+          {activePage ===
+            "Settings" && (
+            <SettingsContent />
+          )}
         </main>
       </div>
     </div>
