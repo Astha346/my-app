@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Palette,
   Sun,
@@ -9,10 +10,51 @@ import {
   LayoutDashboard,
   Check,
 } from "lucide-react";
+import { toast } from "sonner";
+import api from "@/lib/api";
+import { useTheme } from "next-themes";
+
+type Theme = "light" | "dark";
 
 export default function AppearanceSettings() {
-  const [theme, setTheme] = useState("light");
+  const { resolvedTheme, setTheme } = useTheme();
+
+  const theme: Theme = resolvedTheme === "dark" ? "dark" : "light";
   const [compactMode, setCompactMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Load the saved appearance preference from the backend.
+  useEffect(() => {
+    const loadAppearance = async () => {
+      try {
+        const response = await api.get("/settings");
+        const savedTheme = response.data?.theme;
+
+        if (savedTheme === "light" || savedTheme === "dark") {
+          setTheme(savedTheme);
+        }
+      } catch (error) {
+        console.error("Failed to load appearance settings:", error);
+      }
+    };
+
+    loadAppearance();
+  }, [setTheme]);
+
+  const handleSaveAppearance = async () => {
+    setSaving(true);
+
+    try {
+      await api.patch("/settings", { theme });
+
+      toast.success("Appearance settings saved successfully");
+    } catch (error) {
+      console.error("Failed to save appearance settings:", error);
+      toast.error("Could not save appearance settings");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div>
@@ -27,7 +69,6 @@ export default function AppearanceSettings() {
             <h2 className="text-xl font-bold text-slate-900">
               Appearance Settings
             </h2>
-
             <p className="mt-1 text-sm text-slate-500">
               Customize how your admin dashboard looks and feels.
             </p>
@@ -42,7 +83,6 @@ export default function AppearanceSettings() {
             <h3 className="text-sm font-semibold text-slate-900">
               Dashboard Theme
             </h3>
-
             <p className="mt-1 text-sm text-slate-500">
               Choose the appearance of your dashboard.
             </p>
@@ -74,7 +114,6 @@ export default function AppearanceSettings() {
               <h4 className="text-sm font-semibold text-slate-900">
                 Light
               </h4>
-
               <p className="mt-1 text-xs text-slate-500">
                 Use a clean and bright dashboard.
               </p>
@@ -105,7 +144,6 @@ export default function AppearanceSettings() {
               <h4 className="text-sm font-semibold text-slate-900">
                 Dark
               </h4>
-
               <p className="mt-1 text-xs text-slate-500">
                 Use a darker interface for low-light environments.
               </p>
@@ -113,7 +151,7 @@ export default function AppearanceSettings() {
           </div>
         </div>
 
-        {/* Sidebar Density */}
+        {/* Compact Dashboard */}
         <div className="flex items-center justify-between gap-6 px-6 py-6">
           <div className="flex gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
@@ -124,7 +162,6 @@ export default function AppearanceSettings() {
               <h3 className="text-sm font-semibold text-slate-900">
                 Compact Dashboard
               </h3>
-
               <p className="mt-1 text-sm text-slate-500">
                 Reduce spacing between dashboard elements to show more
                 information on the screen.
@@ -134,6 +171,8 @@ export default function AppearanceSettings() {
 
           <button
             type="button"
+            aria-label="Toggle compact dashboard"
+            aria-pressed={compactMode}
             onClick={() => setCompactMode(!compactMode)}
             className={`relative h-6 w-11 shrink-0 rounded-full transition ${
               compactMode ? "bg-indigo-600" : "bg-slate-300"
@@ -156,30 +195,56 @@ export default function AppearanceSettings() {
               <h3 className="text-sm font-semibold text-slate-900">
                 Preview
               </h3>
-
               <p className="mt-1 text-xs text-slate-500">
                 Preview your selected dashboard appearance.
               </p>
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-            <div className="flex h-10 items-center gap-2 border-b border-slate-200 bg-white px-4">
-              <div className="h-2.5 w-2.5 rounded-full bg-slate-200" />
-              <div className="h-2.5 w-2.5 rounded-full bg-slate-200" />
-              <div className="h-2.5 w-2.5 rounded-full bg-slate-200" />
+          <div
+            className={`overflow-hidden rounded-2xl border ${
+              theme === "dark"
+                ? "border-slate-700 bg-slate-900"
+                : "border-slate-200 bg-slate-50"
+            }`}
+          >
+            <div
+              className={`flex h-10 items-center gap-2 border-b px-4 ${
+                theme === "dark"
+                  ? "border-slate-700 bg-slate-800"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <div className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+              <div className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+              <div className="h-2.5 w-2.5 rounded-full bg-slate-400" />
             </div>
 
             <div className="flex gap-3 p-4">
-              <div className="hidden h-28 w-20 rounded-xl bg-slate-200 sm:block" />
+              <div
+                className={`hidden h-28 w-20 rounded-xl sm:block ${
+                  theme === "dark" ? "bg-slate-700" : "bg-slate-200"
+                }`}
+              />
 
               <div className="flex-1">
-                <div className="mb-3 h-5 w-32 rounded bg-slate-200" />
+                <div
+                  className={`mb-3 h-5 w-32 rounded ${
+                    theme === "dark" ? "bg-slate-700" : "bg-slate-200"
+                  }`}
+                />
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <div className="h-20 rounded-xl bg-white shadow-sm" />
-                  <div className="h-20 rounded-xl bg-white shadow-sm" />
-                  <div className="hidden h-20 rounded-xl bg-white shadow-sm sm:block" />
+                  {[1, 2, 3].map((item) => (
+                    <div
+                      key={item}
+                      className={`h-20 rounded-xl ${
+                        theme === "dark"
+                          ? "border border-slate-700 bg-slate-800"
+                          : "bg-white shadow-sm"
+                      } ${item === 3 ? "hidden sm:block" : ""}`}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
@@ -190,16 +255,19 @@ export default function AppearanceSettings() {
       {/* Footer */}
       <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-slate-400">
-          Appearance changes are currently preview-only.
+          Save your selected dashboard theme.
         </p>
 
         <button
           type="button"
-          className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 hover:shadow-md"
+          onClick={handleSaveAppearance}
+          disabled={saving}
+          className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Save Appearance
+          {saving ? "Saving..." : "Save Appearance"}
         </button>
       </div>
     </div>
   );
 }
+

@@ -15,9 +15,9 @@ export default function CategoryBar({
   setSelectedCategory,
 }: Props) {
   return (
-    <div className="w-full bg-white border-b">
+    <div className="w-full border-b border-border bg-background text-foreground transition-colors duration-200">
       <div className="px-4 py-4">
-        <h2 className="text-lg font-bold text-gray-900 mb-3">
+        <h2 className="mb-3 text-lg font-bold text-foreground">
           Shop by Category
         </h2>
 
@@ -25,14 +25,13 @@ export default function CategoryBar({
           {categories.map((cat) => (
             <button
               key={cat.value}
+              type="button"
               onClick={() => setSelectedCategory(cat.value)}
-              className={`px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition
-                ${
-                  selectedCategory === cat.value
-                    ? "bg-black text-white"
-                    : "bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100"
-                }
-              `}
+              className={`whitespace-nowrap rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
+                selectedCategory === cat.value
+                  ? "border-pink-600 bg-pink-600 text-white"
+                  : "border-border bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground"
+              }`}
             >
               {cat.label}
             </button>
