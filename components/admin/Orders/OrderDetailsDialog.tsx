@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from "react";
@@ -113,6 +114,114 @@ export default function OrderDetailsDialog({
   }
 
   /*
+   * Backend order compatibility.
+   *
+   * The backend currently returns:
+   * customerName
+   * deliveryAddress
+   * latitude
+   * longitude
+   * items
+   * total
+   *
+   * Some optional fields are kept here so the
+   * existing UI can safely support them if they
+   * are added to the backend later.
+   */
+  const backendOrder = order as Order & {
+    orderNumber?: string;
+    customerName?: string;
+    customer?: {
+      name?: string;
+      email?: string;
+      phone?: string;
+    };
+    deliveryAddress?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    shippingAddress?: {
+      address?: string;
+      city?: string;
+      country?: string;
+    };
+    subtotal?: number;
+    shipping?: number;
+    discount?: number;
+  };
+
+  /*
+   * Order number.
+   *
+   * Backend currently does not have orderNumber,
+   * so use MongoDB _id as fallback.
+   */
+  const displayOrderNumber =
+    backendOrder.orderNumber ||
+    order._id;
+
+  /*
+   * Customer information.
+   *
+   * Backend currently stores customerName.
+   */
+  const customerName =
+    backendOrder.customerName ||
+    backendOrder.customer?.name ||
+    "Unknown Customer";
+
+  const customerEmail =
+    backendOrder.customer?.email ||
+    "Not available";
+
+  const customerPhone =
+    backendOrder.customer?.phone || "";
+
+  /*
+   * Shipping information.
+   *
+   * Backend stores deliveryAddress directly.
+   */
+  const deliveryAddress =
+    backendOrder.deliveryAddress ||
+    backendOrder.shippingAddress?.address ||
+    "Address not available";
+
+  const locationText =
+    backendOrder.shippingAddress?.city ||
+    backendOrder.shippingAddress?.country ||
+    (backendOrder.latitude != null &&
+    backendOrder.longitude != null
+      ? `${backendOrder.latitude}, ${backendOrder.longitude}`
+      : "Location not available");
+
+  /*
+   * Calculate subtotal from the actual order items
+   * when backend subtotal is not available.
+   */
+  const calculatedSubtotal =
+    order.items?.reduce(
+      (sum, item) =>
+        sum +
+        Number(item.price || 0) *
+          Number(item.quantity || 0),
+      0
+    ) || 0;
+
+  const subtotal =
+    backendOrder.subtotal ??
+    calculatedSubtotal;
+
+  /*
+   * Backend currently does not store separate
+   * shipping or discount values.
+   */
+  const shipping =
+    backendOrder.shipping ?? 0;
+
+  const discount =
+    backendOrder.discount ?? 0;
+
+  /*
    * Find current status index.
    */
   const currentStatusIndex =
@@ -204,7 +313,9 @@ export default function OrderDetailsDialog({
    * Format price.
    */
   const formatPrice = (value?: number | null) => {
-  return `Rs. ${(value ?? 0).toLocaleString("en-IN")}`;
+    return `Rs. ${(value ?? 0).toLocaleString(
+      "en-IN"
+    )}`;
   };
 
   /*
@@ -267,7 +378,7 @@ export default function OrderDetailsDialog({
                 <div>
                   <div className="flex items-center gap-3">
                     <DialogTitle className="text-xl font-bold text-slate-900">
-                      {order.orderNumber}
+                      {displayOrderNumber}
                     </DialogTitle>
 
                     <OrderStatusBadge
@@ -479,7 +590,7 @@ export default function OrderDetailsDialog({
                       </p>
 
                       <p className="mt-1 text-sm font-medium text-slate-900">
-                        {order.customer.name}
+                        {customerName}
                       </p>
                     </div>
 
@@ -489,18 +600,18 @@ export default function OrderDetailsDialog({
                       </p>
 
                       <p className="mt-1 break-all text-sm text-slate-600">
-                        {order.customer.email}
+                        {customerEmail}
                       </p>
                     </div>
 
-                    {order.customer.phone && (
+                    {customerPhone && (
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                           Phone
                         </p>
 
                         <p className="mt-1 text-sm text-slate-600">
-                          {order.customer.phone}
+                          {customerPhone}
                         </p>
                       </div>
                     )}
@@ -529,18 +640,11 @@ export default function OrderDetailsDialog({
 
                   <div className="mt-5 rounded-lg bg-slate-50 p-4">
                     <p className="text-sm font-medium leading-6 text-slate-900">
-                      {order.shippingAddress?.address ||
-                        "Address not available"}
+                      {deliveryAddress}
                     </p>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      {[
-                        order.shippingAddress?.city,
-                        order.shippingAddress?.country,
-                      ]
-                        .filter(Boolean)
-                        .join(", ") ||
-                        "Location not available"}
+                      {locationText}
                     </p>
                   </div>
                 </div>
@@ -753,7 +857,7 @@ export default function OrderDetailsDialog({
 
                   <p className="mt-2 text-lg font-semibold text-slate-900">
                     {formatPrice(
-                      order.subtotal
+                      subtotal
                     )}
                   </p>
                 </div>
@@ -765,7 +869,7 @@ export default function OrderDetailsDialog({
 
                   <p className="mt-2 text-lg font-semibold text-slate-900">
                     {formatPrice(
-                      order.shipping
+                      shipping
                     )}
                   </p>
                 </div>
@@ -777,7 +881,7 @@ export default function OrderDetailsDialog({
 
                   <p className="mt-2 text-lg font-semibold text-red-500">
                     - {formatPrice(
-                      order.discount
+                      discount
                     )}
                   </p>
                 </div>
@@ -1120,7 +1224,7 @@ export default function OrderDetailsDialog({
 
             <div className="rounded-lg bg-slate-50 p-4">
               <p className="text-sm font-medium text-slate-900">
-                {order.orderNumber}
+                {displayOrderNumber}
               </p>
 
               <p className="mt-1 text-sm text-slate-500">
@@ -1308,3 +1412,4 @@ export default function OrderDetailsDialog({
     </>
   );
 }
+

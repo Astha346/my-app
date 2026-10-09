@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,11 +14,16 @@ import type { Order } from "@/types/order";
 
 interface OrdersContentProps {
   onViewOrder?: (order: Order) => void;
+  notificationOrderId?: string | null;
+  onNotificationOrderHandled?: () => void;
 }
 
 export default function OrdersContent({
   onViewOrder,
+  notificationOrderId,
+  onNotificationOrderHandled,
 }: OrdersContentProps) {
+  
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -134,6 +140,47 @@ export default function OrdersContent({
   }, [fetchOrders]);
 
   // =========================
+  // OPEN ORDER FROM NOTIFICATION
+  // =========================
+  useEffect(() => {
+    if (!notificationOrderId) {
+      return;
+    }
+
+    const openNotificationOrder = async () => {
+      try {
+        const response = await api.get(
+          `/orders/single/${notificationOrderId}`,
+        );
+
+        const order = response.data;
+
+        if (!order) {
+          alert("Order not found.");
+          return;
+        }
+
+        setSelectedOrder(order);
+        setViewOrderOpen(true);
+      } catch (error) {
+        console.error(
+          "Failed to load notification order:",
+          error,
+        );
+
+        alert("Failed to load order details.");
+      } finally {
+        onNotificationOrderHandled?.();
+      }
+    };
+
+    openNotificationOrder();
+  }, [
+    notificationOrderId,
+    onNotificationOrderHandled,
+  ]);
+
+  // =========================
   // FILTER HANDLERS
   // =========================
   const handleSearch = (value: string) => {
@@ -203,30 +250,31 @@ export default function OrdersContent({
   // =========================
 
   const handleView = (order: Order) => {
-  setSelectedOrder(order);
-  setViewOrderOpen(true);
+    setSelectedOrder(order);
+    setViewOrderOpen(true);
 
-  onViewOrder?.(order);
-};
-  const handlePrintInvoice = (order: Order) => {
-  const invoiceWindow = window.open(
-    "",
-    "_blank",
-    "width=900,height=700",
-  );
-
-  if (!invoiceWindow) {
-    alert("Please allow pop-ups to print the invoice.");
-    return;
-  }
-
-  const invoiceOrder = order as Order & {
-    deliveryAddress?: string;
-    createdAt?: string;
-    total?: number;
+    onViewOrder?.(order);
   };
 
-  invoiceWindow.document.write(`
+  const handlePrintInvoice = (order: Order) => {
+    const invoiceWindow = window.open(
+      "",
+      "_blank",
+      "width=900,height=700",
+    );
+
+    if (!invoiceWindow) {
+      alert("Please allow pop-ups to print the invoice.");
+      return;
+    }
+
+    const invoiceOrder = order as Order & {
+      deliveryAddress?: string;
+      createdAt?: string;
+      total?: number;
+    };
+
+    invoiceWindow.document.write(`
     <html>
       <head>
         <title>ShopEase Invoice</title>
@@ -398,8 +446,8 @@ export default function OrdersContent({
     </html>
   `);
 
-  invoiceWindow.document.close();
-};
+    invoiceWindow.document.close();
+  };
 
   // =========================
   // CHANGE ORDER STATUS
@@ -729,47 +777,53 @@ export default function OrdersContent({
           </p>
         </div>
       )}
+
       <OrderDetailsDialog
-  order={selectedOrder}
-  open={viewOrderOpen}
-  onClose={() => {
-    setViewOrderOpen(false);
-    setSelectedOrder(null);
-  }}
-  onStatusUpdate={async (orderId, newStatus) => {
-    try {
-      await api.patch(`/orders/${orderId}/status`, {
-        status: newStatus,
-      });
-
-      setOrders((previousOrders) =>
-        previousOrders.map((item) =>
-          item._id === orderId
-            ? {
-                ...item,
-                status: newStatus,
-              }
-            : item,
-        ),
-      );
-
-      setSelectedOrder((previousOrder) =>
-        previousOrder && previousOrder._id === orderId
-          ? {
-              ...previousOrder,
+        order={selectedOrder}
+        open={viewOrderOpen}
+        onClose={() => {
+          setViewOrderOpen(false);
+          setSelectedOrder(null);
+        }}
+        onStatusUpdate={async (orderId, newStatus) => {
+          try {
+            await api.patch(`/orders/${orderId}/status`, {
               status: newStatus,
-            }
-          : previousOrder,
-      );
-    } catch (error) {
-      console.error("Failed to update order status:", error);
-      alert("Failed to update order status.");
-      throw error;
-    }
-  }}
-  onPrintInvoice={handlePrintInvoice}
-  onReturnRefund={handleReturnRefund}
-   />
+            });
+
+            setOrders((previousOrders) =>
+              previousOrders.map((item) =>
+                item._id === orderId
+                  ? {
+                      ...item,
+                      status: newStatus,
+                    }
+                  : item,
+              ),
+            );
+
+            setSelectedOrder((previousOrder) =>
+              previousOrder &&
+              previousOrder._id === orderId
+                ? {
+                    ...previousOrder,
+                    status: newStatus,
+                  }
+                : previousOrder,
+            );
+          } catch (error) {
+            console.error(
+              "Failed to update order status:",
+              error,
+            );
+            alert("Failed to update order status.");
+            throw error;
+          }
+        }}
+        onPrintInvoice={handlePrintInvoice}
+        onReturnRefund={handleReturnRefund}
+      />
     </div>
   );
 }
+
