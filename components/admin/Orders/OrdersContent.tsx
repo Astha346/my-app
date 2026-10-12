@@ -10,7 +10,15 @@ import OrderFilters from "@/components/admin/Orders/OrderFilters";
 import OrderTable from "@/components/admin/Orders/OrderTable";
 import Pagination from "@/components/admin/Orders/Pagination";
 import OrderDetailsDialog from "@/components/admin/Orders/OrderDetailsDialog";
-import type { Order } from "@/types/order";
+import ReturnRefundDialog, {
+  type ReturnRefundData,
+} from "@/components/admin/Orders/ReturnRefundDialog";
+import ReturnRefundReviewDialog from "@/components/admin/Orders/ReturnRefundReviewDialog";
+
+import type {
+  Order,
+  ReturnRefundStatus,
+} from "@/types/order";
 
 interface OrdersContentProps {
   onViewOrder?: (order: Order) => void;
@@ -23,12 +31,16 @@ export default function OrdersContent({
   notificationOrderId,
   onNotificationOrderHandled,
 }: OrdersContentProps) {
-  
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [viewOrderOpen, setViewOrderOpen] = useState(false);
+
+  // Return / Refund dialogs
+  const [returnOrder, setReturnOrder] = useState<Order | null>(null);
+  const [reviewReturnOrder, setReviewReturnOrder] =
+    useState<Order | null>(null);
 
   // =========================
   // FILTERS
@@ -38,11 +50,9 @@ export default function OrdersContent({
   const [payment, setPayment] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
 
-  // Selected dates in UI
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
 
-  // Dates actually applied to API
   const [appliedDateFrom, setAppliedDateFrom] =
     useState<Date | undefined>();
 
@@ -90,23 +100,14 @@ export default function OrdersContent({
       }
 
       if (appliedDateFrom) {
-        params.set(
-          "startDate",
-          format(appliedDateFrom, "yyyy-MM-dd"),
-        );
+        params.set("startDate", format(appliedDateFrom, "yyyy-MM-dd"));
       }
 
       if (appliedDateTo) {
-        params.set(
-          "endDate",
-          format(appliedDateTo, "yyyy-MM-dd"),
-        );
+        params.set("endDate", format(appliedDateTo, "yyyy-MM-dd"));
       }
 
-      const response = await api.get(
-        `/orders?${params.toString()}`,
-      );
-
+      const response = await api.get(`/orders?${params.toString()}`);
       const data = response.data;
 
       setOrders(data.orders || []);
@@ -118,7 +119,6 @@ export default function OrdersContent({
       );
     } catch (error) {
       console.error("Failed to fetch orders:", error);
-
       setOrders([]);
       setTotalOrders(0);
     } finally {
@@ -160,14 +160,16 @@ export default function OrdersContent({
           return;
         }
 
-        setSelectedOrder(order);
-        setViewOrderOpen(true);
-      } catch (error) {
-        console.error(
-          "Failed to load notification order:",
-          error,
-        );
+        
+        if (order.returnRefundStatus === "requested") {
+          setReviewReturnOrder(order);
+        } else {
+          setSelectedOrder(order);
+          setViewOrderOpen(true);
+        }
 
+      } catch (error) {
+        console.error("Failed to load notification order:", error);
         alert("Failed to load order details.");
       } finally {
         onNotificationOrderHandled?.();
@@ -175,10 +177,7 @@ export default function OrdersContent({
     };
 
     openNotificationOrder();
-  }, [
-    notificationOrderId,
-    onNotificationOrderHandled,
-  ]);
+  }, [notificationOrderId, onNotificationOrderHandled]);
 
   // =========================
   // FILTER HANDLERS
@@ -246,16 +245,17 @@ export default function OrdersContent({
   };
 
   // =========================
-  // ORDER ACTIONS
+  // VIEW ORDER
   // =========================
-
   const handleView = (order: Order) => {
     setSelectedOrder(order);
     setViewOrderOpen(true);
-
     onViewOrder?.(order);
   };
 
+  // =========================
+  // PRINT INVOICE
+  // =========================
   const handlePrintInvoice = (order: Order) => {
     const invoiceWindow = window.open(
       "",
@@ -278,19 +278,16 @@ export default function OrdersContent({
     <html>
       <head>
         <title>ShopEase Invoice</title>
-
         <style>
           body {
             font-family: Arial, sans-serif;
             padding: 40px;
             color: #222;
           }
-
           .invoice {
             max-width: 800px;
             margin: auto;
           }
-
           .header {
             display: flex;
             justify-content: space-between;
@@ -298,35 +295,28 @@ export default function OrdersContent({
             padding-bottom: 20px;
             margin-bottom: 25px;
           }
-
           h1 {
             margin: 0;
           }
-
           table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
           }
-
-          th,
-          td {
+          th, td {
             border: 1px solid #ddd;
             padding: 10px;
             text-align: left;
           }
-
           th {
             background: #f5f5f5;
           }
-
           .total {
             text-align: right;
             font-size: 20px;
             font-weight: bold;
             margin-top: 20px;
           }
-
           .footer {
             text-align: center;
             margin-top: 40px;
@@ -334,26 +324,20 @@ export default function OrdersContent({
           }
         </style>
       </head>
-
       <body>
         <div class="invoice">
-
           <div class="header">
             <div>
               <h1>ShopEase</h1>
               <p>Order Invoice</p>
             </div>
-
             <div>
               <strong>Order ID:</strong> ${invoiceOrder._id}
               <br />
-
               <strong>Date:</strong>
               ${
                 invoiceOrder.createdAt
-                  ? new Date(
-                      invoiceOrder.createdAt,
-                    ).toLocaleDateString()
+                  ? new Date(invoiceOrder.createdAt).toLocaleDateString()
                   : "-"
               }
             </div>
@@ -368,11 +352,9 @@ export default function OrdersContent({
             <strong>Payment Method:</strong>
             ${invoiceOrder.paymentMethod || "-"}
             <br />
-
             <strong>Payment Status:</strong>
             ${invoiceOrder.paymentStatus || "-"}
             <br />
-
             <strong>Order Status:</strong>
             ${invoiceOrder.status || "-"}
           </p>
@@ -386,7 +368,6 @@ export default function OrdersContent({
                 <th>Total</th>
               </tr>
             </thead>
-
             <tbody>
               ${
                 order.items?.length
@@ -394,33 +375,19 @@ export default function OrdersContent({
                       .map(
                         (item) => `
                           <tr>
-                            <td>
-                              ${item.name || item.productId || "-"}
-                            </td>
-
-                            <td>
-                              ${item.quantity || 0}
-                            </td>
-
-                            <td>
-                              Rs. ${item.price || 0}
-                            </td>
-
-                            <td>
-                              Rs. ${
-                                (item.price || 0) *
-                                (item.quantity || 0)
-                              }
-                            </td>
+                            <td>${item.name || item.productId || "-"}</td>
+                            <td>${item.quantity || 0}</td>
+                            <td>Rs. ${item.price || 0}</td>
+                            <td>Rs. ${
+                              (item.price || 0) * (item.quantity || 0)
+                            }</td>
                           </tr>
                         `,
                       )
                       .join("")
                   : `
                     <tr>
-                      <td colspan="4">
-                        No product information available
-                      </td>
+                      <td colspan="4">No product information available</td>
                     </tr>
                   `
               }
@@ -434,7 +401,6 @@ export default function OrdersContent({
           <div class="footer">
             Thank you for shopping with ShopEase.
           </div>
-
         </div>
 
         <script>
@@ -444,7 +410,7 @@ export default function OrdersContent({
         </script>
       </body>
     </html>
-  `);
+    `);
 
     invoiceWindow.document.close();
   };
@@ -471,9 +437,7 @@ export default function OrdersContent({
       "cancelled",
     ];
 
-    const normalizedStatus = newStatus
-      .trim()
-      .toLowerCase();
+    const normalizedStatus = newStatus.trim().toLowerCase();
 
     if (!allowedStatuses.includes(normalizedStatus)) {
       alert("Invalid order status.");
@@ -483,9 +447,7 @@ export default function OrdersContent({
     try {
       const response = await api.patch(
         `/orders/${order._id}/status`,
-        {
-          status: normalizedStatus,
-        },
+        { status: normalizedStatus },
       );
 
       const updatedOrder = response.data;
@@ -495,19 +457,13 @@ export default function OrdersContent({
           item._id === order._id
             ? {
                 ...item,
-                status:
-                  updatedOrder.status ||
-                  normalizedStatus,
+                status: updatedOrder.status || normalizedStatus,
               }
             : item,
         ),
       );
     } catch (error) {
-      console.error(
-        "Failed to update order status:",
-        error,
-      );
-
+      console.error("Failed to update order status:", error);
       alert("Failed to update order status.");
     }
   };
@@ -525,36 +481,109 @@ export default function OrdersContent({
     }
 
     try {
-      await api.patch(
-        `/orders/${order._id}/cancel`,
-      );
+      await api.patch(`/orders/${order._id}/cancel`);
 
       setOrders((previousOrders) =>
         previousOrders.map((item) =>
           item._id === order._id
-            ? {
-                ...item,
-                status: "cancelled",
-              }
+            ? { ...item, status: "cancelled" }
             : item,
         ),
       );
     } catch (error) {
-      console.error(
-        "Failed to cancel order:",
-        error,
-      );
-
+      console.error("Failed to cancel order:", error);
       alert("Failed to cancel order.");
     }
   };
 
+  // =========================
+  // REQUEST RETURN / REFUND
+  // =========================
   const handleReturnRefund = (order: Order) => {
-    console.log("Return / Refund:", order);
+    setReturnOrder(order);
   };
 
+  const handleReturnRefundSubmit = async (
+    data: ReturnRefundData,
+  ) => {
+    try {
+      await api.post(`/orders/${data.orderId}/return-refund`, {
+        itemIds: data.itemIds,
+        reason: data.reason,
+        customerNote: data.note,
+        refundMethod: data.refundMethod,
+        refundAmount: data.refundAmount,
+      });
+
+      setReturnOrder(null);
+
+      await fetchOrders();
+
+      alert("Return/refund request submitted successfully.");
+    } catch (error: any) {
+      console.error("Failed to submit return/refund:", error);
+
+      alert(
+        error?.response?.data?.message ||
+          "Failed to submit return/refund request.",
+      );
+    }
+  };
+
+  // =========================
+  // REVIEW RETURN / REFUND
+  // =========================
   const handleReviewReturnRefund = (order: Order) => {
-    console.log("Review Return / Refund:", order);
+    setReviewReturnOrder(order);
+  };
+
+  const handleReturnRefundStatusUpdate = async (
+    orderId: string,
+    newStatus: ReturnRefundStatus,
+  ) => {
+    const allowedStatuses: ReturnRefundStatus[] = [
+      "approved",
+      "rejected",
+      "refunded",
+    ];
+
+    if (!allowedStatuses.includes(newStatus)) {
+      alert("Invalid return/refund status.");
+      return;
+    }
+
+    const reviewNote =
+      newStatus === "approved"
+        ? "Return request approved by admin."
+        : newStatus === "rejected"
+          ? "Return/refund request rejected by admin."
+          : "Refund completed successfully.";
+
+    try {
+      await api.patch(`/orders/${orderId}/return-refund`, {
+        status: newStatus,
+        reviewNote,
+      });
+
+      setReviewReturnOrder(null);
+
+      await fetchOrders();
+
+      alert(
+        newStatus === "approved"
+          ? "Return request approved successfully."
+          : newStatus === "rejected"
+            ? "Return/refund request rejected successfully."
+            : "Refund marked as completed successfully.",
+      );
+    } catch (error: any) {
+      console.error("Failed to update return/refund:", error);
+
+      alert(
+        error?.response?.data?.message ||
+          "Failed to update return/refund status.",
+      );
+    }
   };
 
   // =========================
@@ -565,29 +594,19 @@ export default function OrdersContent({
     value: "cod" | "esewa" | "khalti",
   ) => {
     try {
-      await api.patch(
-        `/orders/${order._id}/payment`,
-        {
-          paymentMethod: value,
-        },
-      );
+      await api.patch(`/orders/${order._id}/payment`, {
+        paymentMethod: value,
+      });
 
       setOrders((previousOrders) =>
         previousOrders.map((item) =>
           item._id === order._id
-            ? {
-                ...item,
-                paymentMethod: value,
-              }
+            ? { ...item, paymentMethod: value }
             : item,
         ),
       );
     } catch (error) {
-      console.error(
-        "Failed to update payment method:",
-        error,
-      );
-
+      console.error("Failed to update payment method:", error);
       throw error;
     }
   };
@@ -600,29 +619,19 @@ export default function OrdersContent({
     value: "paid" | "pending" | "failed",
   ) => {
     try {
-      await api.patch(
-        `/orders/${order._id}/payment`,
-        {
-          paymentStatus: value,
-        },
-      );
+      await api.patch(`/orders/${order._id}/payment`, {
+        paymentStatus: value,
+      });
 
       setOrders((previousOrders) =>
         previousOrders.map((item) =>
           item._id === order._id
-            ? {
-                ...item,
-                paymentStatus: value,
-              }
+            ? { ...item, paymentStatus: value }
             : item,
         ),
       );
     } catch (error) {
-      console.error(
-        "Failed to update payment status:",
-        error,
-      );
-
+      console.error("Failed to update payment status:", error);
       throw error;
     }
   };
@@ -670,9 +679,7 @@ export default function OrdersContent({
 
   return (
     <div className="space-y-6">
-      {/* =========================
-          FILTERS
-      ========================= */}
+      {/* FILTERS */}
       <OrderFilters
         search={search}
         status={status}
@@ -689,35 +696,25 @@ export default function OrdersContent({
         onApplyFilters={handleApplyFilters}
       />
 
-      {/* =========================
-          APPLIED DATE MESSAGE
-      ========================= */}
+      {/* APPLIED DATE MESSAGE */}
       {(appliedDateFrom || appliedDateTo) && (
         <div className="rounded-lg border bg-blue-50 px-4 py-3 text-sm text-blue-700">
           Showing orders from{" "}
           <strong>
             {appliedDateFrom
-              ? format(
-                  appliedDateFrom,
-                  "dd/MM/yyyy",
-                )
+              ? format(appliedDateFrom, "dd/MM/yyyy")
               : "beginning"}
           </strong>{" "}
           to{" "}
           <strong>
             {appliedDateTo
-              ? format(
-                  appliedDateTo,
-                  "dd/MM/yyyy",
-                )
+              ? format(appliedDateTo, "dd/MM/yyyy")
               : "today"}
           </strong>
         </div>
       )}
 
-      {/* =========================
-          ORDER TABLE
-      ========================= */}
+      {/* ORDER TABLE */}
       <div className="rounded-xl border bg-white shadow-sm">
         {loading ? (
           <div className="flex min-h-50 items-center justify-center">
@@ -731,29 +728,19 @@ export default function OrdersContent({
             currentPage={currentPage}
             onView={handleView}
             selectedOrders={selectedOrders}
-            onSelectionChange={
-              handleSelectionChange
-            }
+            onSelectionChange={handleSelectionChange}
             onPrintInvoice={handlePrintInvoice}
             onChangeStatus={handleChangeStatus}
             onCancelOrder={handleCancelOrder}
             onReturnRefund={handleReturnRefund}
-            onReviewReturnRefund={
-              handleReviewReturnRefund
-            }
-            onPaymentMethodChange={
-              handlePaymentMethodChange
-            }
-            onPaymentStatusChange={
-              handlePaymentStatusChange
-            }
+            onReviewReturnRefund={handleReviewReturnRefund}
+            onPaymentMethodChange={handlePaymentMethodChange}
+            onPaymentStatusChange={handlePaymentStatusChange}
           />
         )}
       </div>
 
-      {/* =========================
-          PAGINATION
-      ========================= */}
+      {/* PAGINATION */}
       {totalOrders > 0 && (
         <Pagination
           currentPage={currentPage}
@@ -761,15 +748,11 @@ export default function OrdersContent({
           totalItems={totalOrders}
           itemsPerPage={itemsPerPage}
           onPageChange={handlePageChange}
-          onItemsPerPageChange={
-            handleItemsPerPageChange
-          }
+          onItemsPerPageChange={handleItemsPerPageChange}
         />
       )}
 
-      {/* =========================
-          NO ORDERS
-      ========================= */}
+      {/* NO ORDERS */}
       {!loading && orders.length === 0 && (
         <div className="rounded-xl border bg-white py-12 text-center">
           <p className="text-gray-500">
@@ -778,6 +761,7 @@ export default function OrdersContent({
         </div>
       )}
 
+      {/* ORDER DETAILS */}
       <OrderDetailsDialog
         order={selectedOrder}
         open={viewOrderOpen}
@@ -794,28 +778,18 @@ export default function OrdersContent({
             setOrders((previousOrders) =>
               previousOrders.map((item) =>
                 item._id === orderId
-                  ? {
-                      ...item,
-                      status: newStatus,
-                    }
+                  ? { ...item, status: newStatus }
                   : item,
               ),
             );
 
             setSelectedOrder((previousOrder) =>
-              previousOrder &&
-              previousOrder._id === orderId
-                ? {
-                    ...previousOrder,
-                    status: newStatus,
-                  }
+              previousOrder && previousOrder._id === orderId
+                ? { ...previousOrder, status: newStatus }
                 : previousOrder,
             );
           } catch (error) {
-            console.error(
-              "Failed to update order status:",
-              error,
-            );
+            console.error("Failed to update order status:", error);
             alert("Failed to update order status.");
             throw error;
           }
@@ -823,7 +797,22 @@ export default function OrdersContent({
         onPrintInvoice={handlePrintInvoice}
         onReturnRefund={handleReturnRefund}
       />
+
+      {/* RETURN / REFUND REQUEST DIALOG */}
+      <ReturnRefundDialog
+        order={returnOrder}
+        open={!!returnOrder}
+        onClose={() => setReturnOrder(null)}
+        onSubmit={handleReturnRefundSubmit}
+      />
+
+      {/* REVIEW RETURN / REFUND DIALOG */}
+      <ReturnRefundReviewDialog
+        order={reviewReturnOrder}
+        open={!!reviewReturnOrder}
+        onClose={() => setReviewReturnOrder(null)}
+        onStatusUpdate={handleReturnRefundStatusUpdate}
+      />
     </div>
   );
 }
-

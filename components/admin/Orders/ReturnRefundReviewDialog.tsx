@@ -221,27 +221,25 @@ export default function ReturnRefundReviewDialog({
                     Customer
                   </p>
 
-                  <p className="mt-1 font-medium text-slate-900">
-                    {order.customer.name}
-                  </p>
+                
+            <p className="mt-1 font-medium text-slate-900">
+              {order.customer?.email || "Not available"}
+               </p>
 
-                </div>
+              </div>
 
                 <div>
+          <p className="text-xs text-slate-500">
+                Email
+             </p>
 
-                  <p className="text-xs text-slate-500">
-                    Email
-                  </p>
+            <p className="mt-1 break-all font-medium text-slate-900">
+           {order.customer?.email || "Not available"}
+            </p>
+               </div>
 
-                  <p className="mt-1 break-all font-medium text-slate-900">
-                    {order.customer.email ||
-                      "Not available"}
-                  </p>
-
-                </div>
-
-                {order.customer.phone && (
-                  <div>
+        {order.customer?.phone && (
+               <div>
 
                     <p className="text-xs text-slate-500">
                       Phone
@@ -487,17 +485,17 @@ export default function ReturnRefundReviewDialog({
                 <div>
 
                   <p className="font-medium text-slate-900">
-                    {order.shippingAddress.address ||
-                      "Address not available"}
-                  </p>
+                     {order.shippingAddress?.address ||
+                       (order as any).deliveryAddress ||
+                       "Address not available"}
+                        </p>
 
-                  <p className="mt-1 text-sm text-slate-500">
-                    {order.shippingAddress.city ||
-                      "City not available"}
-                    ,{" "}
-                    {order.shippingAddress.country ||
-                      "Nepal"}
-                  </p>
+             <p className="mt-1 text-sm text-slate-500">
+               {order.shippingAddress?.city || ""}
+                 {order.shippingAddress?.country
+               ? `, ${order.shippingAddress.country}`
+                : ""}
+                </p>
 
                 </div>
 

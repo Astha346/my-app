@@ -1,14 +1,24 @@
+
 import axios, {
   AxiosError,
   InternalAxiosRequestConfig,
 } from "axios";
 
+const BASE_URL = "http://localhost:3001";
+
 const api = axios.create({
-  baseURL: "http://localhost:3001",
+  baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+type RetryRequestConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+};
+
+// Prevent multiple requests from refreshing at the same time.
+let refreshPromise: Promise<string> | null = null;
 
 // =====================================================
 // REQUEST INTERCEPTOR
@@ -20,20 +30,14 @@ api.interceptors.request.use(
       const token = localStorage.getItem("token");
 
       if (token) {
-        // Remove accidental quotes from the token
         const cleanToken = token.replace(/^['"]|['"]$/g, "");
-
-        config.headers.Authorization =
-          `Bearer ${cleanToken}`;
+        config.headers.Authorization = `Bearer ${cleanToken}`;
       }
     }
 
     return config;
   },
-
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // =====================================================
@@ -41,21 +45,12 @@ api.interceptors.request.use(
 // =====================================================
 
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
 
   async (error: AxiosError) => {
-    const originalRequest =
-      error.config as
-        | (InternalAxiosRequestConfig & {
-            _retry?: boolean;
-          })
-        | undefined;
-
-    // =================================================
-    // ONLY HANDLE 401
-    // =================================================
+    const originalRequest = error.config as
+      | RetryRequestConfig
+      | undefined;
 
     if (
       error.response?.status !== 401 ||
@@ -65,141 +60,110 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // =================================================
-    // DON'T REFRESH THESE REQUESTS
-    // =================================================
+    const url = originalRequest.url ?? "";
 
+    // Never refresh login, refresh, or logout requests.
     if (
-      originalRequest.url?.includes("/auth/login") ||
-      originalRequest.url?.includes("/auth/refresh") ||
-      originalRequest.url?.includes("/auth/logout")
+      url.includes("/auth/login") ||
+      url.includes("/auth/refresh") ||
+      url.includes("/auth/logout")
     ) {
       return Promise.reject(error);
     }
-
-    originalRequest._retry = true;
 
     if (typeof window === "undefined") {
       return Promise.reject(error);
     }
 
-    // =================================================
-    // GET REFRESH TOKEN
-    // =================================================
-
     const storedRefreshToken =
       localStorage.getItem("refresh_token");
 
     if (!storedRefreshToken) {
-      console.log("❌ NO REFRESH TOKEN FOUND");
+      // There is no refresh token to use.
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
 
       return Promise.reject(error);
     }
 
-    // Remove accidental quotes from refresh token too
-    const refreshToken =
-      storedRefreshToken.replace(/^['"]|['"]$/g, "");
+    originalRequest._retry = true;
 
     try {
-      console.log("🔄 Access token expired");
-      console.log("🔄 Getting new access token...");
+      // Reuse an in-progress refresh instead of sending
+      // multiple refresh requests simultaneously.
+      if (!refreshPromise) {
+        refreshPromise = axios
+          .post(`${BASE_URL}/auth/refresh`, {
+            refresh_token: storedRefreshToken.replace(
+              /^['"]|['"]$/g,
+              ""
+            ),
+          })
+          .then((response) => {
+            const newAccessToken = response.data.access_token;
+            const newRefreshToken = response.data.refresh_token;
 
-      // =================================================
-      // REFRESH API
-      // =================================================
+            if (!newAccessToken || !newRefreshToken) {
+              throw new Error(
+                "Refresh response is missing tokens."
+              );
+            }
 
-      const response = await axios.post(
-        "http://localhost:3001/auth/refresh",
-        {
-          refresh_token: refreshToken,
-        }
-      );
+            const cleanAccessToken = newAccessToken.replace(
+              /^['"]|['"]$/g,
+              ""
+            );
 
-      // =================================================
-      // GET NEW TOKENS
-      // =================================================
+            const cleanRefreshToken = newRefreshToken.replace(
+              /^['"]|['"]$/g,
+              ""
+            );
 
-      const newAccessToken =
-        response.data.access_token;
+            localStorage.setItem("token", cleanAccessToken);
+            localStorage.setItem(
+              "refresh_token",
+              cleanRefreshToken
+            );
 
-      const newRefreshToken =
-        response.data.refresh_token;
+            if (response.data.user) {
+              localStorage.setItem(
+                "user",
+                JSON.stringify(response.data.user)
+              );
+            }
 
-      if (!newAccessToken) {
-        throw new Error(
-          "New access token not received"
-        );
+            return cleanAccessToken;
+          })
+          .catch((refreshError) => {
+            // Clear login data only if refreshing fails.
+            localStorage.removeItem("token");
+            localStorage.removeItem("refresh_token");
+            localStorage.removeItem("user");
+
+            if (window.location.pathname !== "/login") {
+              window.location.href = "/login";
+            }
+
+            throw refreshError;
+          })
+          .finally(() => {
+            refreshPromise = null;
+          });
       }
 
-      if (!newRefreshToken) {
-        throw new Error(
-          "New refresh token not received"
-        );
-      }
+      const newAccessToken = await refreshPromise;
 
-      // =================================================
-      // CLEAN NEW TOKENS
-      // =================================================
-
-      const cleanNewAccessToken =
-        newAccessToken.replace(/^['"]|['"]$/g, "");
-
-      const cleanNewRefreshToken =
-        newRefreshToken.replace(/^['"]|['"]$/g, "");
-
-      console.log("✅ New access token received");
-      console.log("✅ New refresh token received");
-
-      // =================================================
-      // SAVE NEW TOKENS
-      // =================================================
-
-      localStorage.setItem(
-        "token",
-        cleanNewAccessToken
-      );
-
-      localStorage.setItem(
-        "refresh_token",
-        cleanNewRefreshToken
-      );
-
-      // =================================================
-      // UPDATE ORIGINAL REQUEST
-      // =================================================
-
+      // Retry the original request with the new token.
       originalRequest.headers.Authorization =
-        `Bearer ${cleanNewAccessToken}`;
-
-      console.log(
-        "🔁 Retrying original request..."
-      );
-
-      // =================================================
-      // RETRY ORIGINAL REQUEST
-      // =================================================
+        `Bearer ${newAccessToken}`;
 
       return api(originalRequest);
-
     } catch (refreshError) {
       console.error(
-        "❌ Refresh token failed",
+        "Token refresh or request retry failed:",
         refreshError
       );
-
-      // =================================================
-      // CLEAR LOGIN DATA
-      // =================================================
-
-      localStorage.removeItem("token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user");
-
-      // =================================================
-      // GO TO LOGIN
-      // =================================================
-
-      window.location.href = "/login";
 
       return Promise.reject(refreshError);
     }
@@ -207,3 +171,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+

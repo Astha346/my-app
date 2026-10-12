@@ -1,8 +1,7 @@
 
 "use client";
 
-import React from "react";
-
+import React, { useState } from "react";
 import {
   Check,
   ChevronRight,
@@ -34,40 +33,32 @@ import {
 } from "@/components/ui/select";
 
 import { Separator } from "@/components/ui/separator";
-
-import {
-  Order,
-  OrderStatus,
-} from "@/types/order";
-
+import type { Order } from "@/types/order";
 import OrderStatusBadge from "./OrderStatusBadge";
 
-interface Props {
+type OrderStatus =
+  | "pending"
+  | "confirmed"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "cancelled";
+
+type ReturnRefundMode = "return-refund" | "refund-only";
+
+interface OrderDetailsDialogProps {
   order: Order | null;
   open: boolean;
   onClose: () => void;
-
-  onStatusUpdate: (
-    orderId: string,
-    status: OrderStatus
-  ) => void;
-
+  onStatusUpdate: (orderId: string, status: OrderStatus) => void;
   onPrintInvoice: (order: Order) => void;
-
-  /*
-   * Called when admin confirms return/refund.
-   *
-   * mode:
-   * "return_refund" = product returned + money refunded
-   * "refund_only"   = money refunded without return
-   */
   onReturnRefund?: (
     order: Order,
-    mode: "return_refund" | "refund_only"
+    mode: ReturnRefundMode
   ) => void;
 }
 
-const STATUS_FLOW: OrderStatus[] = [
+const statusFlow: OrderStatus[] = [
   "pending",
   "confirmed",
   "processing",
@@ -75,7 +66,7 @@ const STATUS_FLOW: OrderStatus[] = [
   "delivered",
 ];
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
+const statusLabels: Record<OrderStatus, string> = {
   pending: "Pending",
   confirmed: "Confirmed",
   processing: "Processing",
@@ -84,6 +75,9 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: "Cancelled",
 };
 
+const formatPrice = (value?: number | null) =>
+  `Rs. ${(value ?? 0).toLocaleString("en-IN")}`;
+
 export default function OrderDetailsDialog({
   order,
   open,
@@ -91,1325 +85,612 @@ export default function OrderDetailsDialog({
   onStatusUpdate,
   onPrintInvoice,
   onReturnRefund,
-}: Props) {
-  /*
-   * Return / Refund dialog state.
-   *
-   * Hooks are declared before any conditional return.
-   * This prevents React Hooks order errors.
-   */
+}: OrderDetailsDialogProps) {
+  const [selectedStatus, setSelectedStatus] =
+    useState<OrderStatus>("pending");
+
   const [returnRefundOpen, setReturnRefundOpen] =
-    React.useState(false);
+    useState(false);
 
-  const [refundMode, setRefundMode] =
-    React.useState<
-      "return_refund" | "refund_only"
-    >("return_refund");
+  const [returnRefundMode, setReturnRefundMode] =
+    useState<ReturnRefundMode>("return-refund");
 
-  /*
-   * No order selected.
-   */
-  if (!order) {
-    return null;
-  }
+  if (!order) return null;
 
-  /*
-   * Backend order compatibility.
-   *
-   * The backend currently returns:
-   * customerName
-   * deliveryAddress
-   * latitude
-   * longitude
-   * items
-   * total
-   *
-   * Some optional fields are kept here so the
-   * existing UI can safely support them if they
-   * are added to the backend later.
-   */
-  const backendOrder = order as Order & {
-    orderNumber?: string;
-    customerName?: string;
-    customer?: {
-      name?: string;
-      email?: string;
-      phone?: string;
-    };
-    deliveryAddress?: string;
-    latitude?: number | null;
-    longitude?: number | null;
-    shippingAddress?: {
-      address?: string;
-      city?: string;
-      country?: string;
-    };
-    subtotal?: number;
-    shipping?: number;
-    discount?: number;
-  };
+  const orderData = order as any;
 
-  /*
-   * Order number.
-   *
-   * Backend currently does not have orderNumber,
-   * so use MongoDB _id as fallback.
-   */
+  const currentStatus = (orderData.status ??
+    "pending") as OrderStatus;
+
+  const currentStatusIndex = statusFlow.indexOf(currentStatus);
+
+  const nextStatus =
+    currentStatusIndex >= 0 &&
+    currentStatusIndex < statusFlow.length - 1
+      ? statusFlow[currentStatusIndex + 1]
+      : null;
+
   const displayOrderNumber =
-    backendOrder.orderNumber ||
-    order._id;
+    orderData.orderNumber ??
+    orderData._id ??
+    orderData.id ??
+    "N/A";
 
-  /*
-   * Customer information.
-   *
-   * Backend currently stores customerName.
-   */
+  const customer = orderData.user ?? orderData.customer ?? {};
+
   const customerName =
-    backendOrder.customerName ||
-    backendOrder.customer?.name ||
-    "Unknown Customer";
+    customer.name ??
+    customer.username ??
+    orderData.customerName ??
+    "N/A";
 
   const customerEmail =
-    backendOrder.customer?.email ||
-    "Not available";
+    customer.email ?? orderData.email ?? "N/A";
 
   const customerPhone =
-    backendOrder.customer?.phone || "";
+    customer.phone ?? orderData.phone ?? "N/A";
 
-  /*
-   * Shipping information.
-   *
-   * Backend stores deliveryAddress directly.
-   */
-  const deliveryAddress =
-    backendOrder.deliveryAddress ||
-    backendOrder.shippingAddress?.address ||
-    "Address not available";
+  const shippingAddress =
+    orderData.deliveryAddress ??
+    orderData.shippingAddress ??
+    orderData.address ??
+    {};
 
-  const locationText =
-    backendOrder.shippingAddress?.city ||
-    backendOrder.shippingAddress?.country ||
-    (backendOrder.latitude != null &&
-    backendOrder.longitude != null
-      ? `${backendOrder.latitude}, ${backendOrder.longitude}`
-      : "Location not available");
+  const addressText =
+    typeof shippingAddress === "string"
+      ? shippingAddress
+      : [
+          shippingAddress.address,
+          shippingAddress.street,
+          shippingAddress.city,
+          shippingAddress.state,
+          shippingAddress.postalCode,
+        ]
+          .filter(Boolean)
+          .join(", ") || "No address provided";
 
-  /*
-   * Calculate subtotal from the actual order items
-   * when backend subtotal is not available.
-   */
-  const calculatedSubtotal =
-    order.items?.reduce(
-      (sum, item) =>
-        sum +
-        Number(item.price || 0) *
-          Number(item.quantity || 0),
-      0
-    ) || 0;
+  const items = orderData.items ?? orderData.orderItems ?? [];
 
   const subtotal =
-    backendOrder.subtotal ??
-    calculatedSubtotal;
-
-  /*
-   * Backend currently does not store separate
-   * shipping or discount values.
-   */
-  const shipping =
-    backendOrder.shipping ?? 0;
-
-  const discount =
-    backendOrder.discount ?? 0;
-
-  /*
-   * Find current status index.
-   */
-  const currentStatusIndex =
-    STATUS_FLOW.indexOf(order.status);
-
-  /*
-   * Find next status.
-   *
-   * pending     -> confirmed
-   * confirmed   -> processing
-   * processing  -> shipped
-   * shipped     -> delivered
-   * delivered   -> no next status
-   * cancelled   -> no next status
-   */
-  let nextStatus: OrderStatus | null = null;
-
-  if (
-    order.status !== "cancelled" &&
-    order.status !== "delivered"
-  ) {
-    if (currentStatusIndex >= 0) {
-      nextStatus =
-        STATUS_FLOW[currentStatusIndex + 1] ?? null;
-    }
-  }
-
-  /*
-   * Return / Refund is available only after
-   * delivery or cancellation.
-   */
-  const canReturnRefund =
-    order.status === "delivered" ||
-    order.status === "cancelled";
-
-  /*
-   * Open return/refund confirmation dialog.
-   */
-  const handleOpenReturnRefund = () => {
-    setRefundMode("return_refund");
-    setReturnRefundOpen(true);
-  };
-
-  /*
-   * Confirm return/refund.
-   */
-  const handleConfirmReturnRefund = () => {
-    if (!onReturnRefund) {
-      setReturnRefundOpen(false);
-      return;
-    }
-
-    onReturnRefund(
-      order,
-      refundMode
+    orderData.subtotal ??
+    items.reduce(
+      (total: number, item: any) =>
+        total +
+        (item.price ?? item.product?.price ?? 0) *
+          (item.quantity ?? 1),
+      0
     );
 
-    setReturnRefundOpen(false);
-  };
+  const shippingCost =
+    orderData.shippingCost ??
+    orderData.deliveryCharge ??
+    orderData.shippingFee ??
+    0;
 
-  /*
-   * Update order status.
-   */
+  const discount = orderData.discount ?? 0;
+
+  const total =
+    orderData.totalAmount ??
+    orderData.total ??
+    subtotal + shippingCost - discount;
+
+  const paymentMethod =
+    orderData.paymentMethod ?? "N/A";
+
+  const paymentStatus =
+    orderData.paymentStatus ?? "pending";
+
+  const canReturnRefund =
+    currentStatus === "delivered" ||
+    currentStatus === "cancelled";
+
   const handleStatusUpdate = () => {
-    if (!nextStatus) {
+    if (!selectedStatus || selectedStatus === currentStatus) {
       return;
     }
 
     onStatusUpdate(
-      order._id,
+      String(orderData._id ?? orderData.id),
+      selectedStatus
+    );
+  };
+
+  const handleMoveToNextStatus = () => {
+    if (!nextStatus) return;
+
+    setSelectedStatus(nextStatus);
+
+    onStatusUpdate(
+      String(orderData._id ?? orderData.id),
       nextStatus
     );
-
-    onClose();
   };
 
-  /*
-   * Format date.
-   */
-  const formattedDate = new Date(
-    order.createdAt
-  ).toLocaleDateString("en-US", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-
-  /*
-   * Format price.
-   */
-  const formatPrice = (value?: number | null) => {
-    return `Rs. ${(value ?? 0).toLocaleString(
-      "en-IN"
-    )}`;
+  const handleOpenReturnRefund = (
+    mode: ReturnRefundMode
+  ) => {
+    setReturnRefundMode(mode);
+    setReturnRefundOpen(true);
   };
 
-  /*
-   * Payment method.
-   */
-  const paymentMethodLabel = {
-    cod: "Cash on Delivery",
-    esewa: "eSewa",
-    khalti: "Khalti",
-  }[order.paymentMethod];
+  const handleConfirmReturnRefund = () => {
+    if (!onReturnRefund) return;
 
-  /*
-   * Payment status styling.
-   */
-  const paymentStatusClass = {
-    paid: "bg-emerald-50 text-emerald-700",
-    pending: "bg-amber-50 text-amber-700",
-    failed: "bg-red-50 text-red-700",
-  }[order.paymentStatus];
+    onReturnRefund(order, returnRefundMode);
+    setReturnRefundOpen(false);
+  };
+
+  const getItemName = (item: any) =>
+    item.product?.name ??
+    item.productName ??
+    item.name ??
+    "Product";
+
+  const getItemPrice = (item: any) =>
+    item.price ?? item.product?.price ?? 0;
+
+  const getItemQuantity = (item: any) =>
+    item.quantity ?? 1;
 
   return (
     <>
-      {/* ====================================================== */}
-      {/* ORDER DETAILS DIALOG */}
-      {/* ====================================================== */}
-
-      <Dialog
-        open={open}
-        onOpenChange={(value) => {
-          if (!value) {
-            onClose();
-          }
-        }}
-      >
+      <Dialog open={open} onOpenChange={(value) => !value && onClose()}>
         <DialogContent
-          className="
-            w-[96vw]
-            max-w-375
-            h-[92vh]
-            overflow-hidden
-            rounded-2xl
-            border-0
-            bg-white
-            p-0
-            gap-0
-            shadow-2xl
-          "
+          showCloseButton={false}
+          className="!fixed !left-1/2 !top-1/2 !flex !h-[78vh] !max-h-[78vh] !w-[88vw] !max-w-[1050px] !min-w-0 !-translate-x-1/2 !-translate-y-1/2 !flex-col !gap-0 !overflow-hidden !rounded-xl !border !border-slate-200 !bg-slate-50 !p-0 !shadow-xl dark:!border-slate-700 dark:!bg-slate-950"
         >
-          {/* ====================================================== */}
-          {/* HEADER */}
-          {/* ====================================================== */}
-
-          <div className="flex shrink-0 items-center justify-between border-b px-8 py-5">
-            <DialogHeader className="space-y-0 text-left">
-              <div className="flex items-center gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900">
-                  <Package className="h-5 w-5 text-white" />
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-3">
-                    <DialogTitle className="text-xl font-bold text-slate-900">
-                      {displayOrderNumber}
-                    </DialogTitle>
-
-                    <OrderStatusBadge
-                      status={order.status}
-                    />
-                  </div>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Order placed on {formattedDate}
-                  </p>
-                </div>
-              </div>
-            </DialogHeader>
+          {/* Header */}
+          <DialogHeader className="flex shrink-0 flex-row items-center justify-between border-b border-slate-200 px-5 py-3 text-left dark:border-slate-700">
+            <div className="min-w-0">
+              <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white">
+                Order Details
+              </DialogTitle>
+              <p className="mt-1 truncate text-xs text-slate-500">
+                Order #{String(displayOrderNumber)}
+              </p>
+            </div>
 
             <button
               type="button"
               onClick={onClose}
-              className="
-                flex h-9 w-9
-                items-center justify-center
-                rounded-lg
-                border border-slate-200
-                text-slate-500
-                transition
-                hover:bg-slate-100
-                hover:text-slate-900
-              "
+              aria-label="Close order details"
+              className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
             >
-              <X className="h-4 w-4" />
+              <X size={18} />
             </button>
-          </div>
+          </DialogHeader>
 
-          {/* ====================================================== */}
-          {/* SCROLLABLE CONTENT */}
-          {/* ====================================================== */}
+          {/* Scrollable content */}
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+            <div className="space-y-4 p-4">
+              {/* Order status progress */}
+              <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Order Progress
+                  </h3>
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50">
-            <div className="space-y-5 p-6 lg:p-8">
+                  <OrderStatusBadge status={currentStatus} />
+                </div>
 
-              {/* ================================================== */}
-              {/* ORDER PROGRESS */}
-              {/* ================================================== */}
+                <div className="grid grid-cols-5 gap-2">
+                  {statusFlow.map((status, index) => {
+                    const completed =
+                      currentStatusIndex >= index &&
+                      currentStatus !== "cancelled";
 
-              <div className="rounded-xl border border-slate-200 bg-white">
-                <div className="px-7 py-6">
+                    const active = currentStatus === status;
 
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Order Progress
-                      </h3>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        Current order fulfillment status
-                      </p>
-                    </div>
-
-                    <span className="text-xs font-medium text-slate-400">
-                      {order.status === "cancelled"
-                        ? "Cancelled"
-                        : order.status === "delivered"
-                        ? "Completed"
-                        : `Step ${
-                            currentStatusIndex + 1
-                          } of ${STATUS_FLOW.length}`}
-                    </span>
-                  </div>
-
-                  {order.status === "cancelled" ? (
-                    <div className="mt-6 flex items-center rounded-lg border border-red-100 bg-red-50 px-4 py-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100">
-                        <X className="h-4 w-4 text-red-600" />
-                      </div>
-
-                      <div className="ml-3">
-                        <p className="text-sm font-semibold text-red-700">
-                          Order Cancelled
-                        </p>
-
-                        <p className="text-xs text-red-600">
-                          This order can no longer be progressed.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-8">
-                      <div className="relative">
-
-                        {/* Base line */}
-
-                        <div className="absolute left-[10%] right-[10%] top-4 h-0.5 bg-slate-200" />
-
-                        {/* Progress line */}
-
-                        {currentStatusIndex > 0 && (
-                          <div
-                            className="absolute left-[10%] top-4 h-0.5 bg-emerald-500"
-                            style={{
-                              width: `${
-                                (currentStatusIndex /
-                                  (STATUS_FLOW.length - 1)) *
-                                80
-                              }%`,
-                            }}
-                          />
-                        )}
-
-                        {/* Steps */}
-
-                        <div className="relative grid grid-cols-5">
-                          {STATUS_FLOW.map(
-                            (step, index) => {
-                              const completed =
-                                index <=
-                                currentStatusIndex;
-
-                              const active =
-                                index ===
-                                currentStatusIndex;
-
-                              return (
-                                <div
-                                  key={step}
-                                  className="flex flex-col items-center"
-                                >
-                                  <div
-                                    className={`
-                                      flex h-8 w-8
-                                      items-center justify-center
-                                      rounded-full
-                                      border-2
-                                      bg-white
-                                      ${
-                                        completed
-                                          ? "border-emerald-500 bg-emerald-500 text-white"
-                                          : "border-slate-200 text-slate-400"
-                                      }
-                                      ${
-                                        active
-                                          ? "ring-4 ring-emerald-50"
-                                          : ""
-                                      }
-                                    `}
-                                  >
-                                    {completed ? (
-                                      <Check className="h-3.5 w-3.5" />
-                                    ) : (
-                                      <span className="h-2 w-2 rounded-full bg-slate-300" />
-                                    )}
-                                  </div>
-
-                                  <span
-                                    className={`
-                                      mt-3 text-xs
-                                      ${
-                                        completed
-                                          ? "font-semibold text-slate-900"
-                                          : "text-slate-400"
-                                      }
-                                    `}
-                                  >
-                                    {
-                                      STATUS_LABELS[
-                                        step
-                                      ]
-                                    }
-                                  </span>
-                                </div>
-                              );
-                            }
+                    return (
+                      <div
+                        key={status}
+                        className="flex min-w-0 flex-col items-center text-center"
+                      >
+                        <div
+                          className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                            completed
+                              ? "bg-emerald-500 text-white"
+                              : "bg-slate-100 text-slate-400 dark:bg-slate-800"
+                          }`}
+                        >
+                          {completed ? (
+                            <Check size={16} />
+                          ) : index === 0 ? (
+                            <Clock size={16} />
+                          ) : index === 1 ? (
+                            <Check size={16} />
+                          ) : index === 2 ? (
+                            <Package size={16} />
+                          ) : (
+                            <Truck size={16} />
                           )}
                         </div>
+
+                        <span
+                          className={`mt-2 break-words text-[11px] ${
+                            active
+                              ? "font-semibold text-emerald-600"
+                              : "text-slate-500"
+                          }`}
+                        >
+                          {statusLabels[status]}
+                        </span>
                       </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* ================================================== */}
-              {/* CUSTOMER / SHIPPING / PAYMENT */}
-              {/* ================================================== */}
-
-              <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-slate-200 bg-white lg:grid-cols-3">
-
-                {/* CUSTOMER */}
-
-                <div className="border-b p-6 lg:border-b-0 lg:border-r">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
-                      <User className="h-4 w-4 text-blue-600" />
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Customer
-                      </h3>
-
-                      <p className="text-xs text-slate-500">
-                        Customer details
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 space-y-3">
-
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                        Name
-                      </p>
-
-                      <p className="mt-1 text-sm font-medium text-slate-900">
-                        {customerName}
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                        Email
-                      </p>
-
-                      <p className="mt-1 break-all text-sm text-slate-600">
-                        {customerEmail}
-                      </p>
-                    </div>
-
-                    {customerPhone && (
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                          Phone
-                        </p>
-
-                        <p className="mt-1 text-sm text-slate-600">
-                          {customerPhone}
-                        </p>
-                      </div>
-                    )}
-
-                  </div>
+                    );
+                  })}
                 </div>
 
-                {/* SHIPPING */}
+                {currentStatus === "cancelled" && (
+                  <p className="mt-3 text-sm font-medium text-red-500">
+                    This order has been cancelled.
+                  </p>
+                )}
+              </section>
 
-                <div className="border-b p-6 lg:border-b-0 lg:border-r">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-50">
-                      <MapPin className="h-4 w-4 text-orange-600" />
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Shipping Address
-                      </h3>
-
-                      <p className="text-xs text-slate-500">
-                        Delivery information
-                      </p>
-                    </div>
+              {/* Customer, shipping and payment */}
+              <section className="grid grid-cols-1 gap-3 lg:grid-cols-2 2xl:grid-cols-3">
+                <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="mb-3 flex items-center gap-2">
+                    <User
+                      size={17}
+                      className="text-emerald-600"
+                    />
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Customer
+                    </h3>
                   </div>
 
-                  <div className="mt-5 rounded-lg bg-slate-50 p-4">
-                    <p className="text-sm font-medium leading-6 text-slate-900">
-                      {deliveryAddress}
-                    </p>
-
-                    <p className="mt-1 text-sm text-slate-500">
-                      {locationText}
-                    </p>
-                  </div>
+                  <p className="break-words text-sm font-medium text-slate-800 dark:text-slate-200">
+                    {customerName}
+                  </p>
+                  <p className="mt-1 break-all text-xs text-slate-500">
+                    {customerEmail}
+                  </p>
+                  <p className="mt-1 break-words text-xs text-slate-500">
+                    {customerPhone}
+                  </p>
                 </div>
 
-                {/* PAYMENT */}
-
-                <div className="p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50">
-                      <CreditCard className="h-4 w-4 text-emerald-600" />
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Payment
-                      </h3>
-
-                      <p className="text-xs text-slate-500">
-                        Payment information
-                      </p>
-                    </div>
+                <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="mb-3 flex items-center gap-2">
+                    <MapPin
+                      size={17}
+                      className="text-emerald-600"
+                    />
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Shipping
+                    </h3>
                   </div>
 
-                  <div className="mt-5 space-y-4">
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">
-                        Method
-                      </span>
-
-                      <span className="text-sm font-medium text-slate-900">
-                        {paymentMethodLabel}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-500">
-                        Status
-                      </span>
-
-                      <span
-                        className={`
-                          rounded-full
-                          px-2.5 py-1
-                          text-xs font-semibold
-                          capitalize
-                          ${paymentStatusClass}
-                        `}
-                      >
-                        {order.paymentStatus}
-                      </span>
-                    </div>
-
-                  </div>
+                  <p className="break-words text-xs leading-5 text-slate-600 dark:text-slate-300">
+                    {addressText}
+                  </p>
                 </div>
-              </div>
 
-              {/* ================================================== */}
-              {/* ORDER ITEMS */}
-              {/* ================================================== */}
-
-              <div className="rounded-xl border border-slate-200 bg-white">
-                <div className="p-7">
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900">
-                        Order Items
-                      </h3>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {order.items.length}{" "}
-                        {order.items.length === 1
-                          ? "item"
-                          : "items"}{" "}
-                        in this order
-                      </p>
-                    </div>
-
-                    <Package className="h-5 w-5 text-slate-300" />
+                <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="mb-3 flex items-center gap-2">
+                    <CreditCard
+                      size={17}
+                      className="text-emerald-600"
+                    />
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Payment
+                    </h3>
                   </div>
 
-                  <Separator className="my-5" />
+                  <p className="break-words text-sm font-medium capitalize text-slate-800 dark:text-slate-200">
+                    {String(paymentMethod)}
+                  </p>
 
-                  <div className="overflow-x-auto">
-                    <div className="min-w-175">
+                  <span
+                    className={`mt-2 inline-flex rounded-full px-2 py-1 text-[11px] font-medium capitalize ${
+                      paymentStatus === "paid"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : paymentStatus === "failed"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {String(paymentStatus)}
+                  </span>
+                </div>
+              </section>
 
-                      {/* TABLE HEADER */}
+              {/* Order items */}
+              <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                <div className="mb-3 flex items-center gap-2">
+                  <Package
+                    size={17}
+                    className="text-emerald-600"
+                  />
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Order Items
+                  </h3>
+                </div>
 
-                      <div className="grid grid-cols-12 border-b border-slate-100 pb-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-
-                        <div className="col-span-6">
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[480px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-xs text-slate-500 dark:border-slate-700">
+                        <th className="py-3 pr-3 font-medium">
                           Product
-                        </div>
-
-                        <div className="col-span-2 text-center">
-                          Quantity
-                        </div>
-
-                        <div className="col-span-2 text-right">
-                          Unit Price
-                        </div>
-
-                        <div className="col-span-2 text-right">
+                        </th>
+                        <th className="px-3 py-3 text-center font-medium">
+                          Qty
+                        </th>
+                        <th className="px-3 py-3 text-right font-medium">
+                          Price
+                        </th>
+                        <th className="py-3 pl-3 text-right font-medium">
                           Total
-                        </div>
+                        </th>
+                      </tr>
+                    </thead>
 
-                      </div>
-
-                      {/* TABLE ROWS */}
-
-                      {order.items.map(
-                        (item, index) => {
-                          const itemTotal =
-                            item.price *
-                            item.quantity;
+                    <tbody>
+                      {items.length > 0 ? (
+                        items.map((item: any, index: number) => {
+                          const price = getItemPrice(item);
+                          const quantity = getItemQuantity(item);
 
                           return (
-                            <div
-                              key={`${item.productId}-${index}`}
-                              className="
-                                grid grid-cols-12
-                                items-center
-                                border-b
-                                border-slate-100
-                                py-4
-                                last:border-0
-                              "
+                            <tr
+                              key={
+                                item._id ??
+                                item.id ??
+                                `${getItemName(item)}-${index}`
+                              }
+                              className="border-b border-slate-100 last:border-0 dark:border-slate-800"
                             >
+                              <td className="max-w-[260px] break-words py-3 pr-3 text-slate-800 dark:text-slate-200">
+                                {getItemName(item)}
+                              </td>
 
-                              {/* PRODUCT */}
+                              <td className="px-3 py-3 text-center text-slate-600 dark:text-slate-300">
+                                {quantity}
+                              </td>
 
-                              <div className="col-span-6 flex items-center gap-3">
+                              <td className="px-3 py-3 text-right text-slate-600 dark:text-slate-300">
+                                {formatPrice(price)}
+                              </td>
 
-                                {item.image ? (
-                                  <img
-                                    src={item.image}
-                                    alt={item.name}
-                                    className="
-                                      h-12
-                                      w-12
-                                      rounded-lg
-                                      border
-                                      border-slate-200
-                                      object-cover
-                                    "
-                                  />
-                                ) : (
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100">
-                                    <Package className="h-5 w-5 text-slate-400" />
-                                  </div>
-                                )}
-
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-medium text-slate-900">
-                                    {item.name}
-                                  </p>
-
-                                  <p className="mt-0.5 text-xs text-slate-400">
-                                    ID: {item.productId}
-                                  </p>
-                                </div>
-
-                              </div>
-
-                              {/* QUANTITY */}
-
-                              <div className="col-span-2 text-center">
-                                <span className="inline-flex min-w-8 items-center justify-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
-                                  {item.quantity}
-                                </span>
-                              </div>
-
-                              {/* UNIT PRICE */}
-
-                              <div className="col-span-2 text-right text-sm text-slate-600">
-                                {formatPrice(
-                                  item.price
-                                )}
-                              </div>
-
-                              {/* TOTAL */}
-
-                              <div className="col-span-2 text-right text-sm font-semibold text-slate-900">
-                                {formatPrice(
-                                  itemTotal
-                                )}
-                              </div>
-
-                            </div>
+                              <td className="py-3 pl-3 text-right font-medium text-slate-800 dark:text-slate-200">
+                                {formatPrice(price * quantity)}
+                              </td>
+                            </tr>
                           );
-                        }
+                        })
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="py-6 text-center text-sm text-slate-500"
+                          >
+                            No items found for this order.
+                          </td>
+                        </tr>
                       )}
-
-                    </div>
-                  </div>
+                    </tbody>
+                  </table>
                 </div>
-              </div>
+              </section>
 
-              {/* ================================================== */}
-              {/* ORDER TOTALS */}
-              {/* ================================================== */}
-
-              <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200 bg-white md:grid-cols-4">
-
-                <div className="border-b p-5 md:border-b-0 md:border-r">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              {/* Order totals */}
+              <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-xs text-slate-500">
                     Subtotal
                   </p>
-
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
-                    {formatPrice(
-                      subtotal
-                    )}
+                  <p className="mt-1 text-base font-semibold text-slate-900 dark:text-white">
+                    {formatPrice(subtotal)}
                   </p>
                 </div>
 
-                <div className="border-b p-5 md:border-b-0 md:border-r">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-xs text-slate-500">
                     Shipping
                   </p>
-
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
-                    {formatPrice(
-                      shipping
-                    )}
+                  <p className="mt-1 text-base font-semibold text-slate-900 dark:text-white">
+                    {formatPrice(shippingCost)}
                   </p>
                 </div>
 
-                <div className="border-r p-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-xs text-slate-500">
                     Discount
                   </p>
-
-                  <p className="mt-2 text-lg font-semibold text-red-500">
-                    - {formatPrice(
-                      discount
-                    )}
+                  <p className="mt-1 text-base font-semibold text-emerald-600">
+                    -{formatPrice(discount)}
                   </p>
                 </div>
 
-                <div className="bg-slate-900 p-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                    Grand Total
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30">
+                  <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                    Total Amount
                   </p>
-
-                  <p className="mt-2 text-xl font-bold text-white">
-                    {formatPrice(
-                      order.total
-                    )}
+                  <p className="mt-1 text-base font-bold text-emerald-700 dark:text-emerald-400">
+                    {formatPrice(total)}
                   </p>
                 </div>
+              </section>
 
-              </div>
+              {/* Return and refund */}
+              {canReturnRefund && onReturnRefund && (
+                <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Return & Refund
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Manage the return or refund for this order.
+                    </p>
+                  </div>
 
-              {/* ================================================== */}
-              {/* RETURN / REFUND */}
-              {/* ================================================== */}
-
-              {canReturnRefund && (
-                <div className="overflow-hidden rounded-xl border border-orange-200 bg-orange-50">
-                  <div className="flex flex-col gap-5 px-7 py-6 lg:flex-row lg:items-center lg:justify-between">
-
-                    <div className="flex items-center gap-4">
-
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-orange-100">
-                        <RotateCcw className="h-5 w-5 text-orange-600" />
-                      </div>
-
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-900">
-                          Return / Refund
-                        </h3>
-
-                        <p className="mt-1 text-xs text-slate-600">
-                          {order.status === "delivered"
-                            ? "This order is eligible for return or refund."
-                            : "This cancelled order can be refunded."}
-                        </p>
-                      </div>
-
-                    </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleOpenReturnRefund("return-refund")
+                      }
+                      className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                    >
+                      <RotateCcw size={14} />
+                      Return & Refund
+                    </button>
 
                     <button
                       type="button"
-                      onClick={handleOpenReturnRefund}
-                      className="
-                        flex h-10
-                        items-center
-                        justify-center
-                        gap-2
-                        rounded-lg
-                        bg-orange-600
-                        px-5
-                        text-sm
-                        font-semibold
-                        text-white
-                        transition
-                        hover:bg-orange-700
-                      "
+                      onClick={() =>
+                        handleOpenReturnRefund("refund-only")
+                      }
+                      className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-emerald-700"
                     >
-                      <RotateCcw className="h-4 w-4" />
-                      Return / Refund
+                      <Banknote size={14} />
+                      Refund Only
                     </button>
-
                   </div>
-                </div>
+                </section>
               )}
 
-              {/* ================================================== */}
-              {/* STATUS UPDATE */}
-              {/* ================================================== */}
+              {/* Status update: one action button only */}
+              <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+                <h3 className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
+                  Update Order Status
+                </h3>
 
-              <div className="overflow-hidden rounded-xl bg-slate-900">
-                <div className="flex flex-col gap-5 px-7 py-6 lg:flex-row lg:items-center lg:justify-between">
-
-                  {/* LEFT */}
-
-                  <div className="flex items-center gap-4">
-
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10">
-                      <Truck className="h-5 w-5 text-white" />
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-semibold text-white">
-                        Update Order Status
-                      </h3>
-
-                      {nextStatus ? (
-                        <p className="mt-1 text-xs text-slate-400">
-
-                          Current:{" "}
-
-                          <span className="font-medium text-slate-300">
-                            {
-                              STATUS_LABELS[
-                                order.status
-                              ]
-                            }
-                          </span>
-
-                          <ChevronRight className="mx-1 inline h-3 w-3" />
-
-                          Next:{" "}
-
-                          <span className="font-medium text-white">
-                            {
-                              STATUS_LABELS[
-                                nextStatus
-                              ]
-                            }
-                          </span>
-
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-xs text-slate-400">
-
-                          {order.status ===
-                          "delivered"
-                            ? "This order has been delivered."
-                            : "This order cannot be progressed further."}
-
-                        </p>
-                      )}
-                    </div>
-
-                  </div>
-
-                  {/* RIGHT */}
-
-                  <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
-
-                    {/* STATUS DROPDOWN */}
-
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1">
                     <Select
-                      value={nextStatus ?? ""}
-                      disabled={!nextStatus}
-                      onValueChange={(value) => {
-
-                        if (!nextStatus) {
-                          return;
-                        }
-
-                        if (value !== nextStatus) {
-                          return;
-                        }
-
-                        onStatusUpdate(
-                          order._id,
-                          nextStatus
-                        );
-
-                        onClose();
-                      }}
+                      value={selectedStatus}
+                      onValueChange={(value) =>
+                        setSelectedStatus(value as OrderStatus)
+                      }
                     >
-                      <SelectTrigger
-                        className="
-                          h-10
-                          w-full
-                          border-slate-700
-                          bg-slate-800
-                          text-white
-                          sm:w-55
-                          hover:bg-slate-700
-                          focus:ring-2
-                          focus:ring-white/20
-                          disabled:cursor-not-allowed
-                          disabled:opacity-50
-                        "
-                      >
-                        <SelectValue
-                          placeholder={
-                            nextStatus
-                              ? `Move to ${STATUS_LABELS[nextStatus]}`
-                              : STATUS_LABELS[
-                                  order.status
-                                ]
-                          }
-                        />
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select status" />
                       </SelectTrigger>
 
-                      <SelectContent className="z-9999">
-                        {nextStatus ? (
+                      <SelectContent>
+                        {statusFlow.map((status) => (
                           <SelectItem
-                            value={nextStatus}
-                            className="cursor-pointer"
-                          >
-                            Move to{" "}
-                            {
-                              STATUS_LABELS[
-                                nextStatus
-                              ]
+                            key={status}
+                            value={status}
+                            disabled={
+                              status === currentStatus ||
+                              (currentStatusIndex >= 0 &&
+                                statusFlow.indexOf(status) <
+                                  currentStatusIndex)
                             }
-                          </SelectItem>
-                        ) : (
-                          <SelectItem
-                            value={order.status}
-                            disabled
                           >
-                            {
-                              STATUS_LABELS[
-                                order.status
-                              ]
-                            }
+                            {statusLabels[status]}
                           </SelectItem>
-                        )}
+                        ))}
+
+                        <SelectItem
+                          value="cancelled"
+                          disabled={currentStatus === "cancelled"}
+                        >
+                          Cancelled
+                        </SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
 
-                    {/* UPDATE BUTTON */}
-
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={handleStatusUpdate}
-                      disabled={!nextStatus}
-                      className="
-                        flex h-10
-                        items-center
-                        justify-center
-                        gap-2
-                        rounded-lg
-                        bg-white
-                        px-5
-                        text-sm
-                        font-semibold
-                        text-slate-900
-                        transition
-                        hover:bg-slate-100
-                        disabled:cursor-not-allowed
-                        disabled:bg-slate-700
-                        disabled:text-slate-400
-                      "
+                      disabled={
+                        selectedStatus === currentStatus ||
+                        (currentStatusIndex >= 0 &&
+                          statusFlow.indexOf(selectedStatus) >= 0 &&
+                          statusFlow.indexOf(selectedStatus) <
+                            currentStatusIndex)
+                      }
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <Check className="h-4 w-4" />
-
-                      {nextStatus
-                        ? `Move to ${STATUS_LABELS[nextStatus]}`
-                        : "No Further Update"}
+                      Update Status
                     </button>
 
+                    {nextStatus && (
+                      <button
+                        type="button"
+                        onClick={handleMoveToNextStatus}
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                      >
+                        Move to {statusLabels[nextStatus]}
+                        <ChevronRight size={15} />
+                      </button>
+                    )}
                   </div>
                 </div>
-              </div>
-
+              </section>
             </div>
           </div>
 
-          {/* ====================================================== */}
-          {/* FOOTER */}
-          {/* ====================================================== */}
+          {/* Footer */}
+          <Separator />
 
-          <div className="flex shrink-0 items-center justify-between border-t bg-white px-8 py-4">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 bg-white px-4 py-3 dark:bg-slate-900">
+            <button
+              type="button"
+              onClick={() => onPrintInvoice(order)}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <Printer size={15} />
+              Print Invoice
+            </button>
 
-            <div className="hidden items-center gap-2 text-xs text-slate-400 sm:flex">
-              <Clock className="h-3.5 w-3.5" />
-              Created {formattedDate}
-            </div>
-
-            <div className="ml-auto flex items-center gap-3">
-
-              {/* PRINT */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  onPrintInvoice(order)
-                }
-                className="
-                  flex h-9
-                  items-center
-                  gap-2
-                  rounded-lg
-                  border
-                  border-slate-200
-                  px-4
-                  text-sm
-                  font-medium
-                  text-slate-700
-                  transition
-                  hover:bg-slate-50
-                "
-              >
-                <Printer className="h-4 w-4" />
-                Print Invoice
-              </button>
-
-              {/* CLOSE */}
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="
-                  flex h-9
-                  items-center
-                  gap-2
-                  rounded-lg
-                  bg-slate-900
-                  px-5
-                  text-sm
-                  font-medium
-                  text-white
-                  transition
-                  hover:bg-slate-800
-                "
-              >
-                <X className="h-4 w-4" />
-                Close
-              </button>
-
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600"
+            >
+              Close
+            </button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ====================================================== */}
-      {/* RETURN / REFUND CONFIRMATION DIALOG */}
-      {/* ====================================================== */}
-
+      {/* Return/refund confirmation dialog */}
       <Dialog
         open={returnRefundOpen}
         onOpenChange={setReturnRefundOpen}
       >
-        <DialogContent className="max-w-md rounded-2xl">
-
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-lg">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100">
-                <RotateCcw className="h-5 w-5 text-orange-600" />
-              </div>
-
-              Return / Refund Order
+            <DialogTitle>
+              {returnRefundMode === "return-refund"
+                ? "Confirm Return & Refund"
+                : "Confirm Refund"}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5">
+          <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+            {returnRefundMode === "return-refund"
+              ? "Are you sure you want to process the return and refund for this order?"
+              : "Are you sure you want to process a refund for this order?"}
+          </p>
 
-            <div className="rounded-lg bg-slate-50 p-4">
-              <p className="text-sm font-medium text-slate-900">
-                {displayOrderNumber}
-              </p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setReturnRefundOpen(false)}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              Cancel
+            </button>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Refund amount
-              </p>
-
-              <p className="mt-1 text-xl font-bold text-slate-900">
-                {formatPrice(order.total)}
-              </p>
-            </div>
-
-            {/* OPTIONS */}
-
-            <div className="space-y-3">
-
-              {/* RETURN + REFUND */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  setRefundMode("return_refund")
-                }
-                className={`
-                  w-full
-                  rounded-xl
-                  border
-                  p-4
-                  text-left
-                  transition
-                  ${
-                    refundMode === "return_refund"
-                      ? "border-orange-500 bg-orange-50 ring-2 ring-orange-100"
-                      : "border-slate-200 hover:bg-slate-50"
-                  }
-                `}
-              >
-                <div className="flex items-start gap-3">
-
-                  <div
-                    className={`
-                      mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border
-                      ${
-                        refundMode ===
-                        "return_refund"
-                          ? "border-orange-600 bg-orange-600"
-                          : "border-slate-300"
-                      }
-                    `}
-                  >
-                    {refundMode ===
-                      "return_refund" && (
-                      <Check className="h-3 w-3 text-white" />
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Return & Refund
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      Customer returns the product and receives a refund.
-                    </p>
-                  </div>
-
-                </div>
-              </button>
-
-              {/* REFUND ONLY */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  setRefundMode("refund_only")
-                }
-                className={`
-                  w-full
-                  rounded-xl
-                  border
-                  p-4
-                  text-left
-                  transition
-                  ${
-                    refundMode === "refund_only"
-                      ? "border-orange-500 bg-orange-50 ring-2 ring-orange-100"
-                      : "border-slate-200 hover:bg-slate-50"
-                  }
-                `}
-              >
-                <div className="flex items-start gap-3">
-
-                  <div
-                    className={`
-                      mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border
-                      ${
-                        refundMode ===
-                        "refund_only"
-                          ? "border-orange-600 bg-orange-600"
-                          : "border-slate-300"
-                      }
-                    `}
-                  >
-                    {refundMode ===
-                      "refund_only" && (
-                      <Check className="h-3 w-3 text-white" />
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      Refund Only
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      Refund the customer without requiring the product to be returned.
-                    </p>
-                  </div>
-
-                </div>
-              </button>
-
-            </div>
-
-            {/* WARNING */}
-
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-xs leading-5 text-amber-700">
-                Please verify the customer's request before processing the refund. This action should only be performed when the order is eligible.
-              </p>
-            </div>
-
-            {/* ACTIONS */}
-
-            <div className="flex justify-end gap-3 border-t pt-4">
-
-              <button
-                type="button"
-                onClick={() =>
-                  setReturnRefundOpen(false)
-                }
-                className="
-                  h-10
-                  rounded-lg
-                  border
-                  border-slate-200
-                  px-4
-                  text-sm
-                  font-medium
-                  text-slate-700
-                  hover:bg-slate-50
-                "
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={
-                  handleConfirmReturnRefund
-                }
-                className="
-                  flex
-                  h-10
-                  items-center
-                  gap-2
-                  rounded-lg
-                  bg-orange-600
-                  px-5
-                  text-sm
-                  font-semibold
-                  text-white
-                  hover:bg-orange-700
-                "
-              >
-                <Banknote className="h-4 w-4" />
-
-                Confirm Refund
-              </button>
-
-            </div>
-
+            <button
+              type="button"
+              onClick={handleConfirmReturnRefund}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              Confirm
+            </button>
           </div>
         </DialogContent>
       </Dialog>
     </>
   );
 }
-

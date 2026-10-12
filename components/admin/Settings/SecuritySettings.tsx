@@ -12,8 +12,6 @@ import {
 } from "lucide-react";
 
 export default function SecuritySettings() {
-  const [sessionTimeout, setSessionTimeout] = useState("60");
-  const [loginProtection, setLoginProtection] = useState(true);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
 
   return (
@@ -130,80 +128,7 @@ export default function SecuritySettings() {
           </button>
         </div>
 
-        {/* Session Security */}
-        <div className="px-6 py-6">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                <Smartphone size={19} />
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Session Security
-                </h3>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  Automatically expire your login session after a period of
-                  inactivity.
-                </p>
-              </div>
-            </div>
-
-            <select
-              value={sessionTimeout}
-              onChange={(e) => setSessionTimeout(e.target.value)}
-              className="w-36 shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-            >
-              <option value="30">30 minutes</option>
-              <option value="60">60 minutes</option>
-              <option value="120">2 hours</option>
-              <option value="240">4 hours</option>
-            </select>
-          </div>
-
-          <button
-            type="button"
-            className="mt-5 flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
-          >
-            <LogOut size={17} />
-            Logout from all devices
-          </button>
-        </div>
-
-        {/* Login Protection */}
-        <div className="flex items-center justify-between gap-6 px-6 py-6">
-          <div className="flex gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-              <Shield size={19} />
-            </div>
-
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">
-                Login Protection
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Protect accounts against repeated unsuccessful login attempts.
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setLoginProtection(!loginProtection)}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-              loginProtection ? "bg-indigo-600" : "bg-slate-300"
-            }`}
-          >
-            <span
-              className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${
-                loginProtection ? "left-6" : "left-1"
-              }`}
-            />
-          </button>
-        </div>
-
+        
         {/* Two Factor Authentication */}
         <div className="flex items-center justify-between gap-6 px-6 py-6">
           <div className="flex gap-3">
