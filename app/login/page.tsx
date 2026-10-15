@@ -316,7 +316,7 @@ export default function LoginPage() {
                   onChange={(event) =>
                     setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
                   }
-                  className="text-center text-xl tracking-[0.4em]"
+                  className="text-center text-sm tracking-normal"
                   required
                 />
 
