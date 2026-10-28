@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Sparkles,
+  Boxes,
 } from "lucide-react";
 
 const menuItems = [
@@ -25,6 +26,11 @@ const menuItems = [
     icon: Package,
     roles: ["admin", "manager"],
   },
+    {
+    title: "Inventory",
+    icon: Boxes,
+    roles: ["admin", "manager"],
+   },
   {
     title: "Categories",
     icon: FolderTree,

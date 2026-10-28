@@ -23,6 +23,7 @@ import CategoriesContent from "@/components/admin/Categories/CategoriesContent";
 import OrdersContent from "@/components/admin/Orders/OrdersContent";
 import Customers from "@/components/admin/Customers";
 import SettingsContent from "@/components/admin/Settings/SettingsContent";
+import InventoryContent from "@/components/admin/Inventory/InventoryContent";
 
 export default function AdminPage() {
   const [activePage, setActivePage] =
@@ -338,6 +339,12 @@ export default function AdminPage() {
             "Products" && (
             <ProductsContent />
           )}
+           
+           {/* ================= INVENTORY ================= */}
+
+           {activePage === "Inventory" && (
+             <InventoryContent />
+                 )}
 
           {/* ================= CATEGORIES ================= */}
 
