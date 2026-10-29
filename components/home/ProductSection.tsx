@@ -1,14 +1,18 @@
-
 "use client";
 
 import { ProductCard } from "@/types/types";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { addToCart } from "@/lib/cart";
-import { Heart } from "lucide-react";
+import { Heart, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getWishlist, toggleWishlist } from "@/lib/wishlist";
 import { toast } from "sonner";
+
+type ProductRating = {
+  averageRating: number;
+  totalReviews: number;
+};
 
 export default function ProductSection({
   title,
@@ -20,10 +24,9 @@ export default function ProductSection({
   const router = useRouter();
 
   const [wishlist, setWishlist] = useState<string[]>([]);
+  const [ratings, setRatings] = useState<Record<string, ProductRating>>({});
 
-  /*
-   * Load wishlist from localStorage
-   */
+  // Load wishlist from localStorage
   useEffect(() => {
     const loadWishlist = () => {
       const savedWishlist = getWishlist();
@@ -31,7 +34,6 @@ export default function ProductSection({
     };
 
     loadWishlist();
-
     window.addEventListener("wishlistUpdated", loadWishlist);
 
     return () => {
@@ -39,6 +41,57 @@ export default function ProductSection({
     };
   }, []);
 
+  // Fetch real product review summaries
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRatings() {
+      const ratingMap: Record<string, ProductRating> = {};
+
+      await Promise.all(
+        products.map(async (product) => {
+          try {
+            const response = await api.get(
+              `/reviews/product/${product.id}`
+            );
+
+            const summary = response.data?.summary;
+
+            ratingMap[product.id] = {
+              averageRating: Number(summary?.averageRating) || 0,
+              totalReviews: Number(summary?.totalReviews) || 0,
+            };
+          } catch (error) {
+            console.error(
+              `Could not load rating for ${product.name}:`,
+              error
+            );
+
+            ratingMap[product.id] = {
+              averageRating: 0,
+              totalReviews: 0,
+            };
+          }
+        })
+      );
+
+      if (!cancelled) {
+        setRatings(ratingMap);
+      }
+    }
+
+    if (products.length > 0) {
+      loadRatings();
+    } else {
+      setRatings({});
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [products]);
+
+  // Track product clicks
   const trackClick = async (id: string) => {
     try {
       await api.post("/analytics/click", {
@@ -49,9 +102,7 @@ export default function ProductSection({
     }
   };
 
-  /*
-   * Wishlist
-   */
+  // Wishlist
   const handleWishlist = (product: ProductCard) => {
     const updatedWishlist = toggleWishlist(product);
 
@@ -72,9 +123,7 @@ export default function ProductSection({
     }
   };
 
-  /*
-   * Add to Cart
-   */
+  // Add to Cart
   const handleAddToCart = async (p: ProductCard) => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -92,7 +141,7 @@ export default function ProductSection({
       const price = Number(p.price.replace(/[^0-9.]/g, ""));
 
       await api.post("/cart/add", {
-        userId: userId,
+        userId,
         productId: p.id,
         name: p.name,
         price,
@@ -120,9 +169,7 @@ export default function ProductSection({
     }
   };
 
-  /*
-   * Buy Now
-   */
+  // Buy Now
   const handleBuyNow = async (p: ProductCard) => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -140,7 +187,7 @@ export default function ProductSection({
       const price = Number(p.price.replace(/[^0-9.]/g, ""));
 
       await api.post("/cart/add", {
-        userId: userId,
+        userId,
         productId: p.id,
         name: p.name,
         price,
@@ -182,6 +229,9 @@ export default function ProductSection({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
           {products.map((p) => {
             const isWishlisted = wishlist.includes(p.id);
+            const rating = ratings[p.id];
+            const averageRating = rating?.averageRating ?? 0;
+            const totalReviews = rating?.totalReviews ?? 0;
 
             return (
               <div
@@ -243,6 +293,37 @@ export default function ProductSection({
                     {p.name}
                   </h3>
 
+                  {/* Rating and Review Count */}
+                  <div
+                    className="mt-1.5 flex flex-wrap items-center gap-1.5"
+                    aria-label={`${averageRating.toFixed(1)} out of 5 stars, ${totalReviews} reviews`}
+                  >
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          size={14}
+                          strokeWidth={1.8}
+                          className={
+                            star <= Math.round(averageRating)
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-gray-300"
+                          }
+                        />
+                      ))}
+                    </div>
+
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {averageRating.toFixed(1)}
+                    </span>
+
+                    <span className="text-xs text-muted-foreground">
+                      ({totalReviews}{" "}
+                      {totalReviews === 1 ? "review" : "reviews"})
+                    </span>
+                  </div>
+
+                  {/* Product Price */}
                   <div className="mt-2">
                     <p className="text-base font-bold text-foreground md:text-lg">
                       {p.price}

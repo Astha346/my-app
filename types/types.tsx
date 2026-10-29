@@ -1,3 +1,4 @@
+
 export type Product = {
   _id: string;
   name: string;
@@ -13,6 +14,8 @@ export type ProductCard = {
   name: string;
   price: string;
   image: string;
+  averageRating?: number;
+  totalReviews?: number;
 };
 
 export type User = {
@@ -27,10 +30,12 @@ export type Category = {
   value: string;
 };
 
-/* mapper */
+/* Convert backend Product data into ProductCard data */
 export const toProductCard = (p: Product): ProductCard => ({
   id: p._id,
   name: p.name,
   price: p.price,
   image: p.image,
+  averageRating: 0,
+  totalReviews: 0,
 });
